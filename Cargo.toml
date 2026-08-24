@@ -1,0 +1,57 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/imprint-core",
+  "crates/imprint-image",
+  "crates/imprint-device",
+  "crates/imprint-flash",
+  "crates/imprint-ui",
+  "crates/imprint-app",
+  "crates/imprint-cli",
+]
+default-members = ["crates/imprint-app", "crates/imprint-cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+rust-version = "1.98.0"
+repository = "https://github.com/imprint-app/imprint"
+homepage = "https://github.com/imprint-app/imprint"
+authors = ["Imprint Contributors"]
+
+[workspace.dependencies]
+imprint-core = { path = "crates/imprint-core" }
+imprint-image = { path = "crates/imprint-image" }
+imprint-device = { path = "crates/imprint-device" }
+imprint-flash = { path = "crates/imprint-flash" }
+imprint-ui = { path = "crates/imprint-ui" }
+
+# Official GPUI (Zed). Same git URL as gpui-component so Cargo unifies on one GPUI.
+gpui = { git = "https://github.com/zed-industries/zed", version = "0.2.2" }
+gpui_platform = { git = "https://github.com/zed-industries/zed" }
+
+anyhow = "1.0.100"
+thiserror = "2.0.16"
+serde = "1.0.228"
+serde_json = "1.0.145"
+tracing = "0.1.41"
+tracing-subscriber = "0.3.20"
+clap = "4.5.48"
+bytesize = "2.1.2"
+sha2 = "0.10.9"
+flate2 = "1.1.2"
+bzip2 = "0.6.1"
+liblzma = "0.4.5"
+zstd = "0.13.3"
+zip = "4.3.0"
+indicatif = "0.18.0"
+crossbeam-channel = "0.5.15"
+libc = "0.2.175"
+plist = "1.8.0"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+strip = true

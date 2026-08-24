@@ -1,0 +1,16 @@
+[package]
+name = "imprint-image"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Inspect and stream OS image files (ISO/IMG and compressed variants)"
+
+[dependencies]
+imprint-core = { workspace = true }
+thiserror = { workspace = true }
+flate2 = { workspace = true }
+bzip2 = { workspace = true }
+liblzma = { workspace = true }
+zstd = { workspace = true }
+zip = { workspace = true }

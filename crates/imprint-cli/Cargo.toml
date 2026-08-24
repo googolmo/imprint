@@ -1,0 +1,23 @@
+[package]
+name = "imprint-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Imprint command-line flasher"
+
+[[bin]]
+name = "imprint-cli"
+path = "src/main.rs"
+
+[dependencies]
+imprint-core = { workspace = true }
+imprint-image = { workspace = true }
+imprint-device = { workspace = true }
+imprint-flash = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+indicatif = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+bytesize = { workspace = true }

@@ -1,0 +1,21 @@
+use serde::{Deserialize, Serialize};
+
+/// User-facing options, persisted by the UI later if needed.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Settings {
+  pub verify: bool,
+  pub unmount_on_success: bool,
+  pub hide_system_drives: bool,
+  pub allow_system_drives: bool,
+}
+
+impl Default for Settings {
+  fn default() -> Self {
+    Self {
+      verify: true,
+      unmount_on_success: true,
+      hide_system_drives: true,
+      allow_system_drives: false,
+    }
+  }
+}

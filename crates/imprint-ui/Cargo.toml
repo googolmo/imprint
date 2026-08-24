@@ -1,0 +1,16 @@
+[package]
+name = "imprint-ui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "GPUI views and theme for Imprint"
+
+[dependencies]
+imprint-core = { workspace = true }
+imprint-image = { workspace = true }
+imprint-device = { workspace = true }
+imprint-flash = { workspace = true }
+gpui = { workspace = true }
+crossbeam-channel = { workspace = true }
+tracing = { workspace = true }

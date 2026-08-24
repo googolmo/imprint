@@ -1,0 +1,12 @@
+[package]
+name = "imprint-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Shared types and errors for Imprint"
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+bytesize = { workspace = true }

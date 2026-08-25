@@ -14,5 +14,7 @@ path = "src/main.rs"
 imprint-ui = { workspace = true }
 gpui = { workspace = true }
 gpui_platform = { workspace = true, features = ["font-kit", "wayland", "x11"] }
+gpui-component = { workspace = true }
+gpui-component-assets = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }

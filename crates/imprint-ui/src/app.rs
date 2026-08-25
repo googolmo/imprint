@@ -5,9 +5,21 @@ use std::time::Duration;
 
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use gpui::{
-  ClickEvent, Context, ExternalPaths, FocusHandle, InteractiveElement, IntoElement, ParentElement,
-  PathPromptOptions, Render, StatefulInteractiveElement, Styled, Window, div, prelude::*, px,
-  relative,
+  App, ClickEvent, Context, Entity, ExternalPaths, FocusHandle, FontWeight, InteractiveElement,
+  IntoElement, ParentElement, PathPromptOptions, Render, StatefulInteractiveElement, Styled,
+  Subscription, Window, div, prelude::*, px,
+};
+use gpui_component::{
+  ActiveTheme as _, Disableable as _, Icon, IconName, Root, Sizable as _, TitleBar, WindowExt as _,
+  button::{Button, ButtonVariants as _},
+  h_flex,
+  progress::Progress,
+  separator::Separator,
+  status_bar::StatusBar,
+  switch::Switch,
+  tab::{Tab, TabBar},
+  tag::Tag,
+  v_flex,
 };
 use imprint_core::{
   FlashPhase, FlashProgress, FlashRequest, ImageRef, Settings, TargetDisk, format_bytes,
@@ -17,16 +29,8 @@ use imprint_flash::flash;
 use imprint_image::inspect;
 
 use crate::actions::{OpenImage, Quit, SelectTarget, StartFlash, ToggleSettings};
-use crate::theme::THEME;
-use crate::widgets::{
-  card, ghost_button, kicker, muted, primary_button, progress_track, step_badge,
-};
-
-enum Overlay {
-  None,
-  Drives,
-  Settings,
-}
+use crate::theme::Appearance;
+use crate::widgets::{muted, picker_row, section_label};
 
 enum ProgressEvent {
   Update(FlashProgress),
@@ -36,10 +40,10 @@ enum ProgressEvent {
 pub struct ImprintApp {
   focus: FocusHandle,
   settings: Settings,
+  appearance: Appearance,
   image: Option<ImageRef>,
   disks: Vec<TargetDisk>,
   selected: Vec<usize>,
-  overlay: Overlay,
   flashing: bool,
   progress: Option<FlashProgress>,
   error: Option<String>,
@@ -47,6 +51,7 @@ pub struct ImprintApp {
   cancel: Arc<AtomicBool>,
   events: Option<Receiver<ProgressEvent>>,
   _pump: Option<gpui::Task<()>>,
+  _appearance: Option<Subscription>,
 }
 
 impl ImprintApp {
@@ -54,13 +59,24 @@ impl ImprintApp {
     let focus = cx.focus_handle();
     focus.focus(window, cx);
     let disks = list_targets(&Settings::default()).unwrap_or_default();
+
+    let weak = cx.weak_entity();
+    let appearance_sub = window.observe_window_appearance(move |window, cx| {
+      let _ = weak.update(cx, |this, cx| {
+        if this.appearance == Appearance::System {
+          crate::theme::apply_appearance(Appearance::System, Some(window), cx);
+          cx.notify();
+        }
+      });
+    });
+
     Self {
       focus,
       settings: Settings::default(),
+      appearance: Appearance::System,
       image: None,
       disks,
       selected: Vec::new(),
-      overlay: Overlay::None,
       flashing: false,
       progress: None,
       error: None,
@@ -68,7 +84,19 @@ impl ImprintApp {
       cancel: Arc::new(AtomicBool::new(false)),
       events: None,
       _pump: None,
+      _appearance: Some(appearance_sub),
     }
+  }
+
+  fn set_appearance(
+    &mut self,
+    appearance: Appearance,
+    window: &mut Window,
+    cx: &mut Context<Self>,
+  ) {
+    self.appearance = appearance;
+    crate::theme::apply_appearance(appearance, Some(window), cx);
+    cx.notify();
   }
 
   fn refresh_disks(&mut self, cx: &mut Context<Self>) {
@@ -124,18 +152,23 @@ impl ImprintApp {
     self.pick_image(window, cx);
   }
 
-  fn on_select_target(&mut self, _: &SelectTarget, _: &mut Window, cx: &mut Context<Self>) {
-    self.refresh_disks(cx);
-    self.overlay = Overlay::Drives;
-    cx.notify();
+  fn on_select_target(&mut self, _: &SelectTarget, window: &mut Window, cx: &mut Context<Self>) {
+    if !self.flashing {
+      self.open_drives(window, cx);
+    }
   }
 
-  fn on_toggle_settings(&mut self, _: &ToggleSettings, _: &mut Window, cx: &mut Context<Self>) {
-    self.overlay = match self.overlay {
-      Overlay::Settings => Overlay::None,
-      _ => Overlay::Settings,
-    };
-    cx.notify();
+  fn on_toggle_settings(
+    &mut self,
+    _: &ToggleSettings,
+    window: &mut Window,
+    cx: &mut Context<Self>,
+  ) {
+    if window.has_active_sheet(cx) {
+      window.close_sheet(cx);
+    } else {
+      self.open_settings(window, cx);
+    }
   }
 
   fn selected_disks(&self) -> Vec<TargetDisk> {
@@ -253,20 +286,6 @@ impl ImprintApp {
     cx.notify();
   }
 
-  fn click_source(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
-    if !self.flashing {
-      self.pick_image(window, cx);
-    }
-  }
-
-  fn click_target(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
-    if !self.flashing {
-      self.refresh_disks(cx);
-      self.overlay = Overlay::Drives;
-      cx.notify();
-    }
-  }
-
   fn click_flash(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
     self.begin_flash(cx);
   }
@@ -277,18 +296,147 @@ impl ImprintApp {
       self.load_image(path.clone(), cx);
     }
   }
+
+  fn open_drives(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    self.refresh_disks(cx);
+    let view = cx.entity();
+    // Defer so the dialog builder is not invoked while ImprintApp is updating.
+    window.defer(cx, move |window, cx| {
+      window.open_dialog(cx, move |dialog, _, cx| {
+        let app = view.read(cx);
+        dialog
+          .title("Select a drive")
+          .w(px(520.))
+          .child(muted(
+            cx,
+            "Internal disks are hidden. Writing erases the drive.",
+          ))
+          .child(drive_list(&app, view.clone(), cx))
+          .footer(
+            h_flex()
+              .w_full()
+              .justify_end()
+              .gap_2()
+              .child(Button::new("refresh").label("Refresh").on_click({
+                let view = view.clone();
+                move |_, _, cx| {
+                  view.update(cx, |this, cx| this.refresh_disks(cx));
+                }
+              }))
+              .child(
+                Button::new("confirm-drives")
+                  .primary()
+                  .label("Done")
+                  .on_click(|_, window, cx| window.close_dialog(cx)),
+              ),
+          )
+      });
+    });
+  }
+
+  fn open_settings(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    let view = cx.entity();
+    // Defer so the sheet builder is not invoked while ImprintApp is updating.
+    window.defer(cx, move |window, cx| {
+      window.open_sheet(cx, move |sheet, _, cx| {
+        let app = view.read(cx);
+        sheet.title("Settings").size(px(380.)).child(
+          v_flex()
+            .gap_5()
+            .py_3()
+            .child(
+              v_flex()
+                .gap_2()
+                .child(section_label(cx, "Appearance"))
+                .child(
+                  TabBar::new("appearance")
+                    .segmented()
+                    .small()
+                    .w_full()
+                    .selected_index(app.appearance.as_index())
+                    .child(Tab::new().label("System"))
+                    .child(Tab::new().label("Light"))
+                    .child(Tab::new().label("Dark"))
+                    .on_click({
+                      let view = view.clone();
+                      move |ix, window, cx| {
+                        let appearance = Appearance::from_index(*ix);
+                        view.update(cx, |this, cx| this.set_appearance(appearance, window, cx));
+                      }
+                    }),
+                )
+                .child(muted(cx, "System follows the OS light or dark setting.")),
+            )
+            .child(Separator::horizontal())
+            .child(
+              v_flex()
+                .gap_2()
+                .child(section_label(cx, "Writing"))
+                .child(setting_switch(
+                  "verify",
+                  "Validate write",
+                  "Re-read the disk and compare every byte.",
+                  app.settings.verify,
+                  view.clone(),
+                  |s, on| s.verify = on,
+                  cx,
+                ))
+                .child(setting_switch(
+                  "unmount",
+                  "Eject on success",
+                  "Unmount the drive when writing finishes.",
+                  app.settings.unmount_on_success,
+                  view.clone(),
+                  |s, on| s.unmount_on_success = on,
+                  cx,
+                ))
+                .child(setting_switch(
+                  "hide-system",
+                  "Hide system drives",
+                  "Never list internal disks.",
+                  app.settings.hide_system_drives,
+                  view.clone(),
+                  |s, on| s.hide_system_drives = on,
+                  cx,
+                )),
+            ),
+        )
+      });
+    });
+  }
+}
+
+/// Window-level view under `Root`. Overlay layers live here so their builders
+/// can read `ImprintApp` without re-entering it during `ImprintApp::render`.
+pub struct ImprintShell {
+  app: Entity<ImprintApp>,
+}
+
+impl ImprintShell {
+  pub fn new(app: Entity<ImprintApp>) -> Self {
+    Self { app }
+  }
+}
+
+impl Render for ImprintShell {
+  fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    div()
+      .size_full()
+      .child(self.app.clone())
+      .children(Root::render_dialog_layer(window, cx))
+      .children(Root::render_sheet_layer(window, cx))
+      .children(Root::render_notification_layer(window, cx))
+  }
 }
 
 impl Render for ImprintApp {
   fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-    let image_ready = self.image.is_some();
-    let target_ready = !self.selected.is_empty();
     let done = self
       .progress
       .as_ref()
       .is_some_and(|p| p.phase == FlashPhase::Done);
 
-    div()
+    v_flex()
       .id("imprint-root")
       .track_focus(&self.focus)
       .on_action(cx.listener(Self::on_open_image))
@@ -297,122 +445,131 @@ impl Render for ImprintApp {
       .on_action(cx.listener(Self::on_toggle_settings))
       .on_action(|_: &Quit, _, cx| cx.quit())
       .on_drop(cx.listener(Self::on_drop_paths))
-      .drag_over::<ExternalPaths>(|style, _, _, _| style.border_color(THEME.accent))
+      .drag_over::<ExternalPaths>(|style, _, _, cx| style.bg(cx.theme().drop_target))
       .size_full()
-      .flex()
-      .flex_col()
-      .bg(THEME.bg)
-      .text_color(THEME.text)
+      .bg(cx.theme().background)
+      .text_color(cx.theme().foreground)
       .child(header(cx))
       .child(
-        div()
-          .flex()
-          .flex_1()
-          .flex_col()
-          .px_8()
-          .pb_8()
-          .gap_6()
-          .child(hero())
-          .child(if done {
-            done_panel(self, cx).into_any_element()
-          } else if self.flashing
-            || self
-              .progress
-              .as_ref()
-              .is_some_and(|p| p.phase == FlashPhase::Failed)
-          {
-            progress_panel(self, cx).into_any_element()
-          } else {
-            steps_panel(self, image_ready, target_ready, cx).into_any_element()
-          })
-          .child(status_bar(self)),
+        v_flex().flex_1().px_6().py_5().child(if done {
+          done_panel(self, cx).into_any_element()
+        } else if self.flashing
+          || self
+            .progress
+            .as_ref()
+            .is_some_and(|p| p.phase == FlashPhase::Failed)
+        {
+          progress_panel(self, cx).into_any_element()
+        } else {
+          write_form(self, cx).into_any_element()
+        }),
       )
-      .children(match self.overlay {
-        Overlay::Drives => Some(drive_overlay(self, cx).into_any_element()),
-        Overlay::Settings => Some(settings_overlay(self, cx).into_any_element()),
-        Overlay::None => None,
-      })
+      .child(status_bar(self, cx))
   }
 }
 
 fn header(cx: &mut Context<ImprintApp>) -> impl IntoElement {
-  div()
-    .flex()
-    .items_center()
-    .justify_between()
-    .px_8()
-    .py_4()
-    .bg(THEME.bg_elevated)
-    .child(
-      div()
-        .flex()
-        .items_center()
-        .gap_3()
-        .child(
-          div()
-            .size(px(36.))
-            .rounded_xl()
-            .bg(THEME.accent)
-            .flex()
-            .items_center()
-            .justify_center()
-            .text_color(THEME.bg)
-            .child("◆"),
-        )
-        .child(
-          div()
-            .flex()
-            .flex_col()
-            .child(div().text_lg().child("Imprint"))
-            .child(muted("Flash OS images, safely.")),
-        ),
-    )
-    .child(
-      ghost_button("settings", "Settings").on_click(cx.listener(|this, _, _, cx| {
-        this.overlay = Overlay::Settings;
-        cx.notify();
-      })),
-    )
-}
-
-fn hero() -> impl IntoElement {
-  div()
-    .flex()
-    .flex_col()
-    .gap_1()
-    .child(kicker("SELECT  ·  TARGET  ·  FLASH"))
-    .child(
-      div()
-        .text_3xl()
-        .child("Write an image to a USB drive or SD card."),
-    )
-}
-
-fn steps_panel(
-  app: &ImprintApp,
-  image_ready: bool,
-  target_ready: bool,
-  cx: &mut Context<ImprintApp>,
-) -> impl IntoElement {
-  let flash_enabled = app.can_flash();
-  div().flex().flex_col().gap_5().flex_1().child(
-    div()
-      .flex()
-      .gap_5()
-      .flex_1()
-      .child(source_card(app, image_ready, cx))
-      .child(target_card(app, target_ready, cx))
-      .child(flash_card(flash_enabled, cx)),
+  let view = cx.entity();
+  TitleBar::new().child(
+    h_flex()
+      .w_full()
+      .pr_2()
+      .items_center()
+      .justify_between()
+      .child(
+        div()
+          .text_sm()
+          .font_weight(FontWeight::MEDIUM)
+          .child("Imprint"),
+      )
+      .child(
+        Button::new("settings")
+          .ghost()
+          .small()
+          .icon(IconName::Settings)
+          .tooltip("Settings")
+          .on_click(move |_, window, cx| {
+            view.update(cx, |this, cx| this.open_settings(window, cx));
+          }),
+      ),
   )
 }
 
-fn source_card(app: &ImprintApp, ready: bool, cx: &mut Context<ImprintApp>) -> impl IntoElement {
-  let title = app
-    .image
-    .as_ref()
-    .map(|i| i.display_name.clone())
-    .unwrap_or_else(|| "Flash from file".into());
-  let subtitle = if let Some(image) = &app.image {
+fn write_form(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {
+  let can_write = app.can_flash();
+  let view = cx.entity();
+  v_flex()
+    .size_full()
+    .gap_5()
+    .child(picker_block(
+      cx,
+      "Image",
+      IconName::FolderOpen,
+      app
+        .image
+        .as_ref()
+        .map(|i| i.display_name.clone())
+        .unwrap_or_else(|| "No image selected".into()),
+      image_subtitle(app),
+      app.image.is_some(),
+      "Select",
+      {
+        let view = view.clone();
+        move |_, window, cx| {
+          view.update(cx, |this, cx| {
+            if !this.flashing {
+              this.pick_image(window, cx);
+            }
+          });
+        }
+      },
+    ))
+    .child(Separator::horizontal())
+    .child(picker_block(
+      cx,
+      "Target",
+      IconName::HardDrive,
+      target_title(app),
+      target_subtitle(app),
+      !app.selected.is_empty(),
+      "Select",
+      {
+        let view = view.clone();
+        move |_, window, cx| {
+          view.update(cx, |this, cx| {
+            if !this.flashing {
+              this.open_drives(window, cx);
+            }
+          });
+        }
+      },
+    ))
+    .child(div().flex_1())
+    .child(
+      h_flex()
+        .w_full()
+        .items_center()
+        .justify_between()
+        .child(muted(
+          cx,
+          if can_write {
+            "This will erase the selected drive."
+          } else {
+            "Choose an image and a drive to continue."
+          },
+        ))
+        .child(
+          Button::new("flash")
+            .primary()
+            .label("Write")
+            .disabled(!can_write)
+            .on_click(cx.listener(ImprintApp::click_flash)),
+        ),
+    )
+}
+
+fn image_subtitle(app: &ImprintApp) -> String {
+  if let Some(image) = &app.image {
     let kind = image.kind.as_str();
     let size = format_bytes(image.file_size);
     if let Some(c) = image.compression {
@@ -421,76 +578,77 @@ fn source_card(app: &ImprintApp, ready: bool, cx: &mut Context<ImprintApp>) -> i
       format!("{kind} · {size}")
     }
   } else {
-    "ISO, IMG, DMG — or a compressed archive".into()
-  };
-  card()
-    .id("source-card")
-    .cursor_pointer()
-    .hover(|s| s.bg(THEME.card_hover))
-    .on_click(cx.listener(ImprintApp::click_source))
-    .gap_4()
-    .child(step_badge(1, !ready, ready))
-    .child(div().text_xl().child(title))
-    .child(muted(subtitle))
-    .when(app.drag_over, |d| d.border_color(THEME.accent))
-    .child(
-      div()
-        .mt_auto()
-        .text_sm()
-        .text_color(THEME.accent)
-        .child(if ready {
-          "Change image"
-        } else {
-          "Drop a file or browse"
-        }),
-    )
+    "ISO, IMG, DMG, or a compressed archive".into()
+  }
 }
 
-fn target_card(app: &ImprintApp, ready: bool, cx: &mut Context<ImprintApp>) -> impl IntoElement {
-  let title = if app.selected.len() == 1 {
+fn target_title(app: &ImprintApp) -> String {
+  if app.selected.len() == 1 {
     app.selected_disks()[0].label()
   } else if app.selected.len() > 1 {
     format!("{} drives", app.selected.len())
   } else {
-    "Select target".into()
-  };
-  let subtitle = if let Some(disk) = app.selected_disks().first() {
-    format!("{} · {}", disk.bus.as_str(), format_bytes(disk.size))
-  } else {
-    "Removable USB / SD only — system disks stay hidden".into()
-  };
-  card()
-    .id("target-card")
-    .cursor_pointer()
-    .hover(|s| s.bg(THEME.card_hover))
-    .on_click(cx.listener(ImprintApp::click_target))
-    .gap_4()
-    .child(step_badge(2, ready || app.image.is_some(), ready))
-    .child(div().text_xl().child(title))
-    .child(muted(subtitle))
-    .child(
-      div()
-        .mt_auto()
-        .text_sm()
-        .text_color(THEME.accent)
-        .child(if ready {
-          "Change target"
-        } else {
-          "Choose a drive"
-        }),
-    )
+    "No drive selected".into()
+  }
 }
 
-fn flash_card(enabled: bool, cx: &mut Context<ImprintApp>) -> impl IntoElement {
-  card()
-    .id("flash-card")
-    .gap_4()
-    .child(step_badge(3, enabled, false))
-    .child(div().text_xl().child("Flash!"))
-    .child(muted("Writes every byte, then verifies the disk."))
-    .child(div().mt_auto().child(
-      primary_button("flash", "Flash!", enabled).on_click(cx.listener(ImprintApp::click_flash)),
-    ))
+fn target_subtitle(app: &ImprintApp) -> String {
+  if let Some(disk) = app.selected_disks().first() {
+    format!("{} · {}", disk.bus.as_str(), format_bytes(disk.size))
+  } else {
+    "Removable USB or SD card".into()
+  }
+}
+
+fn picker_block(
+  cx: &App,
+  label: &'static str,
+  icon: IconName,
+  title: String,
+  subtitle: String,
+  ready: bool,
+  action: &'static str,
+  on_click: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
+) -> impl IntoElement {
+  let on_click = std::rc::Rc::new(on_click);
+  v_flex().gap_2().child(section_label(cx, label)).child(
+    picker_row(cx)
+      .id(label)
+      .cursor_pointer()
+      .hover(|s| s.bg(cx.theme().secondary))
+      .when(ready, |d| d.border_color(cx.theme().border))
+      .on_click({
+        let on_click = on_click.clone();
+        move |ev, window, cx| on_click(ev, window, cx)
+      })
+      .child(Icon::new(icon).text_color(if ready {
+        cx.theme().foreground
+      } else {
+        cx.theme().muted_foreground
+      }))
+      .child(
+        v_flex()
+          .flex_1()
+          .min_w_0()
+          .gap_1()
+          .child(
+            div()
+              .font_weight(FontWeight::MEDIUM)
+              .truncate()
+              .child(title),
+          )
+          .child(muted(cx, subtitle)),
+      )
+      .child(
+        Button::new(format!("{label}-select"))
+          .small()
+          .label(action)
+          .on_click(move |ev, window, cx| {
+            cx.stop_propagation();
+            on_click(ev, window, cx);
+          }),
+      ),
+  )
 }
 
 fn progress_panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {
@@ -517,34 +675,63 @@ fn progress_panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoEl
   let failed = progress
     .as_ref()
     .is_some_and(|p| p.phase == FlashPhase::Failed);
+  let pct = format!("{}%", (fraction * 100.0).round() as u32);
+  let view = cx.entity();
 
-  card()
-    .max_w(px(720.))
-    .mx_auto()
-    .my_auto()
+  v_flex()
+    .size_full()
+    .justify_center()
     .gap_4()
-    .child(kicker(if failed { "FAILED" } else { phase }))
-    .child(div().text_2xl().child(message))
-    .child(progress_track(fraction))
+    .child(section_label(cx, if failed { "Failed" } else { phase }))
     .child(
       div()
-        .flex()
+        .text_lg()
+        .font_weight(FontWeight::MEDIUM)
+        .text_color(if failed {
+          cx.theme().danger
+        } else {
+          cx.theme().foreground
+        })
+        .child(message),
+    )
+    .child(
+      Progress::new("write-progress")
+        .value(fraction * 100.0)
+        .color(if failed {
+          cx.theme().danger
+        } else {
+          cx.theme().primary
+        }),
+    )
+    .child(
+      h_flex()
         .justify_between()
-        .child(muted(format!("{}%", (fraction * 100.0).round() as u32)))
-        .child(muted(speed)),
+        .child(muted(cx, pct))
+        .child(muted(cx, speed)),
     )
     .when(app.flashing, |d| {
       d.child(
-        ghost_button("cancel", "Cancel").on_click(cx.listener(|this, _, _, cx| {
-          this.cancel.store(true, Ordering::Relaxed);
-          cx.notify();
-        })),
+        h_flex().child(
+          Button::new("cancel")
+            .ghost()
+            .label("Cancel")
+            .on_click(move |_, _, cx| {
+              view.update(cx, |this, cx| {
+                this.cancel.store(true, Ordering::Relaxed);
+                cx.notify();
+              });
+            }),
+        ),
       )
     })
     .when(failed, |d| {
+      let view = cx.entity();
       d.child(
-        ghost_button("retry", "Back")
-          .on_click(cx.listener(|this, _, _, cx| this.flash_another(cx))),
+        Button::new("retry")
+          .label("Back")
+          .on_click(move |_, _, cx| {
+            view.update(cx, |this, cx| this.flash_another(cx));
+          }),
       )
     })
 }
@@ -555,144 +742,110 @@ fn done_panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElemen
     .as_ref()
     .map(|i| i.display_name.clone())
     .unwrap_or_default();
-  card()
-    .max_w(px(640.))
-    .mx_auto()
-    .my_auto()
-    .items_center()
-    .gap_4()
-    .child(
-      div()
-        .size(px(72.))
-        .rounded_full()
-        .bg(THEME.ok)
-        .flex()
-        .items_center()
-        .justify_center()
-        .text_color(THEME.bg)
-        .text_2xl()
-        .child("✓"),
-    )
-    .child(div().text_2xl().child("Flash complete"))
-    .child(muted(format!("{name} is ready to boot.")))
-    .child(
-      div()
-        .flex()
-        .gap_3()
-        .mt_4()
-        .child(
-          primary_button("again", "Flash another", true)
-            .on_click(cx.listener(|this, _, _, cx| this.flash_another(cx))),
-        )
-        .child(
-          ghost_button("same", "Use same image").on_click(cx.listener(|this, _, _, cx| {
-            this.progress = None;
-            this.selected.clear();
-            cx.notify();
-          })),
-        ),
-    )
-}
-
-fn status_bar(app: &ImprintApp) -> impl IntoElement {
-  let drives = format!("{} drive(s) detected", app.disks.len());
-  div()
-    .flex()
-    .justify_between()
-    .items_center()
-    .child(muted(drives))
-    .children(
-      app
-        .error
-        .clone()
-        .map(|e| div().text_sm().text_color(THEME.danger).child(e)),
-    )
-}
-
-fn drive_overlay(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {
-  div()
-    .absolute()
-    .inset_0()
-    .flex()
-    .items_center()
+  let view = cx.entity();
+  v_flex()
+    .size_full()
     .justify_center()
-    .bg(gpui::rgba(0x000000aa))
-    .on_mouse_down(
-      gpui::MouseButton::Left,
-      cx.listener(|this, _, _, cx| {
-        this.overlay = Overlay::None;
-        cx.notify();
-      }),
-    )
+    .gap_3()
     .child(
-      card()
-        .id("drive-picker")
-        .w(px(560.))
-        .max_h(relative(0.8))
-        .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| cx.stop_propagation())
-        .gap_3()
-        .child(div().text_xl().child("Select target"))
-        .child(muted(
-          "System disks are hidden. Writing will erase the drive.",
-        ))
+      h_flex()
+        .gap_2()
+        .items_center()
+        .child(Icon::new(IconName::Check).text_color(cx.theme().success))
         .child(
           div()
-            .id("drive-list")
-            .flex()
-            .flex_col()
-            .gap_2()
-            .overflow_y_scroll()
-            .children({
-              let view = cx.entity();
-              let mut rows = Vec::new();
-              for (ix, disk) in app.disks.iter().enumerate() {
-                let selected = app.selected.contains(&ix);
-                let too_small = app
-                  .image
-                  .as_ref()
-                  .is_some_and(|img| img.write_size() > 0 && disk.size < img.write_size());
-                rows.push(drive_row(
-                  ix,
-                  disk.label(),
-                  format!(
-                    "{} · {} · {}",
-                    disk.bus.as_str(),
-                    format_bytes(disk.size),
-                    disk.path.display()
-                  ),
-                  selected,
-                  too_small,
-                  view.clone(),
-                ));
+            .text_lg()
+            .font_weight(FontWeight::MEDIUM)
+            .child("Write complete"),
+        ),
+    )
+    .child(muted(cx, format!("{name} is ready to boot.")))
+    .child(
+      h_flex()
+        .gap_2()
+        .mt_3()
+        .child(
+          Button::new("again")
+            .primary()
+            .label("Write another")
+            .on_click({
+              let view = view.clone();
+              move |_, _, cx| {
+                view.update(cx, |this, cx| this.flash_another(cx));
               }
-              rows
             }),
         )
-        .when(app.disks.is_empty(), |d| {
-          d.child(muted(
-            "No removable drives found. Plug in a USB stick or SD card.",
-          ))
-        })
         .child(
-          div()
-            .flex()
-            .justify_end()
-            .gap_2()
-            .mt_2()
-            .child(
-              ghost_button("refresh", "Refresh")
-                .on_click(cx.listener(|this, _, _, cx| this.refresh_disks(cx))),
-            )
-            .child(
-              primary_button("confirm-drives", "Select", true).on_click(cx.listener(
-                |this, _, _, cx| {
-                  this.overlay = Overlay::None;
-                  cx.notify();
-                },
-              )),
-            ),
+          Button::new("same")
+            .ghost()
+            .label("Keep image")
+            .on_click(move |_, _, cx| {
+              view.update(cx, |this, cx| {
+                this.progress = None;
+                this.selected.clear();
+                cx.notify();
+              });
+            }),
         ),
     )
+}
+
+fn status_bar(app: &ImprintApp, cx: &App) -> impl IntoElement {
+  StatusBar::new()
+    .left(format!("{} drive(s)", app.disks.len()))
+    .right(if let Some(err) = app.error.clone() {
+      err
+    } else if app.flashing {
+      "Writing".into()
+    } else if app.can_flash() {
+      "Ready".into()
+    } else {
+      String::new()
+    })
+    .when(app.error.is_some(), |d| d.text_color(cx.theme().danger))
+}
+
+fn drive_list(app: &ImprintApp, view: Entity<ImprintApp>, cx: &App) -> impl IntoElement {
+  v_flex()
+    .id("drive-list")
+    .gap_1()
+    .max_h(px(320.))
+    .overflow_y_scroll()
+    .when(app.disks.is_empty(), |d| {
+      d.child(
+        v_flex()
+          .items_center()
+          .gap_2()
+          .py_8()
+          .child(Icon::new(IconName::HardDrive).text_color(cx.theme().muted_foreground))
+          .child(muted(cx, "No removable drives found.")),
+      )
+    })
+    .children({
+      let mut rows = Vec::new();
+      for (ix, disk) in app.disks.iter().enumerate() {
+        let selected = app.selected.contains(&ix);
+        let too_small = app
+          .image
+          .as_ref()
+          .is_some_and(|img| img.write_size() > 0 && disk.size < img.write_size());
+        rows.push(drive_row(
+          ix,
+          disk.label(),
+          format!(
+            "{} · {} · {}",
+            disk.bus.as_str(),
+            format_bytes(disk.size),
+            disk.path.display()
+          ),
+          selected,
+          too_small,
+          view.clone(),
+          cx,
+        ));
+      }
+      rows
+    })
 }
 
 fn drive_row(
@@ -701,20 +854,24 @@ fn drive_row(
   detail: String,
   selected: bool,
   too_small: bool,
-  view: gpui::Entity<ImprintApp>,
+  view: Entity<ImprintApp>,
+  cx: &App,
 ) -> impl IntoElement {
-  let border = if selected { THEME.accent } else { THEME.line };
-  div()
+  h_flex()
     .id(("drive", ix))
-    .flex()
-    .items_center()
     .justify_between()
-    .p_3()
-    .rounded_lg()
-    .border_1()
-    .border_color(border)
+    .items_center()
+    .gap_3()
+    .px_3()
+    .py_2()
+    .rounded(cx.theme().radius)
+    .bg(if selected {
+      cx.theme().list_active
+    } else {
+      cx.theme().transparent
+    })
     .cursor_pointer()
-    .hover(|s| s.bg(THEME.card_hover))
+    .hover(|s| s.bg(cx.theme().list_hover))
     .on_click(move |_, _, cx| {
       view.update(cx, |this, cx| {
         if this.selected.contains(&ix) {
@@ -726,124 +883,57 @@ fn drive_row(
       });
     })
     .child(
-      div()
-        .flex()
-        .flex_col()
+      v_flex()
         .gap_1()
-        .child(label)
-        .child(muted(detail)),
+        .min_w_0()
+        .child(
+          div()
+            .font_weight(FontWeight::MEDIUM)
+            .truncate()
+            .child(label),
+        )
+        .child(muted(cx, detail)),
     )
     .child(if too_small {
-      div()
-        .text_xs()
-        .text_color(THEME.warn)
-        .child("Too small")
-        .into_any_element()
+      Tag::warning().small().child("Too small").into_any_element()
     } else if selected {
-      div()
-        .text_xs()
-        .text_color(THEME.accent)
-        .child("Selected")
+      Icon::new(IconName::Check)
+        .text_color(cx.theme().primary)
         .into_any_element()
     } else {
-      div()
-        .text_xs()
-        .text_color(THEME.muted)
-        .child(" ")
-        .into_any_element()
+      div().into_any_element()
     })
 }
 
-fn settings_overlay(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {
-  div()
-    .absolute()
-    .inset_0()
-    .flex()
-    .items_center()
-    .justify_center()
-    .bg(gpui::rgba(0x000000aa))
-    .on_mouse_down(
-      gpui::MouseButton::Left,
-      cx.listener(|this, _, _, cx| {
-        this.overlay = Overlay::None;
-        cx.notify();
-      }),
-    )
-    .child(
-      card()
-        .id("settings")
-        .w(px(420.))
-        .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| cx.stop_propagation())
-        .gap_4()
-        .child(div().text_xl().child("Settings"))
-        .child(toggle_row(
-          "verify",
-          "Validate write",
-          "Re-read the disk and compare every byte.",
-          app.settings.verify,
-          cx,
-          |s| s.verify = !s.verify,
-        ))
-        .child(toggle_row(
-          "unmount",
-          "Eject on success",
-          "Unmount / eject the drive when flashing finishes.",
-          app.settings.unmount_on_success,
-          cx,
-          |s| s.unmount_on_success = !s.unmount_on_success,
-        ))
-        .child(toggle_row(
-          "hide-system",
-          "Hide system drives",
-          "Never list internal disks. Keep this on.",
-          app.settings.hide_system_drives,
-          cx,
-          |s| s.hide_system_drives = !s.hide_system_drives,
-        ))
-        .child(
-          ghost_button("close-settings", "Done").on_click(cx.listener(|this, _, _, cx| {
-            this.overlay = Overlay::None;
-            this.refresh_disks(cx);
-          })),
-        ),
-    )
-}
-
-fn toggle_row(
+fn setting_switch(
   id: &'static str,
   title: &'static str,
   hint: &'static str,
   on: bool,
-  cx: &mut Context<ImprintApp>,
-  flip: fn(&mut Settings),
+  view: Entity<ImprintApp>,
+  flip: fn(&mut Settings, bool),
+  cx: &App,
 ) -> impl IntoElement {
-  div()
+  h_flex()
     .id(id)
-    .flex()
-    .items_center()
     .justify_between()
+    .items_start()
     .gap_4()
-    .cursor_pointer()
-    .on_click(cx.listener(move |this, _, _, cx| {
-      flip(&mut this.settings);
-      cx.notify();
-    }))
-    .child(div().flex().flex_col().child(title).child(muted(hint)))
+    .py_2()
     .child(
-      div()
-        .w(px(44.))
-        .h(px(24.))
-        .rounded_full()
-        .bg(if on { THEME.accent } else { THEME.accent_dim })
-        .flex()
-        .items_center()
-        .px_1()
-        .child(
-          div()
-            .size(px(18.))
-            .rounded_full()
-            .bg(THEME.text)
-            .when(on, |d| d.ml_auto()),
-        ),
+      v_flex()
+        .gap_1()
+        .child(div().child(title))
+        .child(muted(cx, hint)),
     )
+    .child(Switch::new(id).checked(on).on_click(move |checked, _, cx| {
+      let on = *checked;
+      view.update(cx, |this, cx| {
+        flip(&mut this.settings, on);
+        if id == "hide-system" {
+          this.refresh_disks(cx);
+        }
+        cx.notify();
+      });
+    }))
 }

@@ -1,38 +1,76 @@
-use std::sync::LazyLock;
+use gpui::{App, Hsla, Window, px, rgb};
+use gpui_component::{Colorize as _, Theme, ThemeMode, ThemeTokens};
 
-use gpui::{Rgba, rgb, rgba};
+/// Imprint brand blue — used as the gpui-component primary token.
+pub const PRIMARY: u32 = 0x0E4BEF;
 
-/// Dark studio palette — high-contrast teal on navy, Etcher-like 3-step flow.
-pub struct Theme {
-  pub bg: Rgba,
-  pub bg_elevated: Rgba,
-  pub card: Rgba,
-  pub card_hover: Rgba,
-  pub line: Rgba,
-  pub text: Rgba,
-  pub muted: Rgba,
-  pub accent: Rgba,
-  pub accent_dim: Rgba,
-  pub danger: Rgba,
-  pub warn: Rgba,
-  pub ok: Rgba,
-  pub flash: Rgba,
-  pub flash_hover: Rgba,
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Appearance {
+  #[default]
+  System,
+  Light,
+  Dark,
 }
 
-pub static THEME: LazyLock<Theme> = LazyLock::new(|| Theme {
-  bg: rgb(0x070b14),
-  bg_elevated: rgb(0x0e1524),
-  card: rgb(0x121c30),
-  card_hover: rgb(0x18243c),
-  line: rgba(0x3ee0c933),
-  text: rgb(0xe8eef8),
-  muted: rgb(0x8b9bb4),
-  accent: rgb(0x3ee0c9),
-  accent_dim: rgb(0x1a4f4a),
-  danger: rgb(0xff6b6b),
-  warn: rgb(0xffc857),
-  ok: rgb(0x5ee9a0),
-  flash: rgb(0xff5a36),
-  flash_hover: rgb(0xff7a5c),
-});
+impl Appearance {
+  pub fn as_index(self) -> usize {
+    match self {
+      Self::System => 0,
+      Self::Light => 1,
+      Self::Dark => 2,
+    }
+  }
+
+  pub fn from_index(index: usize) -> Self {
+    match index {
+      1 => Self::Light,
+      2 => Self::Dark,
+      _ => Self::System,
+    }
+  }
+}
+
+pub fn apply_appearance(appearance: Appearance, window: Option<&mut Window>, cx: &mut App) {
+  match appearance {
+    Appearance::System => Theme::sync_system_appearance(window, cx),
+    Appearance::Light => Theme::change(ThemeMode::Light, window, cx),
+    Appearance::Dark => Theme::change(ThemeMode::Dark, window, cx),
+  }
+  paint_primary(cx);
+}
+
+/// Re-apply brand color and Zed-like density after a theme mode switch.
+pub fn paint_primary(cx: &mut App) {
+  let primary: Hsla = rgb(PRIMARY).into();
+  let hover = primary.lighten(0.1);
+  let active = primary.darken(0.12);
+  let fg: Hsla = rgb(0xFFFFFF).into();
+  {
+    let theme = Theme::global_mut(cx);
+    theme.font_size = px(14.);
+    theme.mono_font_size = px(12.);
+    theme.radius = px(4.);
+    theme.radius_lg = px(6.);
+    theme.primary = primary;
+    theme.primary_hover = hover;
+    theme.primary_active = active;
+    theme.primary_foreground = fg;
+    theme.button_primary = primary;
+    theme.button_primary_hover = hover;
+    theme.button_primary_active = active;
+    theme.button_primary_foreground = fg;
+    theme.accent = primary;
+    theme.accent_foreground = fg;
+    theme.progress_bar = primary;
+    theme.ring = primary;
+    theme.link = primary;
+    theme.link_hover = hover;
+    theme.link_active = active;
+    theme.caret = primary;
+    theme.slider_bar = primary;
+    theme.sidebar_primary = primary;
+    theme.sidebar_primary_foreground = fg;
+    theme.tokens = ThemeTokens::from(&theme.colors);
+  }
+  Theme::sync_base(cx);
+}

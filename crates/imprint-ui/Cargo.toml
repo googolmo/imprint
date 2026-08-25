@@ -12,5 +12,6 @@ imprint-image = { workspace = true }
 imprint-device = { workspace = true }
 imprint-flash = { workspace = true }
 gpui = { workspace = true }
+gpui-component = { workspace = true }
 crossbeam-channel = { workspace = true }
 tracing = { workspace = true }

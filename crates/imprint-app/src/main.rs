@@ -1,8 +1,6 @@
-use gpui::{
-  App, Bounds, Menu, MenuItem, QuitMode, TitlebarOptions, WindowAppearance, WindowBounds,
-  WindowOptions, point, px, size,
-};
-use imprint_ui::{ImprintApp, OpenImage, Quit};
+use gpui::{App, AppContext as _, Bounds, Menu, MenuItem, QuitMode, WindowBounds, px, size};
+use gpui_component::{Root, TitleBar};
+use imprint_ui::{ImprintApp, ImprintShell, OpenImage, Quit};
 use tracing_subscriber::EnvFilter;
 
 fn main() {
@@ -12,9 +10,10 @@ fn main() {
 
   gpui_platform::application()
     .with_quit_mode(QuitMode::LastWindowClosed)
+    .with_assets(gpui_component_assets::Assets)
     .run(|cx: &mut App| {
+      imprint_ui::init(cx);
       cx.set_app_identity("imprint.cdxtheme.com", "Imprint");
-      cx.set_window_appearance(Some(WindowAppearance::Dark));
       cx.on_action(|_: &Quit, cx| cx.quit());
       cx.set_menus([Menu::new("Imprint").items([
         MenuItem::action("Open Image…", OpenImage),
@@ -34,20 +33,15 @@ fn main() {
       })
       .detach();
 
-      let bounds = Bounds::centered(None, size(px(1080.), px(720.)), cx);
-      cx.open_window(
-        WindowOptions {
-          window_bounds: Some(WindowBounds::Windowed(bounds)),
-          window_min_size: Some(size(px(860.), px(560.))),
-          titlebar: Some(TitlebarOptions {
-            title: Some("Imprint".into()),
-            appears_transparent: false,
-            traffic_light_position: Some(point(px(14.), px(18.))),
-          }),
-          ..Default::default()
-        },
-        |window, cx| cx.new(|cx| ImprintApp::new(window, cx)),
-      )
+      let bounds = Bounds::centered(None, size(px(760.), px(520.)), cx);
+      let mut options = TitleBar::window_options();
+      options.window_bounds = Some(WindowBounds::Windowed(bounds));
+      options.window_min_size = Some(size(px(640.), px(440.)));
+      cx.open_window(options, |window, cx| {
+        let app = cx.new(|cx| ImprintApp::new(window, cx));
+        let shell = cx.new(|_| ImprintShell::new(app));
+        cx.new(|cx| Root::new(shell, window, cx))
+      })
       .unwrap();
       cx.activate(true);
     });

@@ -1,0 +1,49 @@
+name = "imprint"
+product-name = "Imprint"
+identifier = "imprint.cdxtheme.com"
+version = "0.1.0"
+description = "Flash OS images onto USB drives and SD cards"
+long-description = "Pick an image, pick a removable disk, write, and optionally verify. Native desktop UI plus a CLI."
+homepage = "https://github.com/googolmo/imprint"
+authors = ["Imprint Contributors"]
+license-file = "LICENSE"
+category = "Utility"
+out-dir = "./dist"
+binaries-dir = "./target/release"
+before-packaging-command = "cargo build --release -p imprint-app -p imprint-cli"
+icons = [
+  "assets/icon/AppIcon.icns",
+  "assets/icon/AppIcon.ico",
+  "assets/icon/AppIcon.png",
+]
+
+[[binaries]]
+path = "imprint"
+main = true
+
+[[binaries]]
+path = "imprint-cli"
+
+[[file-associations]]
+extensions = ["iso"]
+mime-type = "application/x-iso9660-image"
+name = "ISO disk image"
+description = "ISO disk image"
+role = "editor"
+
+[[file-associations]]
+extensions = ["img"]
+mime-type = "application/x-raw-disk-image"
+name = "Raw disk image"
+description = "Raw disk image"
+role = "editor"
+
+[[file-associations]]
+extensions = ["dmg"]
+mime-type = "application/x-apple-diskimage"
+name = "Apple disk image"
+description = "Apple disk image"
+role = "editor"
+
+[nsis]
+installer-icon = "assets/icon/AppIcon.ico"

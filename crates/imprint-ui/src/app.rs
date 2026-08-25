@@ -7,11 +7,12 @@ use crossbeam_channel::{Receiver, Sender, unbounded};
 use gpui::{
   App, ClickEvent, Context, Entity, ExternalPaths, FocusHandle, FontWeight, InteractiveElement,
   IntoElement, ParentElement, PathPromptOptions, Render, StatefulInteractiveElement, Styled,
-  Subscription, Window, div, prelude::*, px,
+  Subscription, Window, div, linear_color_stop, linear_gradient, prelude::*, px,
 };
 use gpui_component::{
-  ActiveTheme as _, Disableable as _, Icon, IconName, Root, Sizable as _, TitleBar, WindowExt as _,
-  button::{Button, ButtonVariants as _},
+  ActiveTheme as _, Colorize as _, Disableable as _, Icon, IconName, Root, Sizable as _, TitleBar,
+  WindowExt as _,
+  button::{Button, ButtonCustomVariant, ButtonRounded, ButtonVariants as _},
   h_flex,
   progress::Progress,
   separator::Separator,
@@ -30,7 +31,8 @@ use imprint_image::inspect;
 
 use crate::actions::{OpenImage, Quit, SelectTarget, StartFlash, ToggleSettings};
 use crate::theme::Appearance;
-use crate::widgets::{muted, picker_row, section_label};
+use crate::theme::glass;
+use crate::widgets::{atmosphere, glass_surface, icon_well, muted, picker_row, section_label};
 
 enum ProgressEvent {
   Update(FlashProgress),
@@ -446,12 +448,14 @@ impl Render for ImprintApp {
       .on_action(|_: &Quit, _, cx| cx.quit())
       .on_drop(cx.listener(Self::on_drop_paths))
       .drag_over::<ExternalPaths>(|style, _, _, cx| style.bg(cx.theme().drop_target))
+      .relative()
       .size_full()
-      .bg(cx.theme().background)
+      .bg(cx.theme().transparent)
       .text_color(cx.theme().foreground)
+      .child(atmosphere(cx))
       .child(header(cx))
       .child(
-        v_flex().flex_1().px_6().py_5().child(if done {
+        v_flex().flex_1().px_6().py_6().child(if done {
           done_panel(self, cx).into_any_element()
         } else if self.flashing
           || self
@@ -470,29 +474,47 @@ impl Render for ImprintApp {
 
 fn header(cx: &mut Context<ImprintApp>) -> impl IntoElement {
   let view = cx.entity();
-  TitleBar::new().child(
-    h_flex()
-      .w_full()
-      .pr_2()
-      .items_center()
-      .justify_between()
-      .child(
-        div()
-          .text_sm()
-          .font_weight(FontWeight::MEDIUM)
-          .child("Imprint"),
-      )
-      .child(
-        Button::new("settings")
-          .ghost()
-          .small()
-          .icon(IconName::Settings)
-          .tooltip("Settings")
-          .on_click(move |_, window, cx| {
-            view.update(cx, |this, cx| this.open_settings(window, cx));
-          }),
-      ),
-  )
+  let pip = cx.theme().accent;
+  TitleBar::new()
+    .bg(linear_gradient(
+      180.,
+      linear_color_stop(cx.theme().title_bar, 0.),
+      linear_color_stop(cx.theme().title_bar.divide(0.35), 1.),
+    ))
+    .border_color(cx.theme().title_bar_border)
+    .child(
+      h_flex()
+        .w_full()
+        .pr_2()
+        .items_center()
+        .justify_between()
+        .child(
+          h_flex()
+            .gap_2()
+            .items_center()
+            .child(div().size(px(8.)).rounded_full().bg(pip).shadow(vec![
+              gpui_component::box_shadow(px(0.), px(0.), px(10.), px(1.), pip.divide(0.70)),
+            ]))
+            .child(
+              div()
+                .text_sm()
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(cx.theme().foreground)
+                .child("Imprint"),
+            ),
+        )
+        .child(
+          Button::new("settings")
+            .ghost()
+            .small()
+            .rounded(ButtonRounded::Large)
+            .icon(IconName::Settings)
+            .tooltip("Settings")
+            .on_click(move |_, window, cx| {
+              view.update(cx, |this, cx| this.open_settings(window, cx));
+            }),
+        ),
+    )
 }
 
 fn write_form(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {
@@ -500,7 +522,7 @@ fn write_form(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElemen
   let view = cx.entity();
   v_flex()
     .size_full()
-    .gap_5()
+    .gap_4()
     .child(picker_block(
       cx,
       "Image",
@@ -524,7 +546,6 @@ fn write_form(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElemen
         }
       },
     ))
-    .child(Separator::horizontal())
     .child(picker_block(
       cx,
       "Target",
@@ -546,25 +567,31 @@ fn write_form(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElemen
     ))
     .child(div().flex_1())
     .child(
-      h_flex()
-        .w_full()
-        .items_center()
-        .justify_between()
-        .child(muted(
-          cx,
-          if can_write {
-            "This will erase the selected drive."
-          } else {
-            "Choose an image and a drive to continue."
-          },
-        ))
-        .child(
-          Button::new("flash")
-            .primary()
-            .label("Write")
-            .disabled(!can_write)
-            .on_click(cx.listener(ImprintApp::click_flash)),
-        ),
+      glass_surface(
+        h_flex()
+          .w_full()
+          .items_center()
+          .justify_between()
+          .px_4()
+          .py_3(),
+        cx,
+      )
+      .child(muted(
+        cx,
+        if can_write {
+          "This will erase the selected drive."
+        } else {
+          "Choose an image and a drive to continue."
+        },
+      ))
+      .child(
+        Button::new("flash")
+          .primary()
+          .rounded(ButtonRounded::Large)
+          .label("Write")
+          .disabled(!can_write)
+          .on_click(cx.listener(ImprintApp::click_flash)),
+      ),
     )
 }
 
@@ -611,21 +638,18 @@ fn picker_block(
   on_click: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
 ) -> impl IntoElement {
   let on_click = std::rc::Rc::new(on_click);
+  let g = glass(cx);
   v_flex().gap_2().child(section_label(cx, label)).child(
     picker_row(cx)
       .id(label)
       .cursor_pointer()
-      .hover(|s| s.bg(cx.theme().secondary))
-      .when(ready, |d| d.border_color(cx.theme().border))
+      .hover(|s| s.bg(g.fill_hover))
+      .when(ready, |d| d.border_color(cx.theme().accent.divide(0.70)))
       .on_click({
         let on_click = on_click.clone();
         move |ev, window, cx| on_click(ev, window, cx)
       })
-      .child(Icon::new(icon).text_color(if ready {
-        cx.theme().foreground
-      } else {
-        cx.theme().muted_foreground
-      }))
+      .child(icon_well(cx, icon, ready))
       .child(
         v_flex()
           .flex_1()
@@ -642,6 +666,17 @@ fn picker_block(
       .child(
         Button::new(format!("{label}-select"))
           .small()
+          .rounded(ButtonRounded::Large)
+          .custom(
+            ButtonCustomVariant::new(cx)
+              .color(g.fill)
+              .hover(g.fill_hover)
+              .foreground(if cx.theme().is_dark() {
+                cx.theme().accent
+              } else {
+                cx.theme().primary
+              }),
+          )
           .label(action)
           .on_click(move |ev, window, cx| {
             cx.stop_propagation();
@@ -678,62 +713,63 @@ fn progress_panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoEl
   let pct = format!("{}%", (fraction * 100.0).round() as u32);
   let view = cx.entity();
 
-  v_flex()
-    .size_full()
-    .justify_center()
-    .gap_4()
-    .child(section_label(cx, if failed { "Failed" } else { phase }))
-    .child(
-      div()
-        .text_lg()
-        .font_weight(FontWeight::MEDIUM)
-        .text_color(if failed {
-          cx.theme().danger
-        } else {
-          cx.theme().foreground
-        })
-        .child(message),
-    )
-    .child(
-      Progress::new("write-progress")
-        .value(fraction * 100.0)
-        .color(if failed {
-          cx.theme().danger
-        } else {
-          cx.theme().primary
-        }),
-    )
-    .child(
-      h_flex()
-        .justify_between()
-        .child(muted(cx, pct))
-        .child(muted(cx, speed)),
-    )
-    .when(app.flashing, |d| {
-      d.child(
-        h_flex().child(
-          Button::new("cancel")
-            .ghost()
-            .label("Cancel")
-            .on_click(move |_, _, cx| {
-              view.update(cx, |this, cx| {
-                this.cancel.store(true, Ordering::Relaxed);
-                cx.notify();
-              });
-            }),
-        ),
+  v_flex().size_full().items_center().justify_center().child(
+    glass_surface(v_flex().w_full().gap_4().px_5().py_5(), cx)
+      .child(section_label(cx, if failed { "Failed" } else { phase }))
+      .child(
+        div()
+          .text_lg()
+          .font_weight(FontWeight::MEDIUM)
+          .text_color(if failed {
+            cx.theme().danger
+          } else {
+            cx.theme().foreground
+          })
+          .child(message),
       )
-    })
-    .when(failed, |d| {
-      let view = cx.entity();
-      d.child(
-        Button::new("retry")
-          .label("Back")
-          .on_click(move |_, _, cx| {
-            view.update(cx, |this, cx| this.flash_another(cx));
+      .child(
+        Progress::new("write-progress")
+          .value(fraction * 100.0)
+          .color(if failed {
+            cx.theme().danger
+          } else {
+            cx.theme().primary
           }),
       )
-    })
+      .child(
+        h_flex()
+          .justify_between()
+          .child(muted(cx, pct))
+          .child(muted(cx, speed)),
+      )
+      .when(app.flashing, |d| {
+        d.child(
+          h_flex().child(
+            Button::new("cancel")
+              .ghost()
+              .rounded(ButtonRounded::Large)
+              .label("Cancel")
+              .on_click(move |_, _, cx| {
+                view.update(cx, |this, cx| {
+                  this.cancel.store(true, Ordering::Relaxed);
+                  cx.notify();
+                });
+              }),
+          ),
+        )
+      })
+      .when(failed, |d| {
+        let view = cx.entity();
+        d.child(
+          Button::new("retry")
+            .rounded(ButtonRounded::Large)
+            .label("Back")
+            .on_click(move |_, _, cx| {
+              view.update(cx, |this, cx| this.flash_another(cx));
+            }),
+        )
+      }),
+  )
 }
 
 fn done_panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {
@@ -743,72 +779,95 @@ fn done_panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElemen
     .map(|i| i.display_name.clone())
     .unwrap_or_default();
   let view = cx.entity();
-  v_flex()
-    .size_full()
-    .justify_center()
-    .gap_3()
-    .child(
-      h_flex()
-        .gap_2()
-        .items_center()
-        .child(Icon::new(IconName::Check).text_color(cx.theme().success))
-        .child(
-          div()
-            .text_lg()
-            .font_weight(FontWeight::MEDIUM)
-            .child("Write complete"),
-        ),
-    )
-    .child(muted(cx, format!("{name} is ready to boot.")))
-    .child(
-      h_flex()
-        .gap_2()
-        .mt_3()
-        .child(
-          Button::new("again")
-            .primary()
-            .label("Write another")
-            .on_click({
-              let view = view.clone();
-              move |_, _, cx| {
-                view.update(cx, |this, cx| this.flash_another(cx));
-              }
-            }),
-        )
-        .child(
-          Button::new("same")
-            .ghost()
-            .label("Keep image")
-            .on_click(move |_, _, cx| {
-              view.update(cx, |this, cx| {
-                this.progress = None;
-                this.selected.clear();
-                cx.notify();
-              });
-            }),
-        ),
-    )
+  v_flex().size_full().items_center().justify_center().child(
+    glass_surface(v_flex().w_full().gap_3().px_5().py_5(), cx)
+      .child(
+        h_flex()
+          .gap_2()
+          .items_center()
+          .child(
+            div()
+              .flex()
+              .items_center()
+              .justify_center()
+              .size(px(32.))
+              .rounded_full()
+              .bg(cx.theme().success.divide(0.18))
+              .child(Icon::new(IconName::Check).text_color(cx.theme().success)),
+          )
+          .child(
+            div()
+              .text_lg()
+              .font_weight(FontWeight::MEDIUM)
+              .child("Write complete"),
+          ),
+      )
+      .child(muted(cx, format!("{name} is ready to boot.")))
+      .child(
+        h_flex()
+          .gap_2()
+          .mt_3()
+          .child(
+            Button::new("again")
+              .primary()
+              .rounded(ButtonRounded::Large)
+              .label("Write another")
+              .on_click({
+                let view = view.clone();
+                move |_, _, cx| {
+                  view.update(cx, |this, cx| this.flash_another(cx));
+                }
+              }),
+          )
+          .child(
+            Button::new("same")
+              .ghost()
+              .rounded(ButtonRounded::Large)
+              .label("Keep image")
+              .on_click(move |_, _, cx| {
+                view.update(cx, |this, cx| {
+                  this.progress = None;
+                  this.selected.clear();
+                  cx.notify();
+                });
+              }),
+          ),
+      ),
+  )
 }
 
 fn status_bar(app: &ImprintApp, cx: &App) -> impl IntoElement {
+  let ready = app.can_flash();
   StatusBar::new()
+    .px_4()
+    .py_1p5()
+    .text_sm()
+    .bg(linear_gradient(
+      180.,
+      linear_color_stop(cx.theme().status_bar.divide(0.55), 0.),
+      linear_color_stop(cx.theme().status_bar, 1.),
+    ))
+    .border_color(cx.theme().status_bar_border)
     .left(format!("{} drive(s)", app.disks.len()))
     .right(if let Some(err) = app.error.clone() {
       err
     } else if app.flashing {
       "Writing".into()
-    } else if app.can_flash() {
+    } else if ready {
       "Ready".into()
     } else {
       String::new()
     })
     .when(app.error.is_some(), |d| d.text_color(cx.theme().danger))
+    .when(app.error.is_none() && ready, |d| {
+      d.text_color(cx.theme().accent)
+    })
 }
 
 fn drive_list(app: &ImprintApp, view: Entity<ImprintApp>, cx: &App) -> impl IntoElement {
   v_flex()
     .id("drive-list")
-    .gap_1()
+    .gap_2()
     .max_h(px(320.))
     .overflow_y_scroll()
     .when(app.disks.is_empty(), |d| {
@@ -817,7 +876,7 @@ fn drive_list(app: &ImprintApp, view: Entity<ImprintApp>, cx: &App) -> impl Into
           .items_center()
           .gap_2()
           .py_8()
-          .child(Icon::new(IconName::HardDrive).text_color(cx.theme().muted_foreground))
+          .child(icon_well(cx, IconName::HardDrive, false))
           .child(muted(cx, "No removable drives found.")),
       )
     })
@@ -857,6 +916,7 @@ fn drive_row(
   view: Entity<ImprintApp>,
   cx: &App,
 ) -> impl IntoElement {
+  let g = glass(cx);
   h_flex()
     .id(("drive", ix))
     .justify_between()
@@ -865,13 +925,25 @@ fn drive_row(
     .px_3()
     .py_2()
     .rounded(cx.theme().radius)
+    .border_1()
+    .border_color(if selected {
+      cx.theme().list_active_border
+    } else {
+      g.border
+    })
     .bg(if selected {
       cx.theme().list_active
     } else {
-      cx.theme().transparent
+      g.fill
     })
     .cursor_pointer()
-    .hover(|s| s.bg(cx.theme().list_hover))
+    .hover(|s| {
+      s.bg(if selected {
+        cx.theme().list_active
+      } else {
+        g.fill_hover
+      })
+    })
     .on_click(move |_, _, cx| {
       view.update(cx, |this, cx| {
         if this.selected.contains(&ix) {
@@ -914,12 +986,16 @@ fn setting_switch(
   flip: fn(&mut Settings, bool),
   cx: &App,
 ) -> impl IntoElement {
+  let g = glass(cx);
   h_flex()
     .id(id)
     .justify_between()
     .items_start()
     .gap_4()
-    .py_2()
+    .px_3()
+    .py_3()
+    .rounded(cx.theme().radius)
+    .bg(g.fill)
     .child(
       v_flex()
         .gap_1()

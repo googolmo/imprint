@@ -1,4 +1,7 @@
-use gpui::{App, AppContext as _, Bounds, Menu, MenuItem, QuitMode, WindowBounds, px, size};
+use gpui::{
+  App, AppContext as _, Bounds, Menu, MenuItem, QuitMode, WindowBackgroundAppearance, WindowBounds,
+  px, size,
+};
 use gpui_component::{Root, TitleBar};
 use imprint_ui::{ImprintApp, ImprintShell, OpenImage, Quit};
 use tracing_subscriber::EnvFilter;
@@ -33,10 +36,15 @@ fn main() {
       })
       .detach();
 
-      let bounds = Bounds::centered(None, size(px(760.), px(520.)), cx);
+      let bounds = Bounds::centered(None, size(px(780.), px(540.)), cx);
       let mut options = TitleBar::window_options();
       options.window_bounds = Some(WindowBounds::Windowed(bounds));
       options.window_min_size = Some(size(px(640.), px(440.)));
+      options.window_background = if cfg!(target_os = "windows") {
+        WindowBackgroundAppearance::MicaBackdrop
+      } else {
+        WindowBackgroundAppearance::Blurred
+      };
       cx.open_window(options, |window, cx| {
         let app = cx.new(|cx| ImprintApp::new(window, cx));
         let shell = cx.new(|_| ImprintShell::new(app));

@@ -29,10 +29,12 @@ use imprint_device::list_targets;
 use imprint_flash::flash;
 use imprint_image::inspect;
 
-use crate::actions::{OpenImage, Quit, SelectTarget, StartFlash, ToggleSettings};
+use crate::actions::{About, OpenImage, Quit, SelectTarget, StartFlash, ToggleSettings};
 use crate::theme::Appearance;
 use crate::theme::glass;
-use crate::widgets::{atmosphere, glass_surface, icon_well, muted, picker_row, section_label};
+use crate::widgets::{
+  atmosphere, glass_panel, glass_surface, icon_well, muted, picker_row, section_label,
+};
 
 enum ProgressEvent {
   Update(FlashProgress),
@@ -63,6 +65,7 @@ impl ImprintApp {
     let disks = list_targets(&Settings::default()).unwrap_or_default();
 
     let weak = cx.weak_entity();
+    bind_app_menu_actions(weak.clone(), cx);
     let appearance_sub = window.observe_window_appearance(move |window, cx| {
       let _ = weak.update(cx, |this, cx| {
         if this.appearance == Appearance::System {
@@ -171,6 +174,10 @@ impl ImprintApp {
     } else {
       self.open_settings(window, cx);
     }
+  }
+
+  fn on_about(&mut self, _: &About, window: &mut Window, cx: &mut Context<Self>) {
+    self.open_about(window, cx);
   }
 
   fn selected_disks(&self) -> Vec<TargetDisk> {
@@ -342,70 +349,145 @@ impl ImprintApp {
     window.defer(cx, move |window, cx| {
       window.open_sheet(cx, move |sheet, _, cx| {
         let app = view.read(cx);
-        sheet.title("Settings").size(px(380.)).child(
-          v_flex()
-            .gap_5()
-            .py_3()
-            .child(
-              v_flex()
-                .gap_2()
-                .child(section_label(cx, "Appearance"))
-                .child(
-                  TabBar::new("appearance")
-                    .segmented()
-                    .small()
-                    .w_full()
-                    .selected_index(app.appearance.as_index())
-                    .child(Tab::new().label("System"))
-                    .child(Tab::new().label("Light"))
-                    .child(Tab::new().label("Dark"))
-                    .on_click({
-                      let view = view.clone();
-                      move |ix, window, cx| {
-                        let appearance = Appearance::from_index(*ix);
-                        view.update(cx, |this, cx| this.set_appearance(appearance, window, cx));
-                      }
-                    }),
-                )
-                .child(muted(cx, "System follows the OS light or dark setting.")),
-            )
-            .child(Separator::horizontal())
-            .child(
-              v_flex()
-                .gap_2()
-                .child(section_label(cx, "Writing"))
-                .child(setting_switch(
-                  "verify",
-                  "Validate write",
-                  "Re-read the disk and compare every byte.",
-                  app.settings.verify,
-                  view.clone(),
-                  |s, on| s.verify = on,
-                  cx,
-                ))
-                .child(setting_switch(
-                  "unmount",
-                  "Eject on success",
-                  "Unmount the drive when writing finishes.",
-                  app.settings.unmount_on_success,
-                  view.clone(),
-                  |s, on| s.unmount_on_success = on,
-                  cx,
-                ))
-                .child(setting_switch(
-                  "hide-system",
-                  "Hide system drives",
-                  "Never list internal disks.",
-                  app.settings.hide_system_drives,
-                  view.clone(),
-                  |s, on| s.hide_system_drives = on,
-                  cx,
-                )),
-            ),
-        )
+        glass_panel(sheet, cx)
+          .title("Settings")
+          .size(px(380.))
+          .child(
+            v_flex()
+              .gap_5()
+              .py_3()
+              .child(
+                v_flex()
+                  .gap_2()
+                  .child(section_label(cx, "Appearance"))
+                  .child(
+                    glass_surface(v_flex().w_full().gap_3().px_4().py_4(), cx)
+                      .child(
+                        TabBar::new("appearance")
+                          .segmented()
+                          .small()
+                          .w_full()
+                          .selected_index(app.appearance.as_index())
+                          .child(Tab::new().label("System"))
+                          .child(Tab::new().label("Light"))
+                          .child(Tab::new().label("Dark"))
+                          .on_click({
+                            let view = view.clone();
+                            move |ix, window, cx| {
+                              let appearance = Appearance::from_index(*ix);
+                              view
+                                .update(cx, |this, cx| this.set_appearance(appearance, window, cx));
+                            }
+                          }),
+                      )
+                      .child(muted(cx, "System follows the OS light or dark setting.")),
+                  ),
+              )
+              .child(
+                v_flex().gap_2().child(section_label(cx, "Writing")).child(
+                  glass_surface(v_flex().w_full(), cx)
+                    .child(setting_switch(
+                      "verify",
+                      "Validate write",
+                      "Re-read the disk and compare every byte.",
+                      app.settings.verify,
+                      view.clone(),
+                      |s, on| s.verify = on,
+                      cx,
+                    ))
+                    .child(Separator::horizontal())
+                    .child(setting_switch(
+                      "unmount",
+                      "Eject on success",
+                      "Unmount the drive when writing finishes.",
+                      app.settings.unmount_on_success,
+                      view.clone(),
+                      |s, on| s.unmount_on_success = on,
+                      cx,
+                    ))
+                    .child(Separator::horizontal())
+                    .child(setting_switch(
+                      "hide-system",
+                      "Hide system drives",
+                      "Never list internal disks.",
+                      app.settings.hide_system_drives,
+                      view.clone(),
+                      |s, on| s.hide_system_drives = on,
+                      cx,
+                    )),
+                ),
+              ),
+          )
       });
     });
   }
+
+  fn open_about(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    window.defer(cx, move |window, cx| {
+      window.open_dialog(cx, move |dialog, _, cx| {
+        dialog
+          .title("About Imprint")
+          .w(px(400.))
+          .child(
+            v_flex()
+              .gap_3()
+              .items_center()
+              .py_3()
+              .child(icon_well(cx, IconName::Info, true))
+              .child(
+                div()
+                  .text_lg()
+                  .font_weight(FontWeight::SEMIBOLD)
+                  .child("Imprint"),
+              )
+              .child(muted(cx, format!("Version {}", env!("CARGO_PKG_VERSION"))))
+              .child(muted(cx, "Flash OS images onto USB drives and SD cards."))
+              .child(muted(cx, env!("CARGO_PKG_LICENSE"))),
+          )
+          .footer(
+            h_flex().w_full().justify_end().child(
+              Button::new("about-ok")
+                .primary()
+                .label("OK")
+                .on_click(|_, window, cx| window.close_dialog(cx)),
+            ),
+          )
+      });
+    });
+  }
+}
+
+/// Keep About / Settings enabled in the system menu even when a sheet or dialog
+/// holds focus, so the action is not only on `ImprintApp`'s dispatch node.
+fn bind_app_menu_actions(view: gpui::WeakEntity<ImprintApp>, cx: &mut App) {
+  App::on_action(cx, {
+    let view = view.clone();
+    move |_: &About, cx| {
+      dispatch_on_app(&view, cx, |this, window, cx| this.open_about(window, cx));
+    }
+  });
+  App::on_action(cx, {
+    let view = view.clone();
+    move |_: &ToggleSettings, cx| {
+      dispatch_on_app(&view, cx, |this, window, cx| {
+        this.on_toggle_settings(&ToggleSettings, window, cx);
+      });
+    }
+  });
+}
+
+fn dispatch_on_app(
+  view: &gpui::WeakEntity<ImprintApp>,
+  cx: &mut App,
+  f: impl FnOnce(&mut ImprintApp, &mut Window, &mut Context<ImprintApp>),
+) {
+  let Some(handle) = cx.active_window() else {
+    return;
+  };
+  let view = view.clone();
+  let _ = handle.update(cx, |_, window, cx| {
+    let _ = view.update(cx, |this, cx| f(this, window, cx));
+  });
 }
 
 /// Window-level view under `Root`. Overlay layers live here so their builders
@@ -445,6 +527,7 @@ impl Render for ImprintApp {
       .on_action(cx.listener(Self::on_select_target))
       .on_action(cx.listener(Self::start_flash))
       .on_action(cx.listener(Self::on_toggle_settings))
+      .on_action(cx.listener(Self::on_about))
       .on_action(|_: &Quit, _, cx| cx.quit())
       .on_drop(cx.listener(Self::on_drop_paths))
       .drag_over::<ExternalPaths>(|style, _, _, cx| style.bg(cx.theme().drop_target))
@@ -474,7 +557,6 @@ impl Render for ImprintApp {
 
 fn header(cx: &mut Context<ImprintApp>) -> impl IntoElement {
   let view = cx.entity();
-  let pip = cx.theme().accent;
   TitleBar::new()
     .bg(linear_gradient(
       180.,
@@ -489,19 +571,11 @@ fn header(cx: &mut Context<ImprintApp>) -> impl IntoElement {
         .items_center()
         .justify_between()
         .child(
-          h_flex()
-            .gap_2()
-            .items_center()
-            .child(div().size(px(8.)).rounded_full().bg(pip).shadow(vec![
-              gpui_component::box_shadow(px(0.), px(0.), px(10.), px(1.), pip.divide(0.70)),
-            ]))
-            .child(
-              div()
-                .text_sm()
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(cx.theme().foreground)
-                .child("Imprint"),
-            ),
+          div()
+            .text_sm()
+            .font_weight(FontWeight::SEMIBOLD)
+            .text_color(cx.theme().foreground)
+            .child("Imprint"),
         )
         .child(
           Button::new("settings")
@@ -992,10 +1066,9 @@ fn setting_switch(
     .justify_between()
     .items_start()
     .gap_4()
-    .px_3()
+    .px_4()
     .py_3()
-    .rounded(cx.theme().radius)
-    .bg(g.fill)
+    .hover(|s| s.bg(g.fill_hover))
     .child(
       v_flex()
         .gap_1()

@@ -3323,11 +3323,16 @@ checksum = "89194689a993ab15268672e99e7b0e19da2da3268ac682e8f02d29d4d1434cd7"
 name = "imprint-app"
 version = "0.1.0"
 dependencies = [
+ "embed-resource",
  "gpui",
  "gpui-component",
  "gpui-component-assets",
  "gpui_platform",
+ "image",
  "imprint-ui",
+ "objc2 0.6.4",
+ "objc2-app-kit 0.3.2",
+ "objc2-foundation 0.3.2",
  "tracing",
  "tracing-subscriber",
 ]

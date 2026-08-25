@@ -1,7 +1,7 @@
-use gpui::{App, Div, FontWeight, div, linear_color_stop, linear_gradient, prelude::*, px};
+use gpui::{App, Div, FontWeight, Styled, div, linear_color_stop, linear_gradient, prelude::*, px};
 use gpui_component::{ActiveTheme as _, Colorize as _, Icon, IconName, box_shadow, h_flex};
 
-use crate::theme::{glass, glass_fill};
+use crate::theme::{glass, glass_fill, glass_panel_fill};
 
 pub fn section_label(cx: &App, text: impl Into<String>) -> impl gpui::IntoElement {
   div()
@@ -26,6 +26,22 @@ pub fn glass_surface(element: Div, cx: &App) -> Div {
       box_shadow(px(0.), px(-1.), px(1.5), px(0.), g.highlight),
       box_shadow(px(0.), px(10.), px(28.), px(-4.), g.shadow),
       box_shadow(px(0.), px(6.), px(22.), px(0.), g.glow),
+    ])
+}
+
+/// Denser glass wash for side sheets; cards still use [`glass_surface`].
+pub fn glass_panel<E: Styled>(element: E, cx: &App) -> E {
+  let g = glass(cx);
+  let radius = cx.theme().radius_lg;
+  element
+    .rounded_tl(radius)
+    .rounded_bl(radius)
+    .border_color(g.border)
+    .bg(glass_panel_fill(cx))
+    .shadow(vec![
+      box_shadow(px(0.), px(-1.), px(1.5), px(0.), g.highlight),
+      box_shadow(px(-12.), px(8.), px(36.), px(-4.), g.shadow),
+      box_shadow(px(-10.), px(0.), px(28.), px(0.), g.glow),
     ])
 }
 

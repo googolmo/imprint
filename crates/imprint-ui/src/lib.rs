@@ -10,7 +10,14 @@ use gpui_component::Theme;
 
 actions!(
   imprint,
-  [Quit, OpenImage, SelectTarget, StartFlash, ToggleSettings]
+  [
+    Quit,
+    OpenImage,
+    SelectTarget,
+    StartFlash,
+    ToggleSettings,
+    About
+  ]
 );
 
 pub use app::{ImprintApp, ImprintShell};

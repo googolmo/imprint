@@ -1,9 +1,11 @@
+mod icon;
+
 use gpui::{
   App, AppContext as _, Bounds, Menu, MenuItem, QuitMode, WindowBackgroundAppearance, WindowBounds,
   px, size,
 };
 use gpui_component::{Root, TitleBar};
-use imprint_ui::{ImprintApp, ImprintShell, OpenImage, Quit};
+use imprint_ui::{About, ImprintApp, ImprintShell, OpenImage, Quit, ToggleSettings};
 use tracing_subscriber::EnvFilter;
 
 fn main() {
@@ -17,8 +19,13 @@ fn main() {
     .run(|cx: &mut App| {
       imprint_ui::init(cx);
       cx.set_app_identity("imprint.cdxtheme.com", "Imprint");
+      icon::apply_app_icon();
       cx.on_action(|_: &Quit, cx| cx.quit());
       cx.set_menus([Menu::new("Imprint").items([
+        MenuItem::action("About Imprint", About),
+        MenuItem::separator(),
+        MenuItem::action("Settings…", ToggleSettings),
+        MenuItem::separator(),
         MenuItem::action("Open Image…", OpenImage),
         MenuItem::separator(),
         MenuItem::action("Quit", Quit),
@@ -26,6 +33,8 @@ fn main() {
       cx.bind_keys([
         gpui::KeyBinding::new("cmd-o", OpenImage, None),
         gpui::KeyBinding::new("ctrl-o", OpenImage, None),
+        gpui::KeyBinding::new("cmd-,", ToggleSettings, None),
+        gpui::KeyBinding::new("ctrl-,", ToggleSettings, None),
         gpui::KeyBinding::new("cmd-q", Quit, None),
         gpui::KeyBinding::new("ctrl-q", Quit, None),
       ]);
@@ -40,11 +49,16 @@ fn main() {
       let mut options = TitleBar::window_options();
       options.window_bounds = Some(WindowBounds::Windowed(bounds));
       options.window_min_size = Some(size(px(640.), px(440.)));
+      options.app_id = Some("imprint.cdxtheme.com".into());
       options.window_background = if cfg!(target_os = "windows") {
         WindowBackgroundAppearance::MicaBackdrop
       } else {
         WindowBackgroundAppearance::Blurred
       };
+      #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+      {
+        options.icon = icon::window_icon();
+      }
       cx.open_window(options, |window, cx| {
         let app = cx.new(|cx| ImprintApp::new(window, cx));
         let shell = cx.new(|_| ImprintShell::new(app));

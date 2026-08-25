@@ -42,6 +42,8 @@ pub struct Glass {
   pub fill: Hsla,
   pub fill_top: Hsla,
   pub fill_hover: Hsla,
+  pub panel: Hsla,
+  pub panel_top: Hsla,
   pub border: Hsla,
   pub highlight: Hsla,
   pub glow: Hsla,
@@ -49,11 +51,17 @@ pub struct Glass {
 }
 
 pub fn glass(cx: &App) -> Glass {
-  if cx.theme().is_dark() {
+  glass_for(cx.theme().is_dark())
+}
+
+fn glass_for(dark: bool) -> Glass {
+  if dark {
     Glass {
       fill: hsla(H_VIOLET, 0.38, 0.42, 0.22),
       fill_top: hsla(H_CYAN, 0.45, 0.78, 0.20),
       fill_hover: hsla(H_CYAN, 0.40, 0.72, 0.28),
+      panel: hsla(H_VIOLET, 0.42, 0.14, 0.78),
+      panel_top: hsla(H_CYAN, 0.38, 0.58, 0.42),
       border: hsla(H_CYAN, 0.55, 0.78, 0.42),
       highlight: hsla(H_CYAN, 0.40, 0.95, 0.55),
       glow: hsla(H_SAPPHIRE, 0.85, 0.58, 0.28),
@@ -64,6 +72,8 @@ pub fn glass(cx: &App) -> Glass {
       fill: hsla(H_SAPPHIRE, 0.18, 0.99, 0.86),
       fill_top: hsla(0.0, 0.0, 1.0, 0.94),
       fill_hover: hsla(H_SAPPHIRE, 0.22, 0.97, 0.92),
+      panel: hsla(H_SAPPHIRE, 0.20, 0.98, 0.78),
+      panel_top: hsla(0.0, 0.0, 1.0, 0.88),
       border: hsla(H_SAPPHIRE, 0.40, 0.42, 0.22),
       highlight: hsla(0.0, 0.0, 1.0, 0.95),
       glow: hsla(H_SAPPHIRE, 0.55, 0.48, 0.10),
@@ -78,6 +88,16 @@ pub fn glass_fill(cx: &App) -> Background {
     158.,
     linear_color_stop(g.fill_top, 0.),
     linear_color_stop(g.fill, 1.),
+  )
+}
+
+/// Denser wash for large overlays (settings sheet) so type stays readable.
+pub fn glass_panel_fill(cx: &App) -> Background {
+  let g = glass(cx);
+  linear_gradient(
+    158.,
+    linear_color_stop(g.panel_top, 0.),
+    linear_color_stop(g.panel, 1.),
   )
 }
 
@@ -287,6 +307,15 @@ fn paint_gradients(theme: &mut Theme, primary: Hsla, hover: Hsla, active: Hsla, 
       90.,
       linear_color_stop(primary, 0.),
       linear_color_stop(cyan, 1.),
+    ),
+  );
+  let g = glass_for(dark);
+  theme.tokens.tab_bar_segmented = ThemeToken::new(
+    g.fill,
+    linear_gradient(
+      158.,
+      linear_color_stop(g.fill_top, 0.),
+      linear_color_stop(g.fill, 1.),
     ),
   );
 }

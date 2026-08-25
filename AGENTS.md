@@ -39,10 +39,8 @@ Do not depend on `imprint-ui` from flash/device/image. Do not put block-device I
 
 - Versions and git revs: root `[workspace.dependencies]`
 - Features: member `Cargo.toml` only
-- GPUI: official Zed sources only, **never** `gpui-unofficial`
-- Nested Cargo workspaces are invalid, so Zed is a **shallow checkout outside this repo**:
-  `~/.cache/imprint/zed` (see `scripts/vendor-zed.sh`)
-- Root `Cargo.toml` path-depends on that checkout. After bumping `ZED_REV`, run the script and keep both `gpui` / `gpui_platform` paths in sync.
+- GPUI: official Zed sources only (`git = "https://github.com/zed-industries/zed"`), **never** `gpui-unofficial`
+- Keep `gpui` / `gpui_platform` on that same git URL as `gpui-component` so Cargo unifies on one GPUI. The lockfile pins the commit.
 
 `imprint-app` enables `gpui_platform` features `font-kit`, `wayland`, `x11` (Zed README cross-platform set).
 
@@ -51,7 +49,6 @@ App identity: `imprint.cdxtheme.com` (`cx.set_app_identity` in `imprint-app`).
 ## Commands
 
 ```bash
-./scripts/vendor-zed.sh          # once: shallow-clone official Zed
 cargo check -p imprint-cli
 cargo check -p imprint-ui
 cargo test --workspace --exclude imprint-app --exclude imprint-ui

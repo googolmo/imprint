@@ -18,9 +18,6 @@ Writing a disk **erases it**. Imprint will not list internal / system drives unl
 ## Quick start
 
 ```bash
-# Official GPUI sources (shallow Zed checkout, once)
-./scripts/vendor-zed.sh
-
 # List removable disks
 cargo run -p imprint-cli -- devices
 
@@ -47,7 +44,7 @@ On Linux you typically write to `/dev/sdX` or `/dev/nvmeXn1`. On macOS prefer `/
 
 Dependency **versions** live in the root `Cargo.toml` `[workspace.dependencies]`. **Features** (GPUI platform backends, clap derive, …) live on the member crates.
 
-GPUI comes from the **official Zed tree** (`github.com/zed-industries/zed`), vendored by `scripts/vendor-zed.sh` into `~/.cache/imprint/zed` so it is not a nested workspace. Do not use `gpui-unofficial`. See `AGENTS.md` to change the UI.
+GPUI comes from the **official Zed tree** (`github.com/zed-industries/zed`) as a git dependency in the root `Cargo.toml`. Do not use `gpui-unofficial`. See `AGENTS.md` to change the UI.
 
 ## Privileges
 

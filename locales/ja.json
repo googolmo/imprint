@@ -1,0 +1,107 @@
+{
+  "app": {
+    "name": "Imprint"
+  },
+  "menu": {
+    "about": "Imprint について",
+    "settings": "設定…",
+    "open_image": "イメージを開く…",
+    "quit": "終了"
+  },
+  "header": {
+    "settings_tooltip": "設定"
+  },
+  "image": {
+    "title": "イメージ",
+    "none": "イメージが選択されていません",
+    "hint": "ISO、IMG、DMG、または圧縮アーカイブ",
+    "select": "選択",
+    "pick_prompt": "ディスクイメージを選択"
+  },
+  "target": {
+    "title": "ターゲット",
+    "none": "ドライブが選択されていません",
+    "hint": "取り外し可能な USB または SD カード",
+    "select": "選択",
+    "count": "{n} 台のドライブ"
+  },
+  "write": {
+    "erase_warning": "書き込むと選択したドライブの内容はすべて消去されます。",
+    "choose_hint": "イメージとドライブを選択してください。",
+    "action": "書き込む"
+  },
+  "progress": {
+    "working": "処理中",
+    "starting": "開始しています…",
+    "unmounting": "{disk} をアンマウントしています",
+    "writing": "{image} を {disk} に書き込んでいます",
+    "written": "{bytes} 書き込み済み",
+    "validating": "書き込んだデータを検証しています",
+    "checked": "{bytes} を検証済み",
+    "syncing": "同期しています",
+    "complete": "書き込みが完了しました",
+    "cancel": "キャンセル",
+    "back": "戻る",
+    "phase": {
+      "preparing": "準備中",
+      "writing": "書き込み中",
+      "verifying": "検証中",
+      "finishing": "終了処理中",
+      "done": "完了",
+      "failed": "失敗"
+    }
+  },
+  "done": {
+    "title": "書き込み完了",
+    "ready": "{name} を起動できます。",
+    "another": "続けて書き込む",
+    "keep": "イメージを保持"
+  },
+  "status": {
+    "drives": "ドライブ {n} 台",
+    "writing": "書き込み中",
+    "ready": "準備完了"
+  },
+  "drives": {
+    "title": "ドライブを選択",
+    "hint": "内部ディスクは非表示です。書き込むとドライブは消去されます。",
+    "refresh": "更新",
+    "done": "完了",
+    "empty": "取り外し可能なドライブが見つかりません。",
+    "too_small": "容量不足"
+  },
+  "settings": {
+    "title": "設定",
+    "appearance": "外観",
+    "appearance_system": "システム",
+    "appearance_light": "ライト",
+    "appearance_dark": "ダーク",
+    "appearance_hint": "システムは OS のライト / ダーク設定に従います。",
+    "language": "言語",
+    "language_system": "システム",
+    "language_hint": "翻訳がある場合、システムの言語は OS に従います。",
+    "writing": "書き込み",
+    "verify": "書き込みを検証",
+    "verify_hint": "ディスクを読み戻し、すべてのバイトを比較します。",
+    "eject": "成功後に取り出す",
+    "eject_hint": "書き込み完了後にドライブをアンマウントします。",
+    "hide_system": "システムドライブを隠す",
+    "hide_system_hint": "内蔵ディスクは一覧に表示しません。"
+  },
+  "about": {
+    "title": "Imprint について",
+    "tagline": "OS イメージを USB ドライブと SD カードに書き込みます。",
+    "version": "バージョン {version}",
+    "ok": "OK"
+  },
+  "error": {
+    "image_not_found": "イメージが見つかりません: {path}",
+    "unsupported_image": "未対応のイメージです: {path}",
+    "no_target": "取り外し可能なターゲットが選択されていません",
+    "system_disk": "システムディスク {disk} への書き込みを拒否しました",
+    "target_too_small": "ターゲット {disk} の容量が不足しています（{have}）。イメージには {need} 必要です",
+    "privileges": "{path} への書き込みには管理者 / root 権限が必要です",
+    "cancelled": "書き込みはキャンセルされました",
+    "verify_mismatch": "オフセット {offset} で検証に失敗しました: 書き込み {expected}、読み取り {actual}"
+  }
+}

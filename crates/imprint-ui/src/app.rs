@@ -22,8 +22,10 @@ use gpui_component::{
   tag::Tag,
   v_flex,
 };
+use imprint_core::i18n::{self, t, tr};
 use imprint_core::{
-  FlashPhase, FlashProgress, FlashRequest, ImageRef, Settings, TargetDisk, format_bytes,
+  FlashPhase, FlashProgress, FlashRequest, ImageRef, Language, LocalePref, Settings, TargetDisk,
+  format_bytes,
 };
 use imprint_device::list_targets;
 use imprint_flash::flash;
@@ -104,13 +106,20 @@ impl ImprintApp {
     cx.notify();
   }
 
+  fn set_locale(&mut self, locale: LocalePref, cx: &mut Context<Self>) {
+    self.settings.locale = locale;
+    i18n::set_pref(locale);
+    crate::install_menus(cx);
+    cx.notify();
+  }
+
   fn refresh_disks(&mut self, cx: &mut Context<Self>) {
     match list_targets(&self.settings) {
       Ok(disks) => {
         self.disks = disks;
         self.selected.retain(|i| *i < self.disks.len());
       }
-      Err(err) => self.error = Some(err.to_string()),
+      Err(err) => self.error = Some(err.localized()),
     }
     cx.notify();
   }
@@ -122,7 +131,7 @@ impl ImprintApp {
         self.error = None;
         self.progress = None;
       }
-      Err(err) => self.error = Some(err.to_string()),
+      Err(err) => self.error = Some(err.localized()),
     }
     cx.notify();
   }
@@ -132,7 +141,7 @@ impl ImprintApp {
       files: true,
       directories: false,
       multiple: false,
-      prompt: Some("Select a disk image".into()),
+      prompt: Some(t("image.pick_prompt").into()),
     });
     cx.spawn(async move |this, cx| match rx.await {
       Ok(Ok(Some(paths))) => {
@@ -221,7 +230,7 @@ impl ImprintApp {
       bytes_total: request.image.write_size().max(1),
       bytes_per_sec: 0,
       target_label: request.targets[0].label(),
-      message: "Starting…".into(),
+      message: t("progress.starting"),
     });
     self.cancel.store(false, Ordering::Relaxed);
 
@@ -234,7 +243,7 @@ impl ImprintApp {
         let result = flash(request, &cancel, |progress| {
           let _ = tx.send(ProgressEvent::Update(progress));
         });
-        let _ = tx.send(ProgressEvent::Finished(result.map_err(|e| e.to_string())));
+        let _ = tx.send(ProgressEvent::Finished(result.map_err(|e| e.localized())));
       })
       .ok();
 
@@ -261,7 +270,7 @@ impl ImprintApp {
                       Ok(()) => {
                         if let Some(p) = this.progress.as_mut() {
                           p.phase = FlashPhase::Done;
-                          p.message = "Flash complete".into();
+                          p.message = t("progress.complete");
                           p.bytes_done = p.bytes_total;
                         }
                       }
@@ -314,19 +323,16 @@ impl ImprintApp {
       window.open_dialog(cx, move |dialog, _, cx| {
         let app = view.read(cx);
         dialog
-          .title("Select a drive")
+          .title(t("drives.title"))
           .w(px(520.))
-          .child(muted(
-            cx,
-            "Internal disks are hidden. Writing erases the drive.",
-          ))
+          .child(muted(cx, t("drives.hint")))
           .child(drive_list(&app, view.clone(), cx))
           .footer(
             h_flex()
               .w_full()
               .justify_end()
               .gap_2()
-              .child(Button::new("refresh").label("Refresh").on_click({
+              .child(Button::new("refresh").label(t("drives.refresh")).on_click({
                 let view = view.clone();
                 move |_, _, cx| {
                   view.update(cx, |this, cx| this.refresh_disks(cx));
@@ -335,7 +341,7 @@ impl ImprintApp {
               .child(
                 Button::new("confirm-drives")
                   .primary()
-                  .label("Done")
+                  .label(t("drives.done"))
                   .on_click(|_, window, cx| window.close_dialog(cx)),
               ),
           )
@@ -350,7 +356,7 @@ impl ImprintApp {
       window.open_sheet(cx, move |sheet, _, cx| {
         let app = view.read(cx);
         glass_panel(sheet, cx)
-          .title("Settings")
+          .title(t("settings.title"))
           .size(px(380.))
           .child(
             v_flex()
@@ -359,7 +365,7 @@ impl ImprintApp {
               .child(
                 v_flex()
                   .gap_2()
-                  .child(section_label(cx, "Appearance"))
+                  .child(section_label(cx, t("settings.appearance")))
                   .child(
                     glass_surface(v_flex().w_full().gap_3().px_4().py_4(), cx)
                       .child(
@@ -368,9 +374,9 @@ impl ImprintApp {
                           .small()
                           .w_full()
                           .selected_index(app.appearance.as_index())
-                          .child(Tab::new().label("System"))
-                          .child(Tab::new().label("Light"))
-                          .child(Tab::new().label("Dark"))
+                          .child(Tab::new().label(t("settings.appearance_system")))
+                          .child(Tab::new().label(t("settings.appearance_light")))
+                          .child(Tab::new().label(t("settings.appearance_dark")))
                           .on_click({
                             let view = view.clone();
                             move |ix, window, cx| {
@@ -380,42 +386,76 @@ impl ImprintApp {
                             }
                           }),
                       )
-                      .child(muted(cx, "System follows the OS light or dark setting.")),
+                      .child(muted(cx, t("settings.appearance_hint"))),
                   ),
               )
               .child(
-                v_flex().gap_2().child(section_label(cx, "Writing")).child(
-                  glass_surface(v_flex().w_full(), cx)
-                    .child(setting_switch(
-                      "verify",
-                      "Validate write",
-                      "Re-read the disk and compare every byte.",
-                      app.settings.verify,
-                      view.clone(),
-                      |s, on| s.verify = on,
-                      cx,
-                    ))
-                    .child(Separator::horizontal())
-                    .child(setting_switch(
-                      "unmount",
-                      "Eject on success",
-                      "Unmount the drive when writing finishes.",
-                      app.settings.unmount_on_success,
-                      view.clone(),
-                      |s, on| s.unmount_on_success = on,
-                      cx,
-                    ))
-                    .child(Separator::horizontal())
-                    .child(setting_switch(
-                      "hide-system",
-                      "Hide system drives",
-                      "Never list internal disks.",
-                      app.settings.hide_system_drives,
-                      view.clone(),
-                      |s, on| s.hide_system_drives = on,
-                      cx,
-                    )),
-                ),
+                v_flex()
+                  .gap_2()
+                  .child(section_label(cx, t("settings.language")))
+                  .child(
+                    glass_surface(v_flex().w_full().gap_3().px_4().py_4(), cx)
+                      .child(
+                        h_flex()
+                          .w_full()
+                          .gap_1()
+                          .flex_wrap()
+                          .child(locale_chip(
+                            "system",
+                            t("settings.language_system"),
+                            app.settings.locale == LocalePref::System,
+                            view.clone(),
+                            LocalePref::System,
+                          ))
+                          .children(Language::ALL.into_iter().map(|lang| {
+                            locale_chip(
+                              lang.id(),
+                              lang.native_name(),
+                              app.settings.locale == LocalePref::Language(lang),
+                              view.clone(),
+                              LocalePref::Language(lang),
+                            )
+                          })),
+                      )
+                      .child(muted(cx, t("settings.language_hint"))),
+                  ),
+              )
+              .child(
+                v_flex()
+                  .gap_2()
+                  .child(section_label(cx, t("settings.writing")))
+                  .child(
+                    glass_surface(v_flex().w_full(), cx)
+                      .child(setting_switch(
+                        "verify",
+                        t("settings.verify"),
+                        t("settings.verify_hint"),
+                        app.settings.verify,
+                        view.clone(),
+                        |s, on| s.verify = on,
+                        cx,
+                      ))
+                      .child(Separator::horizontal())
+                      .child(setting_switch(
+                        "unmount",
+                        t("settings.eject"),
+                        t("settings.eject_hint"),
+                        app.settings.unmount_on_success,
+                        view.clone(),
+                        |s, on| s.unmount_on_success = on,
+                        cx,
+                      ))
+                      .child(Separator::horizontal())
+                      .child(setting_switch(
+                        "hide-system",
+                        t("settings.hide_system"),
+                        t("settings.hide_system_hint"),
+                        app.settings.hide_system_drives,
+                        view.clone(),
+                        |s, on| s.hide_system_drives = on,
+                        cx,
+                      )),
+                  ),
               ),
           )
       });
@@ -426,7 +466,7 @@ impl ImprintApp {
     window.defer(cx, move |window, cx| {
       window.open_dialog(cx, move |dialog, _, cx| {
         dialog
-          .title("About Imprint")
+          .title(t("about.title"))
           .w(px(400.))
           .child(
             v_flex()
@@ -438,17 +478,20 @@ impl ImprintApp {
                 div()
                   .text_lg()
                   .font_weight(FontWeight::SEMIBOLD)
-                  .child("Imprint"),
+                  .child(t("app.name")),
               )
-              .child(muted(cx, format!("Version {}", env!("CARGO_PKG_VERSION"))))
-              .child(muted(cx, "Flash OS images onto USB drives and SD cards."))
+              .child(muted(
+                cx,
+                tr("about.version", &[("version", env!("CARGO_PKG_VERSION"))]),
+              ))
+              .child(muted(cx, t("about.tagline")))
               .child(muted(cx, env!("CARGO_PKG_LICENSE"))),
           )
           .footer(
             h_flex().w_full().justify_end().child(
               Button::new("about-ok")
                 .primary()
-                .label("OK")
+                .label(t("about.ok"))
                 .on_click(|_, window, cx| window.close_dialog(cx)),
             ),
           )
@@ -575,7 +618,7 @@ fn header(cx: &mut Context<ImprintApp>) -> impl IntoElement {
             .text_sm()
             .font_weight(FontWeight::SEMIBOLD)
             .text_color(cx.theme().foreground)
-            .child("Imprint"),
+            .child(t("app.name")),
         )
         .child(
           Button::new("settings")
@@ -583,7 +626,7 @@ fn header(cx: &mut Context<ImprintApp>) -> impl IntoElement {
             .small()
             .rounded(ButtonRounded::Large)
             .icon(IconName::Settings)
-            .tooltip("Settings")
+            .tooltip(t("header.settings_tooltip"))
             .on_click(move |_, window, cx| {
               view.update(cx, |this, cx| this.open_settings(window, cx));
             }),
@@ -599,16 +642,17 @@ fn write_form(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElemen
     .gap_4()
     .child(picker_block(
       cx,
-      "Image",
+      "image",
+      t("image.title"),
       IconName::FolderOpen,
       app
         .image
         .as_ref()
         .map(|i| i.display_name.clone())
-        .unwrap_or_else(|| "No image selected".into()),
+        .unwrap_or_else(|| t("image.none")),
       image_subtitle(app),
       app.image.is_some(),
-      "Select",
+      t("image.select"),
       {
         let view = view.clone();
         move |_, window, cx| {
@@ -622,12 +666,13 @@ fn write_form(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElemen
     ))
     .child(picker_block(
       cx,
-      "Target",
+      "target",
+      t("target.title"),
       IconName::HardDrive,
       target_title(app),
       target_subtitle(app),
       !app.selected.is_empty(),
-      "Select",
+      t("target.select"),
       {
         let view = view.clone();
         move |_, window, cx| {
@@ -653,16 +698,16 @@ fn write_form(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElemen
       .child(muted(
         cx,
         if can_write {
-          "This will erase the selected drive."
+          t("write.erase_warning")
         } else {
-          "Choose an image and a drive to continue."
+          t("write.choose_hint")
         },
       ))
       .child(
         Button::new("flash")
           .primary()
           .rounded(ButtonRounded::Large)
-          .label("Write")
+          .label(t("write.action"))
           .disabled(!can_write)
           .on_click(cx.listener(ImprintApp::click_flash)),
       ),
@@ -679,7 +724,7 @@ fn image_subtitle(app: &ImprintApp) -> String {
       format!("{kind} · {size}")
     }
   } else {
-    "ISO, IMG, DMG, or a compressed archive".into()
+    t("image.hint")
   }
 }
 
@@ -687,9 +732,9 @@ fn target_title(app: &ImprintApp) -> String {
   if app.selected.len() == 1 {
     app.selected_disks()[0].label()
   } else if app.selected.len() > 1 {
-    format!("{} drives", app.selected.len())
+    tr("target.count", &[("n", &app.selected.len().to_string())])
   } else {
-    "No drive selected".into()
+    t("target.none")
   }
 }
 
@@ -697,25 +742,27 @@ fn target_subtitle(app: &ImprintApp) -> String {
   if let Some(disk) = app.selected_disks().first() {
     format!("{} · {}", disk.bus.as_str(), format_bytes(disk.size))
   } else {
-    "Removable USB or SD card".into()
+    t("target.hint")
   }
 }
 
 fn picker_block(
   cx: &App,
-  label: &'static str,
+  id: &'static str,
+  label: impl Into<String>,
   icon: IconName,
   title: String,
   subtitle: String,
   ready: bool,
-  action: &'static str,
+  action: impl Into<String>,
   on_click: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
 ) -> impl IntoElement {
   let on_click = std::rc::Rc::new(on_click);
+  let action = action.into();
   let g = glass(cx);
   v_flex().gap_2().child(section_label(cx, label)).child(
     picker_row(cx)
-      .id(label)
+      .id(id)
       .cursor_pointer()
       .hover(|s| s.bg(g.fill_hover))
       .when(ready, |d| d.border_color(cx.theme().accent.divide(0.70)))
@@ -738,7 +785,7 @@ fn picker_block(
           .child(muted(cx, subtitle)),
       )
       .child(
-        Button::new(format!("{label}-select"))
+        Button::new(format!("{id}-select"))
           .small()
           .rounded(ButtonRounded::Large)
           .custom(
@@ -765,12 +812,9 @@ fn progress_panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoEl
   let fraction = progress.as_ref().map(|p| p.fraction()).unwrap_or(0.0);
   let phase = progress
     .as_ref()
-    .map(|p| p.phase.as_str())
-    .unwrap_or("Working");
-  let message = progress
-    .as_ref()
-    .map(|p| p.message.clone())
-    .unwrap_or_default();
+    .map(|p| phase_label(p.phase))
+    .unwrap_or_else(|| t("progress.working"));
+  let message = localized_progress_message(app);
   let speed = progress
     .as_ref()
     .map(|p| {
@@ -789,7 +833,14 @@ fn progress_panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoEl
 
   v_flex().size_full().items_center().justify_center().child(
     glass_surface(v_flex().w_full().gap_4().px_5().py_5(), cx)
-      .child(section_label(cx, if failed { "Failed" } else { phase }))
+      .child(section_label(
+        cx,
+        if failed {
+          t("progress.phase.failed")
+        } else {
+          phase
+        },
+      ))
       .child(
         div()
           .text_lg()
@@ -822,7 +873,7 @@ fn progress_panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoEl
             Button::new("cancel")
               .ghost()
               .rounded(ButtonRounded::Large)
-              .label("Cancel")
+              .label(t("progress.cancel"))
               .on_click(move |_, _, cx| {
                 view.update(cx, |this, cx| {
                   this.cancel.store(true, Ordering::Relaxed);
@@ -837,7 +888,7 @@ fn progress_panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoEl
         d.child(
           Button::new("retry")
             .rounded(ButtonRounded::Large)
-            .label("Back")
+            .label(t("progress.back"))
             .on_click(move |_, _, cx| {
               view.update(cx, |this, cx| this.flash_another(cx));
             }),
@@ -873,10 +924,10 @@ fn done_panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElemen
             div()
               .text_lg()
               .font_weight(FontWeight::MEDIUM)
-              .child("Write complete"),
+              .child(t("done.title")),
           ),
       )
-      .child(muted(cx, format!("{name} is ready to boot.")))
+      .child(muted(cx, tr("done.ready", &[("name", &name)])))
       .child(
         h_flex()
           .gap_2()
@@ -885,7 +936,7 @@ fn done_panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElemen
             Button::new("again")
               .primary()
               .rounded(ButtonRounded::Large)
-              .label("Write another")
+              .label(t("done.another"))
               .on_click({
                 let view = view.clone();
                 move |_, _, cx| {
@@ -897,7 +948,7 @@ fn done_panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElemen
             Button::new("same")
               .ghost()
               .rounded(ButtonRounded::Large)
-              .label("Keep image")
+              .label(t("done.keep"))
               .on_click(move |_, _, cx| {
                 view.update(cx, |this, cx| {
                   this.progress = None;
@@ -922,13 +973,13 @@ fn status_bar(app: &ImprintApp, cx: &App) -> impl IntoElement {
       linear_color_stop(cx.theme().status_bar, 1.),
     ))
     .border_color(cx.theme().status_bar_border)
-    .left(format!("{} drive(s)", app.disks.len()))
+    .left(tr("status.drives", &[("n", &app.disks.len().to_string())]))
     .right(if let Some(err) = app.error.clone() {
       err
     } else if app.flashing {
-      "Writing".into()
+      t("status.writing")
     } else if ready {
-      "Ready".into()
+      t("status.ready")
     } else {
       String::new()
     })
@@ -951,7 +1002,7 @@ fn drive_list(app: &ImprintApp, view: Entity<ImprintApp>, cx: &App) -> impl Into
           .gap_2()
           .py_8()
           .child(icon_well(cx, IconName::HardDrive, false))
-          .child(muted(cx, "No removable drives found.")),
+          .child(muted(cx, t("drives.empty"))),
       )
     })
     .children({
@@ -1041,7 +1092,10 @@ fn drive_row(
         .child(muted(cx, detail)),
     )
     .child(if too_small {
-      Tag::warning().small().child("Too small").into_any_element()
+      Tag::warning()
+        .small()
+        .child(t("drives.too_small"))
+        .into_any_element()
     } else if selected {
       Icon::new(IconName::Check)
         .text_color(cx.theme().primary)
@@ -1053,13 +1107,15 @@ fn drive_row(
 
 fn setting_switch(
   id: &'static str,
-  title: &'static str,
-  hint: &'static str,
+  title: impl Into<String>,
+  hint: impl Into<String>,
   on: bool,
   view: Entity<ImprintApp>,
   flip: fn(&mut Settings, bool),
   cx: &App,
 ) -> impl IntoElement {
+  let title = title.into();
+  let hint = hint.into();
   let g = glass(cx);
   h_flex()
     .id(id)
@@ -1085,4 +1141,72 @@ fn setting_switch(
         cx.notify();
       });
     }))
+}
+
+fn locale_chip(
+  id: &'static str,
+  label: impl Into<gpui::SharedString>,
+  selected: bool,
+  view: Entity<ImprintApp>,
+  pref: LocalePref,
+) -> impl IntoElement {
+  let button = Button::new(format!("locale-{id}"))
+    .small()
+    .rounded(ButtonRounded::Large)
+    .label(label);
+  let button = if selected {
+    button.primary()
+  } else {
+    button.ghost()
+  };
+  button.on_click(move |_, _, cx| {
+    view.update(cx, |this, cx| this.set_locale(pref, cx));
+  })
+}
+
+fn phase_label(phase: FlashPhase) -> String {
+  t(match phase {
+    FlashPhase::Preparing => "progress.phase.preparing",
+    FlashPhase::Writing => "progress.phase.writing",
+    FlashPhase::Verifying => "progress.phase.verifying",
+    FlashPhase::Finishing => "progress.phase.finishing",
+    FlashPhase::Done => "progress.phase.done",
+    FlashPhase::Failed => "progress.phase.failed",
+  })
+}
+
+fn localized_progress_message(app: &ImprintApp) -> String {
+  let Some(progress) = &app.progress else {
+    return t("progress.working");
+  };
+  match progress.phase {
+    FlashPhase::Preparing => tr("progress.unmounting", &[("disk", &progress.target_label)]),
+    FlashPhase::Writing => {
+      if progress.bytes_done == 0 {
+        let image = app
+          .image
+          .as_ref()
+          .map(|i| i.display_name.as_str())
+          .unwrap_or("");
+        tr(
+          "progress.writing",
+          &[("image", image), ("disk", &progress.target_label)],
+        )
+      } else {
+        let bytes = format_bytes(progress.bytes_done);
+        tr("progress.written", &[("bytes", &bytes)])
+      }
+    }
+    FlashPhase::Verifying => {
+      if progress.bytes_done == 0 {
+        t("progress.validating")
+      } else {
+        let bytes = format_bytes(progress.bytes_done);
+        tr("progress.checked", &[("bytes", &bytes)])
+      }
+    }
+    FlashPhase::Finishing => t("progress.syncing"),
+    FlashPhase::Done => t("progress.complete"),
+    FlashPhase::Failed => progress.message.clone(),
+  }
 }

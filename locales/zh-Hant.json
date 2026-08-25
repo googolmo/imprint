@@ -1,0 +1,107 @@
+{
+  "app": {
+    "name": "Imprint"
+  },
+  "menu": {
+    "about": "關於 Imprint",
+    "settings": "設定…",
+    "open_image": "打開映像檔…",
+    "quit": "結束"
+  },
+  "header": {
+    "settings_tooltip": "設定"
+  },
+  "image": {
+    "title": "映像檔",
+    "none": "尚未選擇映像檔",
+    "hint": "ISO、IMG、DMG 或壓縮檔",
+    "select": "選擇",
+    "pick_prompt": "選擇磁碟映像檔"
+  },
+  "target": {
+    "title": "目標",
+    "none": "尚未選擇磁碟",
+    "hint": "可移除的 USB 或 SD 卡",
+    "select": "選擇",
+    "count": "{n} 個磁碟"
+  },
+  "write": {
+    "erase_warning": "寫入將清除所選磁碟上的所有資料。",
+    "choose_hint": "請選擇映像檔和目標磁碟。",
+    "action": "寫入"
+  },
+  "progress": {
+    "working": "進行中",
+    "starting": "正在開始…",
+    "unmounting": "正在卸載 {disk}",
+    "writing": "正在寫入 {image} → {disk}",
+    "written": "已寫入 {bytes}",
+    "validating": "正在驗證寫入的資料",
+    "checked": "已驗證 {bytes}",
+    "syncing": "正在同步",
+    "complete": "寫入完成",
+    "cancel": "取消",
+    "back": "返回",
+    "phase": {
+      "preparing": "準備中",
+      "writing": "寫入中",
+      "verifying": "驗證中",
+      "finishing": "結束中",
+      "done": "完成",
+      "failed": "失敗"
+    }
+  },
+  "done": {
+    "title": "寫入完成",
+    "ready": "{name} 已可開機。",
+    "another": "再寫一個",
+    "keep": "保留映像檔"
+  },
+  "status": {
+    "drives": "{n} 個磁碟",
+    "writing": "正在寫入",
+    "ready": "就緒"
+  },
+  "drives": {
+    "title": "選擇磁碟",
+    "hint": "已隱藏系統磁碟。寫入會清除目標磁碟。",
+    "refresh": "重新整理",
+    "done": "完成",
+    "empty": "找不到可移除的磁碟。",
+    "too_small": "空間不足"
+  },
+  "settings": {
+    "title": "設定",
+    "appearance": "外觀",
+    "appearance_system": "系統",
+    "appearance_light": "淺色",
+    "appearance_dark": "深色",
+    "appearance_hint": "系統外觀會跟隨作業系統的淺色或深色模式。",
+    "language": "語言",
+    "language_system": "系統",
+    "language_hint": "有對應翻譯時，系統語言會跟隨作業系統。",
+    "writing": "寫入",
+    "verify": "驗證寫入",
+    "verify_hint": "回讀磁碟並逐位元組比對。",
+    "eject": "完成後退出",
+    "eject_hint": "寫入結束後卸載磁碟。",
+    "hide_system": "隱藏系統磁碟",
+    "hide_system_hint": "不列出內建磁碟。"
+  },
+  "about": {
+    "title": "關於 Imprint",
+    "tagline": "將作業系統映像檔寫入 USB 與 SD 卡。",
+    "version": "版本 {version}",
+    "ok": "確定"
+  },
+  "error": {
+    "image_not_found": "找不到映像檔：{path}",
+    "unsupported_image": "不支援的映像檔：{path}",
+    "no_target": "尚未選擇可移除的目標磁碟",
+    "system_disk": "拒絕寫入系統磁碟 {disk}",
+    "target_too_small": "目標磁碟 {disk} 空間不足（{have}）；映像檔需要 {need}",
+    "privileges": "寫入 {path} 需要系統管理員 / root 權限",
+    "cancelled": "寫入已取消",
+    "verify_mismatch": "驗證失敗，偏移 {offset}：寫入 {expected}，讀到 {actual}"
+  }
+}

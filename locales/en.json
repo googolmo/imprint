@@ -1,0 +1,107 @@
+{
+  "app": {
+    "name": "Imprint"
+  },
+  "menu": {
+    "about": "About Imprint",
+    "settings": "Settings…",
+    "open_image": "Open Image…",
+    "quit": "Quit"
+  },
+  "header": {
+    "settings_tooltip": "Settings"
+  },
+  "image": {
+    "title": "Image",
+    "none": "No image selected",
+    "hint": "ISO, IMG, DMG, or a compressed archive",
+    "select": "Select",
+    "pick_prompt": "Select a disk image"
+  },
+  "target": {
+    "title": "Target",
+    "none": "No drive selected",
+    "hint": "Removable USB or SD card",
+    "select": "Select",
+    "count": "{n} drives"
+  },
+  "write": {
+    "erase_warning": "This will erase the selected drive.",
+    "choose_hint": "Choose an image and a drive to continue.",
+    "action": "Write"
+  },
+  "progress": {
+    "working": "Working",
+    "starting": "Starting…",
+    "unmounting": "Unmounting {disk}",
+    "writing": "Writing {image} → {disk}",
+    "written": "{bytes} written",
+    "validating": "Validating written bytes",
+    "checked": "Checked {bytes}",
+    "syncing": "Syncing",
+    "complete": "Flash complete",
+    "cancel": "Cancel",
+    "back": "Back",
+    "phase": {
+      "preparing": "Preparing",
+      "writing": "Flashing",
+      "verifying": "Validating",
+      "finishing": "Finishing",
+      "done": "Done",
+      "failed": "Failed"
+    }
+  },
+  "done": {
+    "title": "Write complete",
+    "ready": "{name} is ready to boot.",
+    "another": "Write another",
+    "keep": "Keep image"
+  },
+  "status": {
+    "drives": "{n} drive(s)",
+    "writing": "Writing",
+    "ready": "Ready"
+  },
+  "drives": {
+    "title": "Select a drive",
+    "hint": "Internal disks are hidden. Writing erases the drive.",
+    "refresh": "Refresh",
+    "done": "Done",
+    "empty": "No removable drives found.",
+    "too_small": "Too small"
+  },
+  "settings": {
+    "title": "Settings",
+    "appearance": "Appearance",
+    "appearance_system": "System",
+    "appearance_light": "Light",
+    "appearance_dark": "Dark",
+    "appearance_hint": "System follows the OS light or dark setting.",
+    "language": "Language",
+    "language_system": "System",
+    "language_hint": "System uses the OS language when a translation exists.",
+    "writing": "Writing",
+    "verify": "Validate write",
+    "verify_hint": "Re-read the disk and compare every byte.",
+    "eject": "Eject on success",
+    "eject_hint": "Unmount the drive when writing finishes.",
+    "hide_system": "Hide system drives",
+    "hide_system_hint": "Never list internal disks."
+  },
+  "about": {
+    "title": "About Imprint",
+    "tagline": "Flash OS images onto USB drives and SD cards.",
+    "version": "Version {version}",
+    "ok": "OK"
+  },
+  "error": {
+    "image_not_found": "Image not found: {path}",
+    "unsupported_image": "Unsupported image: {path}",
+    "no_target": "No removable target selected",
+    "system_disk": "Refusing to write to system disk {disk}",
+    "target_too_small": "Target {disk} is too small ({have}); image needs {need}",
+    "privileges": "Need administrator / root privileges to write to {path}",
+    "cancelled": "Flash cancelled",
+    "verify_mismatch": "Verification failed at offset {offset}: wrote {expected}, read {actual}"
+  }
+}

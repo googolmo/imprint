@@ -8,5 +8,7 @@ description = "Shared types and errors for Imprint"
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 bytesize = { workspace = true }
+sys-locale = { workspace = true }

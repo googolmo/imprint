@@ -1,0 +1,107 @@
+{
+  "app": {
+    "name": "Imprint"
+  },
+  "menu": {
+    "about": "Über Imprint",
+    "settings": "Einstellungen…",
+    "open_image": "Image öffnen…",
+    "quit": "Beenden"
+  },
+  "header": {
+    "settings_tooltip": "Einstellungen"
+  },
+  "image": {
+    "title": "Image",
+    "none": "Kein Image ausgewählt",
+    "hint": "ISO, IMG, DMG oder ein komprimiertes Archiv",
+    "select": "Auswählen",
+    "pick_prompt": "Disk-Image auswählen"
+  },
+  "target": {
+    "title": "Ziel",
+    "none": "Kein Laufwerk ausgewählt",
+    "hint": "Wechseldatenträger (USB oder SD-Karte)",
+    "select": "Auswählen",
+    "count": "{n} Laufwerke"
+  },
+  "write": {
+    "erase_warning": "Dadurch wird das ausgewählte Laufwerk gelöscht.",
+    "choose_hint": "Wähle ein Image und ein Laufwerk, um fortzufahren.",
+    "action": "Schreiben"
+  },
+  "progress": {
+    "working": "In Arbeit",
+    "starting": "Startet…",
+    "unmounting": "{disk} wird ausgehängt",
+    "writing": "{image} → {disk} wird geschrieben",
+    "written": "{bytes} geschrieben",
+    "validating": "Geschriebene Bytes werden geprüft",
+    "checked": "{bytes} geprüft",
+    "syncing": "Wird synchronisiert",
+    "complete": "Schreiben abgeschlossen",
+    "cancel": "Abbrechen",
+    "back": "Zurück",
+    "phase": {
+      "preparing": "Vorbereiten",
+      "writing": "Schreiben",
+      "verifying": "Prüfen",
+      "finishing": "Abschließen",
+      "done": "Fertig",
+      "failed": "Fehlgeschlagen"
+    }
+  },
+  "done": {
+    "title": "Schreiben abgeschlossen",
+    "ready": "{name} ist startbereit.",
+    "another": "Weiteres schreiben",
+    "keep": "Image behalten"
+  },
+  "status": {
+    "drives": "{n} Laufwerk(e)",
+    "writing": "Schreiben",
+    "ready": "Bereit"
+  },
+  "drives": {
+    "title": "Laufwerk auswählen",
+    "hint": "Interne Datenträger sind ausgeblendet. Schreiben löscht das Laufwerk.",
+    "refresh": "Aktualisieren",
+    "done": "Fertig",
+    "empty": "Keine Wechseldatenträger gefunden.",
+    "too_small": "Zu klein"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "appearance": "Erscheinungsbild",
+    "appearance_system": "System",
+    "appearance_light": "Hell",
+    "appearance_dark": "Dunkel",
+    "appearance_hint": "System folgt der Hell-/Dunkel-Einstellung des Betriebssystems.",
+    "language": "Sprache",
+    "language_system": "System",
+    "language_hint": "System verwendet die OS-Sprache, wenn eine Übersetzung vorhanden ist.",
+    "writing": "Schreiben",
+    "verify": "Schreiben prüfen",
+    "verify_hint": "Datenträger erneut lesen und jeden Byte vergleichen.",
+    "eject": "Bei Erfolg auswerfen",
+    "eject_hint": "Laufwerk nach dem Schreiben aushängen.",
+    "hide_system": "Systemlaufwerke ausblenden",
+    "hide_system_hint": "Interne Datenträger nie auflisten."
+  },
+  "about": {
+    "title": "Über Imprint",
+    "tagline": "OS-Images auf USB-Laufwerke und SD-Karten schreiben.",
+    "version": "Version {version}",
+    "ok": "OK"
+  },
+  "error": {
+    "image_not_found": "Image nicht gefunden: {path}",
+    "unsupported_image": "Nicht unterstütztes Image: {path}",
+    "no_target": "Kein Wechseldatenträger ausgewählt",
+    "system_disk": "Schreiben auf Systemdatenträger {disk} abgelehnt",
+    "target_too_small": "Ziel {disk} ist zu klein ({have}); Image benötigt {need}",
+    "privileges": "Zum Schreiben auf {path} sind Administrator-/Root-Rechte nötig",
+    "cancelled": "Schreiben abgebrochen",
+    "verify_mismatch": "Prüfung fehlgeschlagen bei Offset {offset}: geschrieben {expected}, gelesen {actual}"
+  }
+}

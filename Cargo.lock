@@ -3359,6 +3359,8 @@ version = "0.1.0"
 dependencies = [
  "bytesize",
  "serde",
+ "serde_json",
+ "sys-locale",
  "thiserror 2.0.20",
 ]
 

@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::LocalePref;
+
 /// User-facing options, persisted by the UI later if needed.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
@@ -7,6 +9,8 @@ pub struct Settings {
   pub unmount_on_success: bool,
   pub hide_system_drives: bool,
   pub allow_system_drives: bool,
+  #[serde(default)]
+  pub locale: LocalePref,
 }
 
 impl Default for Settings {
@@ -16,6 +20,7 @@ impl Default for Settings {
       unmount_on_success: true,
       hide_system_drives: true,
       allow_system_drives: false,
+      locale: LocalePref::System,
     }
   }
 }

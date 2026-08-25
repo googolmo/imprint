@@ -1,0 +1,107 @@
+{
+  "app": {
+    "name": "Imprint"
+  },
+  "menu": {
+    "about": "关于 Imprint",
+    "settings": "设置…",
+    "open_image": "打开镜像…",
+    "quit": "退出"
+  },
+  "header": {
+    "settings_tooltip": "设置"
+  },
+  "image": {
+    "title": "镜像",
+    "none": "未选择镜像",
+    "hint": "ISO、IMG、DMG 或压缩包",
+    "select": "选择",
+    "pick_prompt": "选择磁盘镜像"
+  },
+  "target": {
+    "title": "目标",
+    "none": "未选择磁盘",
+    "hint": "可移动 USB 或 SD 卡",
+    "select": "选择",
+    "count": "{n} 个磁盘"
+  },
+  "write": {
+    "erase_warning": "写入将清除所选磁盘上的全部数据。",
+    "choose_hint": "请选择镜像和目标磁盘。",
+    "action": "写入"
+  },
+  "progress": {
+    "working": "进行中",
+    "starting": "正在开始…",
+    "unmounting": "正在卸载 {disk}",
+    "writing": "正在写入 {image} → {disk}",
+    "written": "已写入 {bytes}",
+    "validating": "正在校验写入的数据",
+    "checked": "已校验 {bytes}",
+    "syncing": "正在同步",
+    "complete": "写入完成",
+    "cancel": "取消",
+    "back": "返回",
+    "phase": {
+      "preparing": "准备中",
+      "writing": "写入中",
+      "verifying": "校验中",
+      "finishing": "收尾中",
+      "done": "完成",
+      "failed": "失败"
+    }
+  },
+  "done": {
+    "title": "写入完成",
+    "ready": "{name} 已可启动。",
+    "another": "再写一个",
+    "keep": "保留镜像"
+  },
+  "status": {
+    "drives": "{n} 个磁盘",
+    "writing": "正在写入",
+    "ready": "就绪"
+  },
+  "drives": {
+    "title": "选择磁盘",
+    "hint": "已隐藏系统磁盘。写入会清除目标磁盘。",
+    "refresh": "刷新",
+    "done": "完成",
+    "empty": "未找到可移动磁盘。",
+    "too_small": "空间不足"
+  },
+  "settings": {
+    "title": "设置",
+    "appearance": "外观",
+    "appearance_system": "系统",
+    "appearance_light": "浅色",
+    "appearance_dark": "深色",
+    "appearance_hint": "系统外观跟随操作系统的浅色或深色模式。",
+    "language": "语言",
+    "language_system": "系统",
+    "language_hint": "系统语言在有对应翻译时跟随操作系统。",
+    "writing": "写入",
+    "verify": "校验写入",
+    "verify_hint": "回读磁盘并逐字节比对。",
+    "eject": "完成后弹出",
+    "eject_hint": "写入结束后卸载磁盘。",
+    "hide_system": "隐藏系统磁盘",
+    "hide_system_hint": "不列出内置磁盘。"
+  },
+  "about": {
+    "title": "关于 Imprint",
+    "tagline": "将操作系统镜像写入 USB 和 SD 卡。",
+    "version": "版本 {version}",
+    "ok": "好"
+  },
+  "error": {
+    "image_not_found": "找不到镜像：{path}",
+    "unsupported_image": "不支持的镜像：{path}",
+    "no_target": "未选择可移动目标磁盘",
+    "system_disk": "拒绝写入系统磁盘 {disk}",
+    "target_too_small": "目标磁盘 {disk} 空间不足（{have}）；镜像需要 {need}",
+    "privileges": "写入 {path} 需要管理员 / root 权限",
+    "cancelled": "写入已取消",
+    "verify_mismatch": "校验失败，偏移 {offset}：写入 {expected}，读到 {actual}"
+  }
+}

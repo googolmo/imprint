@@ -47,4 +47,46 @@ impl Error {
   pub fn msg(text: impl Into<String>) -> Self {
     Self::Message(text.into())
   }
+
+  /// Translate for the GUI. `Display` stays English for logs and the CLI.
+  pub fn localized(&self) -> String {
+    use crate::i18n::{t, tr};
+    match self {
+      Self::Message(message) => message.clone(),
+      Self::ImageNotFound(path) => {
+        let path = path.display().to_string();
+        tr("error.image_not_found", &[("path", &path)])
+      }
+      Self::UnsupportedImage(path) => {
+        let path = path.display().to_string();
+        tr("error.unsupported_image", &[("path", &path)])
+      }
+      Self::NoTarget => t("error.no_target"),
+      Self::SystemDisk(disk) => tr("error.system_disk", &[("disk", disk)]),
+      Self::TargetTooSmall { disk, have, need } => tr(
+        "error.target_too_small",
+        &[("disk", disk), ("have", have), ("need", need)],
+      ),
+      Self::Privileges(path) => tr("error.privileges", &[("path", path)]),
+      Self::Cancelled => t("error.cancelled"),
+      Self::VerifyMismatch {
+        offset,
+        expected,
+        actual,
+      } => {
+        let offset = offset.to_string();
+        let expected = format!("{expected:#04x}");
+        let actual = format!("{actual:#04x}");
+        tr(
+          "error.verify_mismatch",
+          &[
+            ("offset", &offset),
+            ("expected", &expected),
+            ("actual", &actual),
+          ],
+        )
+      }
+      Self::Io(err) => err.to_string(),
+    }
+  }
 }

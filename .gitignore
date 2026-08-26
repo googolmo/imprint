@@ -9,3 +9,4 @@
 *.dmg
 .env
 /.vendor
+.keys/

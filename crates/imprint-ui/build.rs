@@ -1,6 +1,6 @@
 fn main() {
-  emit("IMPRINT_UPDATER_PUBKEY");
-  emit("IMPRINT_UPDATER_ENDPOINT");
+  emit("CARGO_PACKAGER_UPDATER_PUBKEY");
+  emit("CARGO_PACKAGER_UPDATER_ENDPOINT");
 }
 
 fn emit(name: &str) {

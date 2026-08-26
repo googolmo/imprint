@@ -1,12 +1,14 @@
 //! App updates from GitHub Releases via `cargo-packager-updater`.
 //!
 //! Bake these in at compile time:
-//! - `IMPRINT_UPDATER_PUBKEY` — minisign public key from `cargo packager signer generate`
-//! - `IMPRINT_UPDATER_ENDPOINT` — URL that serves `latest.json` (typically
-//!   `https://github.com/<owner>/<repo>/releases/latest/download/latest.json`)
+//! - `CARGO_PACKAGER_UPDATER_PUBKEY` — minisign public key from `cargo packager signer generate`
+//! - `CARGO_PACKAGER_UPDATER_ENDPOINT` — one or more URLs that serve `latest.json`
+//!   (comma, semicolon, or whitespace separated). Later URLs are fallbacks.
+//!   Typical GitHub Releases URL:
+//!   `https://github.com/<owner>/<repo>/releases/latest/download/latest.json`
 //!
 //! The private key is a secret (`CARGO_PACKAGER_SIGN_PRIVATE_KEY`) used only
-//! when packaging. See `scripts/prepare-updater-assets.sh`.
+//! when packaging. See `scripts/prepare-updater-assets.py`.
 
 use std::env;
 use std::process::Command;
@@ -17,17 +19,40 @@ use cargo_packager_updater::{
   Config, Update, UpdaterBuilder, WindowsConfig, WindowsUpdateInstallMode, url::Url,
 };
 
-/// Public key from `IMPRINT_UPDATER_PUBKEY` at compile time.
-pub const UPDATER_PUBKEY: &str = env!("IMPRINT_UPDATER_PUBKEY");
+/// Public key from `CARGO_PACKAGER_UPDATER_PUBKEY` at compile time.
+pub const UPDATER_PUBKEY: &str = env!("CARGO_PACKAGER_UPDATER_PUBKEY");
 
-/// Update manifest URL from `IMPRINT_UPDATER_ENDPOINT` at compile time.
-pub const UPDATE_ENDPOINT: &str = env!("IMPRINT_UPDATER_ENDPOINT");
+/// Update manifest URL(s) from `CARGO_PACKAGER_UPDATER_ENDPOINT` at compile time.
+/// Multiple addresses may be separated by commas, semicolons, or whitespace.
+pub const UPDATE_ENDPOINT: &str = env!("CARGO_PACKAGER_UPDATER_ENDPOINT");
 
 const USER_AGENT_VALUE: &str = concat!("imprint/", env!("CARGO_PKG_VERSION"));
 
+fn endpoint_tokens(raw: &str) -> impl Iterator<Item = &str> {
+  raw
+    .split(|c: char| c == ',' || c == ';' || c.is_whitespace())
+    .filter(|part| !part.is_empty())
+}
+
+pub fn parse_endpoints(raw: &str) -> Result<Vec<Url>, String> {
+  let mut urls = Vec::new();
+  for (i, part) in endpoint_tokens(raw).enumerate() {
+    urls.push(Url::parse(part).map_err(|err| {
+      format!(
+        "invalid CARGO_PACKAGER_UPDATER_ENDPOINT entry {}: {part}: {err}",
+        i + 1
+      )
+    })?);
+  }
+  if urls.is_empty() {
+    return Err("CARGO_PACKAGER_UPDATER_ENDPOINT is empty".into());
+  }
+  Ok(urls)
+}
+
 pub fn updater_config() -> Result<Config, String> {
   Ok(Config {
-    endpoints: vec![endpoint_url()?],
+    endpoints: parse_endpoints(UPDATE_ENDPOINT)?,
     pubkey: UPDATER_PUBKEY.into(),
     windows: Some(WindowsConfig {
       install_mode: Some(WindowsUpdateInstallMode::Passive),
@@ -37,11 +62,11 @@ pub fn updater_config() -> Result<Config, String> {
 }
 
 pub fn is_configured() -> bool {
-  !UPDATER_PUBKEY.is_empty() && !UPDATE_ENDPOINT.is_empty()
+  !UPDATER_PUBKEY.is_empty() && endpoint_tokens(UPDATE_ENDPOINT).next().is_some()
 }
 
-pub fn endpoint_url() -> Result<Url, String> {
-  Url::parse(UPDATE_ENDPOINT).map_err(|err| format!("invalid IMPRINT_UPDATER_ENDPOINT: {err}"))
+pub fn endpoint_urls() -> Result<Vec<Url>, String> {
+  parse_endpoints(UPDATE_ENDPOINT)
 }
 
 /// True when this process is a packaged install (`.app`, AppImage, installer).
@@ -90,7 +115,7 @@ pub fn is_packaged() -> bool {
 pub fn check_for_update() -> Result<Option<Update>, String> {
   if !is_configured() {
     return Err(
-      "updater is not configured (set IMPRINT_UPDATER_PUBKEY and IMPRINT_UPDATER_ENDPOINT at build)"
+      "updater is not configured (set CARGO_PACKAGER_UPDATER_PUBKEY and CARGO_PACKAGER_UPDATER_ENDPOINT at build)"
         .into(),
     );
   }
@@ -140,16 +165,52 @@ mod tests {
   use super::*;
 
   #[test]
+  fn parse_endpoints_accepts_one_or_more_urls() {
+    let one = parse_endpoints("https://example.com/latest.json").expect("one");
+    assert_eq!(one.len(), 1);
+    assert_eq!(one[0].as_str(), "https://example.com/latest.json");
+
+    let many = parse_endpoints(
+      "https://cdn.example.com/latest.json, https://github.com/o/r/releases/latest/download/latest.json",
+    )
+    .expect("many");
+    assert_eq!(many.len(), 2);
+    assert_eq!(many[0].as_str(), "https://cdn.example.com/latest.json");
+    assert_eq!(
+      many[1].as_str(),
+      "https://github.com/o/r/releases/latest/download/latest.json"
+    );
+
+    let mixed = parse_endpoints(
+      "https://a.example/latest.json;\nhttps://b.example/latest.json https://c.example/latest.json,",
+    )
+    .expect("mixed");
+    assert_eq!(mixed.len(), 3);
+  }
+
+  #[test]
+  fn parse_endpoints_rejects_empty_and_invalid() {
+    assert!(parse_endpoints("").is_err());
+    assert!(parse_endpoints("  , ; \n").is_err());
+    assert!(parse_endpoints("not-a-url").is_err());
+    assert!(parse_endpoints("https://ok.example/latest.json, nope").is_err());
+  }
+
+  #[test]
   fn baked_endpoint_parses_when_set() {
-    if UPDATE_ENDPOINT.is_empty() {
+    if endpoint_tokens(UPDATE_ENDPOINT).next().is_none() {
       assert!(!is_configured());
       return;
     }
-    let url = endpoint_url().expect("IMPRINT_UPDATER_ENDPOINT must be a valid URL");
-    assert_eq!(url.as_str(), UPDATE_ENDPOINT);
+    let urls = endpoint_urls().expect("CARGO_PACKAGER_UPDATER_ENDPOINT must be valid URL(s)");
+    let expected: Vec<_> = endpoint_tokens(UPDATE_ENDPOINT).collect();
+    assert_eq!(urls.len(), expected.len());
+    for (url, raw) in urls.iter().zip(expected) {
+      assert_eq!(url.as_str(), raw);
+    }
     let config = updater_config().expect("updater config");
     assert_eq!(config.pubkey, UPDATER_PUBKEY);
-    assert_eq!(config.endpoints.len(), 1);
+    assert_eq!(config.endpoints.len(), urls.len());
   }
 
   #[test]

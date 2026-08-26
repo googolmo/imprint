@@ -1,0 +1,413 @@
+# Package Imprint with cargo-packager and publish a GitHub Release.
+#
+# Flow:
+#   1. Create the GitHub Release if it does not exist (author: github-actions[bot]
+#      via ${{ github.token }}; do not substitute a personal PAT).
+#   2. Build/pack per OS with cargo-binstall + cargo-packager.
+#   3. Each pack job uploads binaries, then merges that platform into latest.json
+#      and uploads it (scripts/update-latest-json.py --upload).
+#
+# Triggers:
+#   - push of a tag matching v* (e.g. v0.1.0) — version must match Packager.toml
+#   - workflow_dispatch — packages the committed version; draft release
+#
+# Installs cargo-packager via cargo-binstall, then:
+#   macOS   → .app + .dmg
+#   Windows → .msi (WiX)
+#   Linux   → .deb + .AppImage + pacman
+#
+# ---------------------------------------------------------------------------
+# Secrets / env (set on the repo; empty = skip that signing layer)
+# ---------------------------------------------------------------------------
+#
+# GitHub (automatic)
+#   GH_TOKEN / github.token
+#       Create the GitHub Release and upload assets. Must stay the default
+#       Actions token so the release author is github-actions[bot].
+#
+# Compile-time (imprint-ui/build.rs → baked into the GUI binary)
+#   CARGO_PACKAGER_UPDATER_PUBKEY
+#       Minisign public key from `cargo packager signer generate`.
+#       Pair of CARGO_PACKAGER_SIGN_PRIVATE_KEY. Empty disables in-app updates.
+#   CARGO_PACKAGER_UPDATER_ENDPOINT
+#       One or more HTTPS URLs that serve latest.json (comma, semicolon, or
+#       whitespace separated; later URLs are fallbacks). Defaults to
+#       https://github.com/<owner>/<repo>/releases/latest/download/latest.json
+#
+# cargo-packager updater signatures (minisign; all platforms)
+#   CARGO_PACKAGER_SIGN_PRIVATE_KEY
+#       Base64 minisign secret. Also read by the CLI as `-k` /
+#       env CARGO_PACKAGER_SIGN_PRIVATE_KEY. Used by
+#       `cargo packager` and scripts/prepare-updater-assets.py.
+#   CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD
+#       Password for that key. Use empty string for an unencrypted key
+#       (CI must set it so cargo-packager does not prompt).
+#
+# macOS codesign (cargo-packager reads these while building .app/.dmg)
+#   APPLE_CERTIFICATE
+#       Base64 of the Developer ID Application .p12. A wrapped
+#       openssl/base64 file is fine (`openssl base64 -in cert.p12`):
+#         gh secret set APPLE_CERTIFICATE < cert.p12.base64
+#       The pack job strips whitespace before cargo-packager.
+#   APPLE_CERTIFICATE_PASSWORD
+#       Password of that .p12. cargo-packager env.
+#   APPLE_SIGNING_IDENTITY
+#       e.g. "Developer ID Application: Name (TEAMID)".
+#       cargo-packager does NOT read this env; the workflow writes it into
+#       Packager.toml [macos].signing-identity before packaging.
+#
+# macOS notarization — App Store Connect API key only
+#   (cargo-packager, only if signing-identity is set)
+#   APPLE_API_KEY
+#       Key ID from App Store Connect (filename AuthKey_<id>.p8)
+#   APPLE_API_ISSUER
+#       Issuer UUID
+#   APPLE_API_KEY_CONTENT
+#       Raw .p8 body. This workflow writes AuthKey_<id>.p8 and sets
+#       APPLE_API_KEY_PATH for cargo-packager / notarytool.
+#
+# Windows Authenticode (WiX MSI)
+#   cargo-packager signs via Packager.toml [windows].certificate-thumbprint
+#   after this workflow imports the PFX into the runner cert store.
+#   WINDOWS_CERTIFICATE
+#       Base64 of the Authenticode .pfx / .p12
+#   WINDOWS_CERTIFICATE_PASSWORD
+#       PFX password
+#   WINDOWS_CERTIFICATE_THUMBPRINT
+#       SHA1 thumbprint if the cert is already in the store (optional;
+#       computed from WINDOWS_CERTIFICATE when omitted)
+#   WINDOWS_TIMESTAMP_URL
+#       Timestamp server; default http://timestamp.digicert.com
+#
+# Linux packages are unsigned at the OS level (no extra env). Updater
+# .sig files still use CARGO_PACKAGER_SIGN_PRIVATE_KEY.
+# ---------------------------------------------------------------------------
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+  RUST_BACKTRACE: "1"
+  # Default Actions token → release created by github-actions[bot].
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: meta
+        name: Read Packager.toml version
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^version = "\(.*\)"/\1/p' Packager.toml | head -n1)"
+          if [[ -z "$version" ]]; then
+            echo "could not read version from Packager.toml" >&2
+            exit 1
+          fi
+          tag="v${version}"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            if [[ "${GITHUB_REF_NAME}" != "$tag" ]]; then
+              echo "git tag ${GITHUB_REF_NAME} does not match Packager.toml ${tag}" >&2
+              exit 1
+            fi
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "releasing ${tag}"
+
+  create-release:
+    name: Create release
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create GitHub Release if missing
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
+          VERSION: ${{ needs.version.outputs.version }}
+          DRAFT: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "release ${TAG} already exists"
+            exit 0
+          fi
+          extra=()
+          if [[ "$DRAFT" == "true" ]]; then
+            extra+=(--draft)
+          fi
+          # github.token / GH_TOKEN → author is github-actions[bot]
+          gh release create "$TAG" \
+            --title "Imprint ${VERSION}" \
+            --generate-notes \
+            --target "${GITHUB_SHA}" \
+            "${extra[@]}"
+          echo "created release ${TAG} as github-actions[bot]"
+
+  package:
+    name: ${{ matrix.name }}
+    needs: [version, create-release]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macos-app-dmg
+            os: macos-latest
+            formats: app,dmg
+          - name: windows-msi
+            os: windows-latest
+            formats: wix
+          - name: linux-packages
+            os: ubuntu-22.04
+            formats: deb,appimage,pacman
+    env:
+      # Compile-time updater config (imprint-ui/build.rs)
+      CARGO_PACKAGER_UPDATER_PUBKEY: ${{ secrets.CARGO_PACKAGER_UPDATER_PUBKEY }}
+      CARGO_PACKAGER_UPDATER_ENDPOINT: ${{ secrets.CARGO_PACKAGER_UPDATER_ENDPOINT }}
+      # cargo-packager minisign
+      CARGO_PACKAGER_SIGN_PRIVATE_KEY: ${{ secrets.CARGO_PACKAGER_SIGN_PRIVATE_KEY }}
+      CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD: ${{ secrets.CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD }}
+      # macOS codesign + notarization
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+      # Windows Authenticode
+      WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      WINDOWS_CERTIFICATE_THUMBPRINT: ${{ secrets.WINDOWS_CERTIFICATE_THUMBPRINT }}
+      WINDOWS_TIMESTAMP_URL: ${{ secrets.WINDOWS_TIMESTAMP_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.0
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: release-${{ matrix.name }}
+
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@v1.22.0
+
+      - name: Install cargo-packager
+        shell: bash
+        run: cargo binstall --no-confirm --locked cargo-packager
+
+      - name: Install Linux packaging dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            clang \
+            cmake \
+            pkg-config \
+            file \
+            wget \
+            fuse \
+            libfuse2 \
+            patchelf \
+            desktop-file-utils \
+            libssl-dev \
+            libzstd-dev \
+            libclang-dev \
+            libfontconfig-dev \
+            libfreetype6-dev \
+            libxkbcommon-dev \
+            libxkbcommon-x11-dev \
+            libwayland-dev \
+            libx11-dev \
+            libxrandr-dev \
+            libxi-dev \
+            libxinerama-dev \
+            libxcursor-dev \
+            libxcomposite-dev \
+            libxdamage-dev \
+            libxext-dev \
+            libxfixes-dev \
+            libasound2-dev \
+            libvulkan-dev \
+            libgl1-mesa-dev \
+            mesa-vulkan-drivers
+
+      - name: Select Xcode
+        if: runner.os == 'macOS'
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Default updater endpoint
+        shell: bash
+        run: |
+          if [[ -z "${CARGO_PACKAGER_UPDATER_ENDPOINT:-}" ]]; then
+            endpoint="https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/latest.json"
+            echo "CARGO_PACKAGER_UPDATER_ENDPOINT=${endpoint}" >> "$GITHUB_ENV"
+            echo "CARGO_PACKAGER_UPDATER_ENDPOINT unset; using ${endpoint}"
+          fi
+
+      - name: Write App Store Connect API key
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${APPLE_API_KEY_CONTENT:-}" || -z "${APPLE_API_KEY:-}" ]]; then
+            echo "APPLE_API_KEY_CONTENT / APPLE_API_KEY not set; skipping .p8 write"
+            exit 0
+          fi
+          mkdir -p private_keys "${HOME}/private_keys" "${HOME}/.appstoreconnect/private_keys"
+          keyfile="private_keys/AuthKey_${APPLE_API_KEY}.p8"
+          printf '%s\n' "${APPLE_API_KEY_CONTENT}" > "${keyfile}"
+          chmod 600 "${keyfile}"
+          echo "APPLE_API_KEY_PATH=${PWD}/${keyfile}" >> "$GITHUB_ENV"
+
+      - name: Normalize APPLE_CERTIFICATE
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${APPLE_CERTIFICATE:-}" ]]; then
+            echo "APPLE_CERTIFICATE unset; .app/.dmg will not be Developer ID signed"
+            exit 0
+          fi
+          # Secret may be an openssl-wrapped .p12.base64 file (newlines).
+          # Collapse to one line so GitHub env + cargo-packager decode it.
+          normalized="$(printf '%s' "$APPLE_CERTIFICATE" | tr -d '[:space:]')"
+          if [[ -z "$normalized" ]]; then
+            echo "APPLE_CERTIFICATE empty after stripping whitespace" >&2
+            exit 1
+          fi
+          {
+            echo "APPLE_CERTIFICATE<<APPLE_CERTIFICATE_EOF"
+            printf '%s\n' "$normalized"
+            echo "APPLE_CERTIFICATE_EOF"
+          } >> "$GITHUB_ENV"
+
+      - name: Inject macOS signing identity
+        if: runner.os == 'macOS'
+        shell: bash
+        run: python3 scripts/inject-packager-signing.py
+
+      - name: Import Windows code-signing certificate
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $thumb = $env:WINDOWS_CERTIFICATE_THUMBPRINT
+          if (-not $thumb -and $env:WINDOWS_CERTIFICATE) {
+            $pfx = Join-Path $env:RUNNER_TEMP "windows-cert.pfx"
+            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+            $pass = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
+            $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $pass
+            $thumb = $cert.Thumbprint
+            Remove-Item $pfx -Force
+          }
+          if (-not $thumb) {
+            Write-Host "no WINDOWS_CERTIFICATE / WINDOWS_CERTIFICATE_THUMBPRINT; MSI will be unsigned"
+            exit 0
+          }
+          echo "WINDOWS_CERTIFICATE_THUMBPRINT=$thumb" >> $env:GITHUB_ENV
+
+      - name: Inject Windows Authenticode config
+        if: runner.os == 'Windows'
+        shell: bash
+        run: python3 scripts/inject-packager-signing.py
+
+      - name: cargo packager
+        shell: bash
+        run: |
+          set -euo pipefail
+          # GitHub maps missing secrets to ""; cargo-packager treats Some("") as set.
+          for var in \
+            CARGO_PACKAGER_SIGN_PRIVATE_KEY \
+            CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD \
+            APPLE_CERTIFICATE \
+            APPLE_CERTIFICATE_PASSWORD \
+            APPLE_SIGNING_IDENTITY \
+            # APPLE_API_KEY \
+            # APPLE_API_ISSUER \
+            # APPLE_API_KEY_PATH \
+            # APPLE_API_KEY_CONTENT \
+            WINDOWS_CERTIFICATE \
+            WINDOWS_CERTIFICATE_PASSWORD \
+            WINDOWS_CERTIFICATE_THUMBPRINT \
+            WINDOWS_TIMESTAMP_URL
+          do
+            if [[ -z "${!var:-}" ]]; then
+              unset "$var" || true
+            fi
+          done
+          # Force App Store Connect API key notarization; ignore Apple ID / keychain.
+          unset APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID APPLE_KEYCHAIN_PROFILE || true
+
+          extra=()
+          if [[ -n "${CARGO_PACKAGER_SIGN_PRIVATE_KEY:-}" ]]; then
+            extra+=(-k "${CARGO_PACKAGER_SIGN_PRIVATE_KEY}" --password "${CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD:-}")
+          else
+            echo "CARGO_PACKAGER_SIGN_PRIVATE_KEY unset; updater .sig files will be missing"
+          fi
+          cargo packager --release --formats "${{ matrix.formats }}" "${extra[@]}"
+
+      - name: Updater payload + latest.json fragment
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare-updater-assets.py "${{ needs.version.outputs.version }}"
+
+      - name: Upload binaries to GitHub Release
+        shell: bash
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(
+            dist/*.dmg
+            dist/*.msi
+            dist/*.deb
+            dist/*.AppImage
+            dist/*.tar.gz
+            dist/*.sig
+            dist/PKGBUILD
+          )
+          if [[ ${#files[@]} -eq 0 ]]; then
+            echo "no package files in dist/" >&2
+            exit 1
+          fi
+          gh release upload "$TAG" "${files[@]}" --clobber
+          printf 'uploaded to %s:\n' "$TAG"
+          printf '  %s\n' "${files[@]}"
+
+      - name: Merge and upload latest.json
+        shell: bash
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: python3 scripts/update-latest-json.py --version "$VERSION" --upload "$TAG"

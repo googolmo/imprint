@@ -4,6 +4,7 @@
   },
   "menu": {
     "about": "About Imprint",
+    "check_updates": "Check for Updates…",
     "settings": "Settings…",
     "open_image": "Open Image…",
     "quit": "Quit"
@@ -91,7 +92,24 @@
     "title": "About Imprint",
     "tagline": "Flash OS images onto USB drives and SD cards.",
     "version": "Version {version}",
+    "check_updates": "Check for Updates…",
     "ok": "OK"
+  },
+  "update": {
+    "title": "Software Update",
+    "checking": "Checking for updates…",
+    "up_to_date": "Imprint is up to date.",
+    "available": "Version {version} is available.",
+    "install": "Install",
+    "later": "Later",
+    "downloading": "Downloading update…",
+    "progress": "{received} of {total}",
+    "installed": "The update was installed.",
+    "restart": "Restart",
+    "restart_hint": "Restart Imprint to finish the update.",
+    "ok": "OK",
+    "unpackaged": "Installing updates requires a packaged build (.app, AppImage, or installer).",
+    "failed": "Could not update: {error}"
   },
   "error": {
     "image_not_found": "Image not found: {path}",

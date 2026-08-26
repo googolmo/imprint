@@ -4,6 +4,7 @@
   },
   "menu": {
     "about": "Über Imprint",
+    "check_updates": "Nach Updates suchen…",
     "settings": "Einstellungen…",
     "open_image": "Image öffnen…",
     "quit": "Beenden"
@@ -91,7 +92,24 @@
     "title": "Über Imprint",
     "tagline": "OS-Images auf USB-Laufwerke und SD-Karten schreiben.",
     "version": "Version {version}",
+    "check_updates": "Nach Updates suchen…",
     "ok": "OK"
+  },
+  "update": {
+    "title": "Softwareupdate",
+    "checking": "Suche nach Updates…",
+    "up_to_date": "Imprint ist auf dem neuesten Stand.",
+    "available": "Version {version} ist verfügbar.",
+    "install": "Installieren",
+    "later": "Später",
+    "downloading": "Update wird heruntergeladen…",
+    "progress": "{received} von {total}",
+    "installed": "Das Update wurde installiert.",
+    "restart": "Neu starten",
+    "restart_hint": "Starten Sie Imprint neu, um das Update abzuschließen.",
+    "ok": "OK",
+    "unpackaged": "Updates lassen sich nur in einer paketierten Version (.app, AppImage oder Installer) einspielen.",
+    "failed": "Update fehlgeschlagen: {error}"
   },
   "error": {
     "image_not_found": "Image nicht gefunden: {path}",

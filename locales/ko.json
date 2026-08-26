@@ -4,6 +4,7 @@
   },
   "menu": {
     "about": "Imprint 정보",
+    "check_updates": "업데이트 확인…",
     "settings": "설정…",
     "open_image": "이미지 열기…",
     "quit": "종료"
@@ -91,7 +92,24 @@
     "title": "Imprint 정보",
     "tagline": "OS 이미지를 USB 드라이브와 SD 카드에 씁니다.",
     "version": "버전 {version}",
+    "check_updates": "업데이트 확인…",
     "ok": "확인"
+  },
+  "update": {
+    "title": "소프트웨어 업데이트",
+    "checking": "업데이트를 확인하는 중…",
+    "up_to_date": "Imprint이 최신 버전입니다.",
+    "available": "버전 {version}을(를) 사용할 수 있습니다.",
+    "install": "설치",
+    "later": "나중에",
+    "downloading": "업데이트를 다운로드하는 중…",
+    "progress": "{received} / {total}",
+    "installed": "업데이트가 설치되었습니다.",
+    "restart": "다시 시작",
+    "restart_hint": "업데이트를 완료하려면 Imprint을 다시 시작하세요.",
+    "ok": "확인",
+    "unpackaged": "업데이트 설치는 패키징된 빌드(.app, AppImage, 설치 프로그램)에서만 가능합니다.",
+    "failed": "업데이트할 수 없음: {error}"
   },
   "error": {
     "image_not_found": "이미지를 찾을 수 없음: {path}",

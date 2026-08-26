@@ -35,10 +35,10 @@ fn main() {
       })
       .detach();
 
-      let bounds = Bounds::centered(None, size(px(780.), px(540.)), cx);
+      let bounds = Bounds::centered(None, size(px(860.), px(560.)), cx);
       let mut options = TitleBar::window_options();
       options.window_bounds = Some(WindowBounds::Windowed(bounds));
-      options.window_min_size = Some(size(px(640.), px(440.)));
+      options.window_min_size = Some(size(px(720.), px(480.)));
       options.app_id = Some("imprint.cdxtheme.com".into());
       options.window_background = if cfg!(target_os = "windows") {
         WindowBackgroundAppearance::MicaBackdrop

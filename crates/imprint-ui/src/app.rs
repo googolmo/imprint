@@ -10,12 +10,13 @@ use gpui::{
   Subscription, Window, div, linear_color_stop, linear_gradient, prelude::*, px,
 };
 use gpui_component::{
-  ActiveTheme as _, Colorize as _, Disableable as _, Icon, IconName, Root, Sizable as _, TitleBar,
-  WindowExt as _,
+  ActiveTheme as _, Colorize as _, Icon, IconName, Root, Sizable as _, TitleBar, WindowExt as _,
   button::{Button, ButtonCustomVariant, ButtonRounded, ButtonVariants as _},
   h_flex,
-  progress::Progress,
+  menu::{DropdownMenu as _, PopupMenuItem},
+  progress::ProgressCircle,
   separator::Separator,
+  spinner::Spinner,
   status_bar::StatusBar,
   switch::Switch,
   tab::{Tab, TabBar},
@@ -35,7 +36,8 @@ use crate::actions::{About, OpenImage, Quit, SelectTarget, StartFlash, ToggleSet
 use crate::theme::Appearance;
 use crate::theme::glass;
 use crate::widgets::{
-  atmosphere, glass_panel, glass_surface, icon_well, muted, picker_row, section_label,
+  atmosphere, brand_mark, glass_panel, glass_surface, hover_fill, icon_badge, icon_well, muted,
+  section_label, stage_connector, stage_kicker,
 };
 
 enum ProgressEvent {
@@ -395,28 +397,7 @@ impl ImprintApp {
                   .child(section_label(cx, t("settings.language")))
                   .child(
                     glass_surface(v_flex().w_full().gap_3().px_4().py_4(), cx)
-                      .child(
-                        h_flex()
-                          .w_full()
-                          .gap_1()
-                          .flex_wrap()
-                          .child(locale_chip(
-                            "system",
-                            t("settings.language_system"),
-                            app.settings.locale == LocalePref::System,
-                            view.clone(),
-                            LocalePref::System,
-                          ))
-                          .children(Language::ALL.into_iter().map(|lang| {
-                            locale_chip(
-                              lang.id(),
-                              lang.native_name(),
-                              app.settings.locale == LocalePref::Language(lang),
-                              view.clone(),
-                              LocalePref::Language(lang),
-                            )
-                          })),
-                      )
+                      .child(locale_dropdown(i18n::active_language(), view.clone()))
                       .child(muted(cx, t("settings.language_hint"))),
                   ),
               )
@@ -472,11 +453,11 @@ impl ImprintApp {
             v_flex()
               .gap_3()
               .items_center()
-              .py_3()
-              .child(icon_well(cx, IconName::Info, true))
+              .py_4()
+              .child(brand_mark(cx, px(56.)))
               .child(
                 div()
-                  .text_lg()
+                  .text_xl()
                   .font_weight(FontWeight::SEMIBOLD)
                   .child(t("app.name")),
               )
@@ -484,7 +465,12 @@ impl ImprintApp {
                 cx,
                 tr("about.version", &[("version", env!("CARGO_PKG_VERSION"))]),
               ))
-              .child(muted(cx, t("about.tagline")))
+              .child(
+                div()
+                  .max_w(px(280.))
+                  .text_center()
+                  .child(muted(cx, t("about.tagline"))),
+              )
               .child(muted(cx, env!("CARGO_PKG_LICENSE"))),
           )
           .footer(
@@ -573,7 +559,11 @@ impl Render for ImprintApp {
       .on_action(cx.listener(Self::on_about))
       .on_action(|_: &Quit, _, cx| cx.quit())
       .on_drop(cx.listener(Self::on_drop_paths))
-      .drag_over::<ExternalPaths>(|style, _, _, cx| style.bg(cx.theme().drop_target))
+      .drag_over::<ExternalPaths>(|style, _, _, cx| {
+        style
+          .bg(cx.theme().drop_target)
+          .border_color(cx.theme().accent.divide(0.45))
+      })
       .relative()
       .size_full()
       .bg(cx.theme().transparent)
@@ -604,7 +594,7 @@ fn header(cx: &mut Context<ImprintApp>) -> impl IntoElement {
     .bg(linear_gradient(
       180.,
       linear_color_stop(cx.theme().title_bar, 0.),
-      linear_color_stop(cx.theme().title_bar.divide(0.35), 1.),
+      linear_color_stop(cx.theme().title_bar.divide(0.28), 1.),
     ))
     .border_color(cx.theme().title_bar_border)
     .child(
@@ -635,83 +625,63 @@ fn header(cx: &mut Context<ImprintApp>) -> impl IntoElement {
 }
 
 fn write_form(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {
-  let can_write = app.can_flash();
   let view = cx.entity();
-  v_flex()
-    .size_full()
-    .gap_4()
-    .child(picker_block(
-      cx,
-      "image",
-      t("image.title"),
-      IconName::FolderOpen,
-      app
-        .image
-        .as_ref()
-        .map(|i| i.display_name.clone())
-        .unwrap_or_else(|| t("image.none")),
-      image_subtitle(app),
-      app.image.is_some(),
-      t("image.select"),
-      {
-        let view = view.clone();
-        move |_, window, cx| {
-          view.update(cx, |this, cx| {
-            if !this.flashing {
-              this.pick_image(window, cx);
-            }
-          });
-        }
-      },
-    ))
-    .child(picker_block(
-      cx,
-      "target",
-      t("target.title"),
-      IconName::HardDrive,
-      target_title(app),
-      target_subtitle(app),
-      !app.selected.is_empty(),
-      t("target.select"),
-      {
-        let view = view.clone();
-        move |_, window, cx| {
-          view.update(cx, |this, cx| {
-            if !this.flashing {
-              this.open_drives(window, cx);
-            }
-          });
-        }
-      },
-    ))
-    .child(div().flex_1())
-    .child(
-      glass_surface(
-        h_flex()
-          .w_full()
-          .items_center()
-          .justify_between()
-          .px_4()
-          .py_3(),
+  v_flex().size_full().items_center().justify_center().child(
+    h_flex()
+      .w_full()
+      .h(px(348.))
+      .items_stretch()
+      .gap_3()
+      .child(stage_card(
         cx,
-      )
-      .child(muted(
-        cx,
-        if can_write {
-          t("write.erase_warning")
-        } else {
-          t("write.choose_hint")
+        "image",
+        "01",
+        t("image.title"),
+        IconName::FolderOpen,
+        app
+          .image
+          .as_ref()
+          .map(|i| i.display_name.clone())
+          .unwrap_or_else(|| t("image.none")),
+        image_subtitle(app),
+        app.image.is_some(),
+        t("image.select"),
+        {
+          let view = view.clone();
+          move |_, window, cx| {
+            view.update(cx, |this, cx| {
+              if !this.flashing {
+                this.pick_image(window, cx);
+              }
+            });
+          }
         },
       ))
-      .child(
-        Button::new("flash")
-          .primary()
-          .rounded(ButtonRounded::Large)
-          .label(t("write.action"))
-          .disabled(!can_write)
-          .on_click(cx.listener(ImprintApp::click_flash)),
-      ),
-    )
+      .child(stage_connector(cx))
+      .child(stage_card(
+        cx,
+        "target",
+        "02",
+        t("target.title"),
+        IconName::HardDrive,
+        target_title(app),
+        target_subtitle(app),
+        !app.selected.is_empty(),
+        t("target.select"),
+        {
+          let view = view.clone();
+          move |_, window, cx| {
+            view.update(cx, |this, cx| {
+              if !this.flashing {
+                this.open_drives(window, cx);
+              }
+            });
+          }
+        },
+      ))
+      .child(stage_connector(cx))
+      .child(write_stage(app, cx)),
+  )
 }
 
 fn image_subtitle(app: &ImprintApp) -> String {
@@ -746,9 +716,10 @@ fn target_subtitle(app: &ImprintApp) -> String {
   }
 }
 
-fn picker_block(
+fn stage_card(
   cx: &App,
   id: &'static str,
+  step: &'static str,
   label: impl Into<String>,
   icon: IconName,
   title: String,
@@ -760,50 +731,204 @@ fn picker_block(
   let on_click = std::rc::Rc::new(on_click);
   let action = action.into();
   let g = glass(cx);
-  v_flex().gap_2().child(section_label(cx, label)).child(
-    picker_row(cx)
-      .id(id)
-      .cursor_pointer()
-      .hover(|s| s.bg(g.fill_hover))
-      .when(ready, |d| d.border_color(cx.theme().accent.divide(0.70)))
-      .on_click({
-        let on_click = on_click.clone();
-        move |ev, window, cx| on_click(ev, window, cx)
-      })
-      .child(icon_well(cx, icon, ready))
+  let hover = hover_fill(cx);
+  glass_surface(
+    v_flex()
+      .size_full()
+      .items_center()
+      .justify_center()
+      .gap_3()
+      .px_4()
+      .py_5(),
+    cx,
+  )
+  .flex_1()
+  .min_w_0()
+  .h_full()
+  .id(id)
+  .overflow_hidden()
+  .cursor_pointer()
+  .hover(move |s| s.bg(hover))
+  .when(ready, |d| {
+    d.border_color(cx.theme().accent.divide(0.50)).shadow(vec![
+      gpui_component::box_shadow(px(0.), px(-1.), px(1.), px(0.), g.highlight),
+      gpui_component::box_shadow(px(0.), px(12.), px(32.), px(-6.), g.shadow),
+      gpui_component::box_shadow(
+        px(0.),
+        px(0.),
+        px(28.),
+        px(2.),
+        cx.theme().accent.divide(0.22),
+      ),
+    ])
+  })
+  .on_click({
+    let on_click = on_click.clone();
+    move |ev, window, cx| on_click(ev, window, cx)
+  })
+  .child(stage_kicker(cx, step, label))
+  .child(icon_badge(cx, icon, ready, px(56.)))
+  .child(
+    div()
+      .w_full()
+      .px_1()
+      .text_center()
+      .font_weight(FontWeight::SEMIBOLD)
+      .truncate()
+      .child(title),
+  )
+  .child(
+    div()
+      .w_full()
+      .px_2()
+      .text_center()
+      .child(muted(cx, subtitle)),
+  )
+  .child(
+    Button::new(format!("{id}-select"))
+      .small()
+      .rounded(ButtonRounded::Large)
+      .custom(
+        ButtonCustomVariant::new(cx)
+          .color(g.fill)
+          .hover(g.fill_hover)
+          .foreground(if cx.theme().is_dark() {
+            cx.theme().accent
+          } else {
+            cx.theme().primary
+          }),
+      )
+      .label(action)
+      .on_click(move |ev, window, cx| {
+        cx.stop_propagation();
+        on_click(ev, window, cx);
+      }),
+  )
+}
+
+fn write_stage(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {
+  let can_write = app.can_flash();
+  let g = glass(cx);
+  let primary_fill = cx.theme().tokens.button_primary.background;
+  let primary_hover = cx.theme().tokens.button_primary_hover.background;
+  glass_surface(
+    v_flex()
+      .size_full()
+      .items_center()
+      .justify_center()
+      .gap_3()
+      .px_4()
+      .py_5(),
+    cx,
+  )
+  .flex_1()
+  .min_w_0()
+  .h_full()
+  .id("flash-stage")
+  .overflow_hidden()
+  .when(can_write, |d| {
+    d.cursor_pointer()
+      .bg(primary_fill)
+      .border_color(cx.theme().accent.divide(0.40))
+      .shadow(vec![
+        gpui_component::box_shadow(px(0.), px(-1.), px(1.), px(0.), g.highlight),
+        gpui_component::box_shadow(
+          px(0.),
+          px(14.),
+          px(36.),
+          px(-4.),
+          cx.theme().primary.divide(0.40),
+        ),
+        gpui_component::box_shadow(
+          px(0.),
+          px(0.),
+          px(28.),
+          px(2.),
+          cx.theme().accent.divide(0.28),
+        ),
+      ])
+      .hover(move |s| s.bg(primary_hover))
+      .on_click(cx.listener(ImprintApp::click_flash))
+  })
+  .child({
+    let step_color = if can_write {
+      cx.theme().primary_foreground
+    } else if cx.theme().is_dark() {
+      cx.theme().accent
+    } else {
+      cx.theme().primary
+    };
+    let label_color = if can_write {
+      cx.theme().primary_foreground
+    } else {
+      cx.theme().muted_foreground
+    };
+    h_flex()
+      .items_center()
+      .gap_2()
       .child(
-        v_flex()
-          .flex_1()
-          .min_w_0()
-          .gap_1()
-          .child(
-            div()
-              .font_weight(FontWeight::MEDIUM)
-              .truncate()
-              .child(title),
-          )
-          .child(muted(cx, subtitle)),
+        div()
+          .text_xs()
+          .font_weight(FontWeight::SEMIBOLD)
+          .text_color(step_color)
+          .child("03"),
       )
       .child(
-        Button::new(format!("{id}-select"))
-          .small()
-          .rounded(ButtonRounded::Large)
-          .custom(
-            ButtonCustomVariant::new(cx)
-              .color(g.fill)
-              .hover(g.fill_hover)
-              .foreground(if cx.theme().is_dark() {
-                cx.theme().accent
-              } else {
-                cx.theme().primary
-              }),
-          )
-          .label(action)
-          .on_click(move |ev, window, cx| {
-            cx.stop_propagation();
-            on_click(ev, window, cx);
-          }),
-      ),
+        div()
+          .text_xs()
+          .font_weight(FontWeight::SEMIBOLD)
+          .text_color(label_color)
+          .child(t("write.action")),
+      )
+  })
+  .child(if can_write {
+    div()
+      .flex()
+      .items_center()
+      .justify_center()
+      .size(px(56.))
+      .rounded(cx.theme().radius)
+      .bg(cx.theme().primary_foreground.divide(0.22))
+      .child(
+        Icon::new(IconName::Play)
+          .large()
+          .text_color(cx.theme().primary_foreground),
+      )
+      .into_any_element()
+  } else {
+    icon_badge(cx, IconName::Play, false, px(56.)).into_any_element()
+  })
+  .child(
+    div()
+      .w_full()
+      .px_1()
+      .text_center()
+      .text_lg()
+      .font_weight(FontWeight::SEMIBOLD)
+      .text_color(if can_write {
+        cx.theme().primary_foreground
+      } else {
+        cx.theme().foreground
+      })
+      .child(t("write.action")),
+  )
+  .child(
+    div()
+      .w_full()
+      .px_2()
+      .text_center()
+      .text_sm()
+      .font_weight(FontWeight::MEDIUM)
+      .text_color(if can_write {
+        cx.theme().primary_foreground
+      } else {
+        cx.theme().muted_foreground
+      })
+      .child(if can_write {
+        t("write.erase_warning")
+      } else {
+        t("write.choose_hint")
+      }),
   )
 }
 
@@ -828,72 +953,111 @@ fn progress_panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoEl
   let failed = progress
     .as_ref()
     .is_some_and(|p| p.phase == FlashPhase::Failed);
-  let pct = format!("{}%", (fraction * 100.0).round() as u32);
+  let preparing = progress
+    .as_ref()
+    .is_some_and(|p| p.phase == FlashPhase::Preparing);
+  let pct_value = (fraction * 100.0).round();
+  let pct = format!("{}%", pct_value as u32);
   let view = cx.entity();
+  let ring_color = if failed {
+    cx.theme().danger
+  } else if cx.theme().is_dark() {
+    cx.theme().accent
+  } else {
+    cx.theme().primary
+  };
 
   v_flex().size_full().items_center().justify_center().child(
-    glass_surface(v_flex().w_full().gap_4().px_5().py_5(), cx)
-      .child(section_label(
-        cx,
-        if failed {
-          t("progress.phase.failed")
+    glass_surface(
+      v_flex()
+        .w(px(420.))
+        .max_w_full()
+        .items_center()
+        .gap_4()
+        .px_8()
+        .py_8(),
+      cx,
+    )
+    .child(section_label(
+      cx,
+      if failed {
+        t("progress.phase.failed")
+      } else {
+        phase
+      },
+    ))
+    .child(
+      ProgressCircle::new("write-progress")
+        .size(px(148.))
+        .value(if preparing { 0.0 } else { pct_value })
+        .loading(preparing && !failed)
+        .color(ring_color)
+        .child(if preparing && !failed {
+          Spinner::new()
+            .icon(Icon::new(IconName::LoaderCircle))
+            .color(ring_color)
+            .into_any_element()
         } else {
-          phase
-        },
-      ))
-      .child(
+          div()
+            .text_3xl()
+            .font_weight(FontWeight::SEMIBOLD)
+            .text_color(if failed {
+              cx.theme().danger
+            } else {
+              cx.theme().foreground
+            })
+            .child(pct)
+            .into_any_element()
+        }),
+    )
+    .child(
+      div()
+        .w_full()
+        .text_center()
+        .text_lg()
+        .font_weight(FontWeight::MEDIUM)
+        .text_color(if failed {
+          cx.theme().danger
+        } else {
+          cx.theme().foreground
+        })
+        .child(message),
+    )
+    .when(!speed.is_empty(), |d| {
+      d.child(
         div()
-          .text_lg()
-          .font_weight(FontWeight::MEDIUM)
-          .text_color(if failed {
-            cx.theme().danger
-          } else {
-            cx.theme().foreground
-          })
-          .child(message),
-      )
-      .child(
-        Progress::new("write-progress")
-          .value(fraction * 100.0)
-          .color(if failed {
-            cx.theme().danger
-          } else {
-            cx.theme().primary
-          }),
-      )
-      .child(
-        h_flex()
-          .justify_between()
-          .child(muted(cx, pct))
+          .px_3()
+          .py_1()
+          .rounded_full()
+          .bg(cx.theme().muted)
           .child(muted(cx, speed)),
       )
-      .when(app.flashing, |d| {
-        d.child(
-          h_flex().child(
-            Button::new("cancel")
-              .ghost()
-              .rounded(ButtonRounded::Large)
-              .label(t("progress.cancel"))
-              .on_click(move |_, _, cx| {
-                view.update(cx, |this, cx| {
-                  this.cancel.store(true, Ordering::Relaxed);
-                  cx.notify();
-                });
-              }),
-          ),
-        )
-      })
-      .when(failed, |d| {
-        let view = cx.entity();
-        d.child(
-          Button::new("retry")
-            .rounded(ButtonRounded::Large)
-            .label(t("progress.back"))
-            .on_click(move |_, _, cx| {
-              view.update(cx, |this, cx| this.flash_another(cx));
-            }),
-        )
-      }),
+    })
+    .when(app.flashing, |d| {
+      d.child(
+        Button::new("cancel")
+          .ghost()
+          .rounded(ButtonRounded::Large)
+          .label(t("progress.cancel"))
+          .on_click(move |_, _, cx| {
+            view.update(cx, |this, cx| {
+              this.cancel.store(true, Ordering::Relaxed);
+              cx.notify();
+            });
+          }),
+      )
+    })
+    .when(failed, |d| {
+      let view = cx.entity();
+      d.child(
+        Button::new("retry")
+          .rounded(ButtonRounded::Large)
+          .label(t("progress.back"))
+          .on_click(move |_, _, cx| {
+            view.update(cx, |this, cx| this.flash_another(cx));
+          }),
+      )
+    }),
   )
 }
 
@@ -905,59 +1069,79 @@ fn done_panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElemen
     .unwrap_or_default();
   let view = cx.entity();
   v_flex().size_full().items_center().justify_center().child(
-    glass_surface(v_flex().w_full().gap_3().px_5().py_5(), cx)
-      .child(
-        h_flex()
-          .gap_2()
-          .items_center()
-          .child(
-            div()
-              .flex()
-              .items_center()
-              .justify_center()
-              .size(px(32.))
-              .rounded_full()
-              .bg(cx.theme().success.divide(0.18))
-              .child(Icon::new(IconName::Check).text_color(cx.theme().success)),
-          )
-          .child(
-            div()
-              .text_lg()
-              .font_weight(FontWeight::MEDIUM)
-              .child(t("done.title")),
-          ),
-      )
-      .child(muted(cx, tr("done.ready", &[("name", &name)])))
-      .child(
-        h_flex()
-          .gap_2()
-          .mt_3()
-          .child(
-            Button::new("again")
-              .primary()
-              .rounded(ButtonRounded::Large)
-              .label(t("done.another"))
-              .on_click({
-                let view = view.clone();
-                move |_, _, cx| {
-                  view.update(cx, |this, cx| this.flash_another(cx));
-                }
-              }),
-          )
-          .child(
-            Button::new("same")
-              .ghost()
-              .rounded(ButtonRounded::Large)
-              .label(t("done.keep"))
-              .on_click(move |_, _, cx| {
-                view.update(cx, |this, cx| {
-                  this.progress = None;
-                  this.selected.clear();
-                  cx.notify();
-                });
-              }),
-          ),
-      ),
+    glass_surface(
+      v_flex()
+        .w(px(420.))
+        .max_w_full()
+        .items_center()
+        .gap_3()
+        .px_8()
+        .py_8(),
+      cx,
+    )
+    .child(
+      div()
+        .flex()
+        .items_center()
+        .justify_center()
+        .size(px(64.))
+        .rounded_full()
+        .bg(cx.theme().success.divide(0.16))
+        .shadow(vec![gpui_component::box_shadow(
+          px(0.),
+          px(0.),
+          px(24.),
+          px(2.),
+          cx.theme().success.divide(0.28),
+        )])
+        .child(
+          Icon::new(IconName::CircleCheck)
+            .large()
+            .text_color(cx.theme().success),
+        ),
+    )
+    .child(
+      div()
+        .text_xl()
+        .font_weight(FontWeight::SEMIBOLD)
+        .child(t("done.title")),
+    )
+    .child(
+      div()
+        .w_full()
+        .text_center()
+        .child(muted(cx, tr("done.ready", &[("name", &name)]))),
+    )
+    .child(
+      h_flex()
+        .gap_2()
+        .mt_4()
+        .child(
+          Button::new("again")
+            .primary()
+            .rounded(ButtonRounded::Large)
+            .label(t("done.another"))
+            .on_click({
+              let view = view.clone();
+              move |_, _, cx| {
+                view.update(cx, |this, cx| this.flash_another(cx));
+              }
+            }),
+        )
+        .child(
+          Button::new("same")
+            .ghost()
+            .rounded(ButtonRounded::Large)
+            .label(t("done.keep"))
+            .on_click(move |_, _, cx| {
+              view.update(cx, |this, cx| {
+                this.progress = None;
+                this.selected.clear();
+                cx.notify();
+              });
+            }),
+        ),
+    ),
   )
 }
 
@@ -1048,7 +1232,7 @@ fn drive_row(
     .items_center()
     .gap_3()
     .px_3()
-    .py_2()
+    .py_3()
     .rounded(cx.theme().radius)
     .border_1()
     .border_color(if selected {
@@ -1079,8 +1263,10 @@ fn drive_row(
         cx.notify();
       });
     })
+    .child(icon_well(cx, IconName::HardDrive, selected))
     .child(
       v_flex()
+        .flex_1()
         .gap_1()
         .min_w_0()
         .child(
@@ -1097,8 +1283,8 @@ fn drive_row(
         .child(t("drives.too_small"))
         .into_any_element()
     } else if selected {
-      Icon::new(IconName::Check)
-        .text_color(cx.theme().primary)
+      Icon::new(IconName::CircleCheck)
+        .text_color(cx.theme().accent)
         .into_any_element()
     } else {
       div().into_any_element()
@@ -1143,25 +1329,28 @@ fn setting_switch(
     }))
 }
 
-fn locale_chip(
-  id: &'static str,
-  label: impl Into<gpui::SharedString>,
-  selected: bool,
-  view: Entity<ImprintApp>,
-  pref: LocalePref,
-) -> impl IntoElement {
-  let button = Button::new(format!("locale-{id}"))
-    .small()
-    .rounded(ButtonRounded::Large)
-    .label(label);
-  let button = if selected {
-    button.primary()
-  } else {
-    button.ghost()
-  };
-  button.on_click(move |_, _, cx| {
-    view.update(cx, |this, cx| this.set_locale(pref, cx));
-  })
+fn locale_dropdown(current: Language, view: Entity<ImprintApp>) -> impl IntoElement {
+  Button::new("locale")
+    .w_full()
+    .outline()
+    .label(current.native_name())
+    .dropdown_caret(true)
+    .dropdown_menu(move |menu, _, _| {
+      Language::ALL.into_iter().fold(menu, |menu, lang| {
+        menu.item(
+          PopupMenuItem::new(lang.native_name())
+            .checked(current == lang)
+            .on_click({
+              let view = view.clone();
+              move |_, _, cx| {
+                view.update(cx, |this, cx| {
+                  this.set_locale(LocalePref::Language(lang), cx);
+                });
+              }
+            }),
+        )
+      })
+    })
 }
 
 fn phase_label(phase: FlashPhase) -> String {

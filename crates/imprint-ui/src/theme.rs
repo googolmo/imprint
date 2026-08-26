@@ -57,27 +57,27 @@ pub fn glass(cx: &App) -> Glass {
 fn glass_for(dark: bool) -> Glass {
   if dark {
     Glass {
-      fill: hsla(H_VIOLET, 0.38, 0.42, 0.22),
-      fill_top: hsla(H_CYAN, 0.45, 0.78, 0.20),
-      fill_hover: hsla(H_CYAN, 0.40, 0.72, 0.28),
-      panel: hsla(H_VIOLET, 0.42, 0.14, 0.78),
-      panel_top: hsla(H_CYAN, 0.38, 0.58, 0.42),
-      border: hsla(H_CYAN, 0.55, 0.78, 0.42),
-      highlight: hsla(H_CYAN, 0.40, 0.95, 0.55),
-      glow: hsla(H_SAPPHIRE, 0.85, 0.58, 0.28),
-      shadow: hsla(0.72, 0.45, 0.06, 0.42),
+      fill: hsla(H_VIOLET, 0.30, 0.16, 0.62),
+      fill_top: hsla(H_CYAN, 0.36, 0.52, 0.38),
+      fill_hover: hsla(H_CYAN, 0.34, 0.48, 0.50),
+      panel: hsla(H_VIOLET, 0.40, 0.12, 0.86),
+      panel_top: hsla(H_CYAN, 0.32, 0.42, 0.40),
+      border: hsla(H_CYAN, 0.42, 0.78, 0.22),
+      highlight: hsla(0.0, 0.0, 1.0, 0.28),
+      glow: hsla(H_SAPPHIRE, 0.78, 0.48, 0.16),
+      shadow: hsla(0.70, 0.48, 0.03, 0.55),
     }
   } else {
     Glass {
-      fill: hsla(H_SAPPHIRE, 0.18, 0.99, 0.86),
-      fill_top: hsla(0.0, 0.0, 1.0, 0.94),
-      fill_hover: hsla(H_SAPPHIRE, 0.22, 0.97, 0.92),
-      panel: hsla(H_SAPPHIRE, 0.20, 0.98, 0.78),
-      panel_top: hsla(0.0, 0.0, 1.0, 0.88),
-      border: hsla(H_SAPPHIRE, 0.40, 0.42, 0.22),
-      highlight: hsla(0.0, 0.0, 1.0, 0.95),
-      glow: hsla(H_SAPPHIRE, 0.55, 0.48, 0.10),
-      shadow: hsla(H_SAPPHIRE, 0.28, 0.28, 0.10),
+      fill: hsla(H_SAPPHIRE, 0.14, 0.99, 0.78),
+      fill_top: hsla(0.0, 0.0, 1.0, 0.92),
+      fill_hover: hsla(H_SAPPHIRE, 0.18, 0.98, 0.90),
+      panel: hsla(H_SAPPHIRE, 0.16, 0.99, 0.88),
+      panel_top: hsla(0.0, 0.0, 1.0, 0.94),
+      border: hsla(H_SAPPHIRE, 0.28, 0.46, 0.16),
+      highlight: hsla(0.0, 0.0, 1.0, 0.92),
+      glow: hsla(H_SAPPHIRE, 0.48, 0.52, 0.08),
+      shadow: hsla(H_SAPPHIRE, 0.32, 0.22, 0.12),
     }
   }
 }
@@ -87,6 +87,15 @@ pub fn glass_fill(cx: &App) -> Background {
   linear_gradient(
     158.,
     linear_color_stop(g.fill_top, 0.),
+    linear_color_stop(g.fill, 1.),
+  )
+}
+
+pub fn glass_hover_fill(cx: &App) -> Background {
+  let g = glass(cx);
+  linear_gradient(
+    158.,
+    linear_color_stop(g.fill_hover, 0.),
     linear_color_stop(g.fill, 1.),
   )
 }
@@ -146,8 +155,8 @@ fn paint_glass(theme: &mut Theme) {
   let mint = hsla(H_MINT, 0.72, if dark { 0.58 } else { 0.42 }, 1.0);
   let coral = hsla(H_CORAL, 0.80, if dark { 0.62 } else { 0.42 }, 1.0);
 
-  theme.radius = px(16.);
-  theme.radius_lg = px(24.);
+  theme.radius = px(14.);
+  theme.radius_lg = px(22.);
   theme.shadow = true;
 
   if dark {
@@ -163,10 +172,10 @@ fn paint_glass(theme: &mut Theme) {
     theme.caret = cyan;
     theme.ring = cyan;
     theme.background = ink;
-    theme.title_bar = hsla(H_SAPPHIRE, 0.48, 0.14, 0.55);
-    theme.title_bar_border = hsla(H_CYAN, 0.40, 0.70, 0.18);
-    theme.status_bar = hsla(H_VIOLET, 0.40, 0.10, 0.62);
-    theme.status_bar_border = hsla(H_CYAN, 0.40, 0.70, 0.16);
+    theme.title_bar = hsla(H_SAPPHIRE, 0.48, 0.11, 0.42);
+    theme.title_bar_border = hsla(H_CYAN, 0.32, 0.70, 0.12);
+    theme.status_bar = hsla(H_VIOLET, 0.38, 0.08, 0.55);
+    theme.status_bar_border = hsla(H_CYAN, 0.32, 0.70, 0.10);
     theme.popover = hsla(H_SAPPHIRE, 0.42, 0.11, 0.94);
     theme.popover_foreground = theme.foreground;
     theme.border = hsla(H_CYAN, 0.42, 0.72, 0.26);
@@ -182,7 +191,7 @@ fn paint_glass(theme: &mut Theme) {
     theme.list_active_border = hsla(H_CYAN, 0.70, 0.68, 0.55);
     theme.list_even = hsla(H_VIOLET, 0.30, 0.40, 0.08);
     theme.overlay = hsla(H_SAPPHIRE, 0.40, 0.04, 0.52);
-    theme.drop_target = hsla(H_CYAN, 0.70, 0.60, 0.22);
+    theme.drop_target = hsla(H_CYAN, 0.62, 0.58, 0.16);
     theme.button = hsla(H_SAPPHIRE, 0.40, 0.60, 0.18);
     theme.button_hover = hsla(H_CYAN, 0.45, 0.62, 0.26);
     theme.button_active = hsla(H_CYAN, 0.50, 0.58, 0.32);
@@ -223,7 +232,7 @@ fn paint_glass(theme: &mut Theme) {
     theme.list_active_border = hsla(H_SAPPHIRE, 0.65, 0.52, 0.40);
     theme.list_even = hsla(H_VIOLET, 0.18, 0.97, 0.28);
     theme.overlay = hsla(H_SAPPHIRE, 0.30, 0.20, 0.28);
-    theme.drop_target = hsla(H_CYAN, 0.50, 0.70, 0.18);
+    theme.drop_target = hsla(H_CYAN, 0.42, 0.72, 0.14);
     theme.button = hsla(H_SAPPHIRE, 0.28, 0.97, 0.70);
     theme.button_hover = hsla(H_CYAN, 0.28, 0.96, 0.84);
     theme.button_active = hsla(H_CYAN, 0.30, 0.94, 0.92);

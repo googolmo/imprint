@@ -3,6 +3,7 @@
 mod actions;
 mod app;
 mod theme;
+mod updater;
 mod widgets;
 
 use gpui::{App, Menu, MenuItem, TextRenderingMode, actions};
@@ -17,7 +18,8 @@ actions!(
     SelectTarget,
     StartFlash,
     ToggleSettings,
-    About
+    About,
+    CheckForUpdates
   ]
 );
 
@@ -37,6 +39,7 @@ pub fn init(cx: &mut App) {
 pub fn install_menus(cx: &mut App) {
   cx.set_menus([Menu::new(t("app.name")).items([
     MenuItem::action(t("menu.about"), About),
+    MenuItem::action(t("menu.check_updates"), CheckForUpdates),
     MenuItem::separator(),
     MenuItem::action(t("menu.settings"), ToggleSettings),
     MenuItem::separator(),

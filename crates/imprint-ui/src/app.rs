@@ -32,9 +32,12 @@ use imprint_device::list_targets;
 use imprint_flash::flash;
 use imprint_image::inspect;
 
-use crate::actions::{About, OpenImage, Quit, SelectTarget, StartFlash, ToggleSettings};
+use crate::actions::{
+  About, CheckForUpdates, OpenImage, Quit, SelectTarget, StartFlash, ToggleSettings,
+};
 use crate::theme::Appearance;
 use crate::theme::glass;
+use crate::updater;
 use crate::widgets::{
   atmosphere, brand_mark, glass_panel, glass_surface, hover_fill, icon_badge, icon_well, muted,
   section_label, stage_connector, stage_kicker,
@@ -43,6 +46,28 @@ use crate::widgets::{
 enum ProgressEvent {
   Update(FlashProgress),
   Finished(Result<(), String>),
+}
+
+enum UpdateEvent {
+  None,
+  Available(cargo_packager_updater::Update),
+  Failed(String),
+  DownloadProgress { received: u64, total: Option<u64> },
+  Installed,
+}
+
+enum UpdateStatus {
+  Idle,
+  Checking,
+  UpToDate,
+  Available(cargo_packager_updater::Update),
+  Downloading {
+    update: cargo_packager_updater::Update,
+    received: u64,
+    total: Option<u64>,
+  },
+  Installed,
+  Failed(String),
 }
 
 pub struct ImprintApp {
@@ -59,6 +84,10 @@ pub struct ImprintApp {
   cancel: Arc<AtomicBool>,
   events: Option<Receiver<ProgressEvent>>,
   _pump: Option<gpui::Task<()>>,
+  update: UpdateStatus,
+  update_interactive: bool,
+  update_events: Option<Receiver<UpdateEvent>>,
+  _update_pump: Option<gpui::Task<()>>,
   _appearance: Option<Subscription>,
 }
 
@@ -79,7 +108,7 @@ impl ImprintApp {
       });
     });
 
-    Self {
+    let mut this = Self {
       focus,
       settings: Settings::default(),
       appearance: Appearance::System,
@@ -93,8 +122,16 @@ impl ImprintApp {
       cancel: Arc::new(AtomicBool::new(false)),
       events: None,
       _pump: None,
+      update: UpdateStatus::Idle,
+      update_interactive: false,
+      update_events: None,
+      _update_pump: None,
       _appearance: Some(appearance_sub),
+    };
+    if updater::is_configured() {
+      this.begin_update_check(false, window, cx);
     }
+    this
   }
 
   fn set_appearance(
@@ -189,6 +226,15 @@ impl ImprintApp {
 
   fn on_about(&mut self, _: &About, window: &mut Window, cx: &mut Context<Self>) {
     self.open_about(window, cx);
+  }
+
+  fn on_check_for_updates(
+    &mut self,
+    _: &CheckForUpdates,
+    window: &mut Window,
+    cx: &mut Context<Self>,
+  ) {
+    self.begin_update_check(true, window, cx);
   }
 
   fn selected_disks(&self) -> Vec<TargetDisk> {
@@ -444,6 +490,7 @@ impl ImprintApp {
   }
 
   fn open_about(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    let view = cx.entity();
     window.defer(cx, move |window, cx| {
       window.open_dialog(cx, move |dialog, _, cx| {
         dialog
@@ -474,13 +521,261 @@ impl ImprintApp {
               .child(muted(cx, env!("CARGO_PKG_LICENSE"))),
           )
           .footer(
-            h_flex().w_full().justify_end().child(
-              Button::new("about-ok")
-                .primary()
-                .label(t("about.ok"))
-                .on_click(|_, window, cx| window.close_dialog(cx)),
-            ),
+            h_flex()
+              .w_full()
+              .justify_between()
+              .child(
+                Button::new("about-check-updates")
+                  .ghost()
+                  .label(t("about.check_updates"))
+                  .on_click({
+                    let view = view.clone();
+                    move |_, window, cx| {
+                      window.close_dialog(cx);
+                      view.update(cx, |this, cx| this.begin_update_check(true, window, cx));
+                    }
+                  }),
+              )
+              .child(
+                Button::new("about-ok")
+                  .primary()
+                  .label(t("about.ok"))
+                  .on_click(|_, window, cx| window.close_dialog(cx)),
+              ),
           )
+      });
+    });
+  }
+
+  fn begin_update_check(&mut self, interactive: bool, window: &mut Window, cx: &mut Context<Self>) {
+    match &self.update {
+      UpdateStatus::Checking | UpdateStatus::Downloading { .. } => {
+        if interactive {
+          self.open_update_dialog(window, cx);
+        }
+        return;
+      }
+      UpdateStatus::Available(_) | UpdateStatus::Installed if interactive => {
+        self.open_update_dialog(window, cx);
+        return;
+      }
+      _ => {}
+    }
+
+    self.update_interactive = interactive;
+    self.update = UpdateStatus::Checking;
+    let (tx, rx): (Sender<UpdateEvent>, Receiver<UpdateEvent>) = unbounded();
+    self.update_events = Some(rx);
+    std::thread::Builder::new()
+      .name("imprint-update-check".into())
+      .spawn(move || {
+        let event = match updater::check_for_update() {
+          Ok(Some(update)) => UpdateEvent::Available(update),
+          Ok(None) => UpdateEvent::None,
+          Err(err) => UpdateEvent::Failed(err),
+        };
+        let _ = tx.send(event);
+      })
+      .ok();
+    self.pump_updates(cx);
+    if interactive {
+      self.open_update_dialog(window, cx);
+    }
+    cx.notify();
+  }
+
+  fn install_pending_update(&mut self, cx: &mut Context<Self>) {
+    let update = match &self.update {
+      UpdateStatus::Available(update) => update.clone(),
+      _ => return,
+    };
+    if !updater::is_packaged() {
+      self.update = UpdateStatus::Failed(t("update.unpackaged"));
+      cx.notify();
+      return;
+    }
+    self.update = UpdateStatus::Downloading {
+      update: update.clone(),
+      received: 0,
+      total: None,
+    };
+    let (tx, rx): (Sender<UpdateEvent>, Receiver<UpdateEvent>) = unbounded();
+    self.update_events = Some(rx);
+    std::thread::Builder::new()
+      .name("imprint-update-install".into())
+      .spawn(move || {
+        let received = std::sync::atomic::AtomicU64::new(0);
+        let result = update.download_and_install_extended(
+          |chunk, total| {
+            let n = received.fetch_add(chunk as u64, Ordering::Relaxed) + chunk as u64;
+            let _ = tx.send(UpdateEvent::DownloadProgress { received: n, total });
+          },
+          || {},
+        );
+        match result {
+          Ok(()) => {
+            let _ = tx.send(UpdateEvent::Installed);
+          }
+          Err(err) => {
+            let _ = tx.send(UpdateEvent::Failed(err.to_string()));
+          }
+        }
+      })
+      .ok();
+    self.pump_updates(cx);
+    cx.notify();
+  }
+
+  fn pump_updates(&mut self, cx: &mut Context<Self>) {
+    self._update_pump = Some(cx.spawn(async move |this, cx| {
+      loop {
+        cx.background_executor()
+          .timer(Duration::from_millis(50))
+          .await;
+        let outcome = this.update(cx, |this, cx| {
+          let mut keep = true;
+          let mut open_dialog = false;
+          if let Some(rx) = this.update_events.clone() {
+            while let Ok(event) = rx.try_recv() {
+              match event {
+                UpdateEvent::None => {
+                  this.update = UpdateStatus::UpToDate;
+                  keep = false;
+                }
+                UpdateEvent::Available(update) => {
+                  this.update = UpdateStatus::Available(update);
+                  open_dialog = !this.update_interactive;
+                  keep = false;
+                }
+                UpdateEvent::Failed(err) => {
+                  tracing::warn!("update failed: {err}");
+                  this.update = UpdateStatus::Failed(err);
+                  keep = false;
+                }
+                UpdateEvent::DownloadProgress { received, total } => {
+                  if let UpdateStatus::Downloading { update, .. } = &this.update {
+                    this.update = UpdateStatus::Downloading {
+                      update: update.clone(),
+                      received,
+                      total,
+                    };
+                  }
+                }
+                UpdateEvent::Installed => {
+                  this.update = UpdateStatus::Installed;
+                  keep = false;
+                }
+              }
+            }
+          }
+          let keep = keep
+            && matches!(
+              this.update,
+              UpdateStatus::Checking | UpdateStatus::Downloading { .. }
+            );
+          cx.notify();
+          (keep, open_dialog)
+        });
+        let (keep, open_dialog) = outcome.unwrap_or((false, false));
+        if open_dialog {
+          if let Some(handle) = cx.update(|cx| cx.active_window()) {
+            let _ = handle.update(cx, |_, window, cx| {
+              let _ = this.update(cx, |this, cx| this.open_update_dialog(window, cx));
+            });
+          }
+        }
+        if !keep {
+          break;
+        }
+      }
+    }));
+  }
+
+  fn open_update_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    let view = cx.entity();
+    window.defer(cx, move |window, cx| {
+      window.open_dialog(cx, move |dialog, _, cx| {
+        let app = view.read(cx);
+        let mut dialog = dialog.title(t("update.title")).w(px(420.));
+        dialog = match &app.update {
+          UpdateStatus::Checking | UpdateStatus::Idle => dialog.child(
+            h_flex()
+              .gap_3()
+              .items_center()
+              .py_4()
+              .child(Spinner::new())
+              .child(muted(cx, t("update.checking"))),
+          ),
+          UpdateStatus::UpToDate => dialog.child(
+            v_flex()
+              .gap_2()
+              .py_3()
+              .child(t("update.up_to_date"))
+              .child(muted(
+                cx,
+                tr("about.version", &[("version", env!("CARGO_PKG_VERSION"))]),
+              )),
+          ),
+          UpdateStatus::Available(update) => {
+            let mut body = v_flex().gap_2().py_3().child(tr(
+              "update.available",
+              &[("version", update.version.as_str())],
+            ));
+            if let Some(notes) = update.body.as_ref().filter(|notes| !notes.is_empty()) {
+              body = body.child(
+                div()
+                  .max_h(px(160.))
+                  .max_w(px(360.))
+                  .child(muted(cx, notes.clone())),
+              );
+            }
+            if !updater::is_packaged() {
+              body = body.child(muted(cx, t("update.unpackaged")));
+            }
+            dialog.child(body)
+          }
+          UpdateStatus::Downloading {
+            received, total, ..
+          } => {
+            let detail = match total {
+              Some(total) if *total > 0 => tr(
+                "update.progress",
+                &[
+                  ("received", &format_bytes(*received)),
+                  ("total", &format_bytes(*total)),
+                ],
+              ),
+              _ => format_bytes(*received),
+            };
+            dialog.child(
+              v_flex()
+                .gap_3()
+                .py_4()
+                .child(
+                  h_flex()
+                    .gap_3()
+                    .items_center()
+                    .child(Spinner::new())
+                    .child(t("update.downloading")),
+                )
+                .child(muted(cx, detail)),
+            )
+          }
+          UpdateStatus::Installed => dialog.child(
+            v_flex()
+              .gap_2()
+              .py_3()
+              .child(t("update.installed"))
+              .child(muted(cx, t("update.restart_hint"))),
+          ),
+          UpdateStatus::Failed(err) => dialog.child(
+            v_flex()
+              .gap_2()
+              .py_3()
+              .child(tr("update.failed", &[("error", err.as_str())])),
+          ),
+        };
+        dialog.footer(update_dialog_footer(&app.update, view.clone()))
       });
     });
   }
@@ -493,6 +788,14 @@ fn bind_app_menu_actions(view: gpui::WeakEntity<ImprintApp>, cx: &mut App) {
     let view = view.clone();
     move |_: &About, cx| {
       dispatch_on_app(&view, cx, |this, window, cx| this.open_about(window, cx));
+    }
+  });
+  App::on_action(cx, {
+    let view = view.clone();
+    move |_: &CheckForUpdates, cx| {
+      dispatch_on_app(&view, cx, |this, window, cx| {
+        this.begin_update_check(true, window, cx);
+      });
     }
   });
   App::on_action(cx, {
@@ -517,6 +820,63 @@ fn dispatch_on_app(
   let _ = handle.update(cx, |_, window, cx| {
     let _ = view.update(cx, |this, cx| f(this, window, cx));
   });
+}
+
+fn update_dialog_footer(status: &UpdateStatus, view: Entity<ImprintApp>) -> impl IntoElement {
+  match status {
+    UpdateStatus::Available(_) if updater::is_packaged() => h_flex()
+      .w_full()
+      .justify_end()
+      .gap_2()
+      .child(
+        Button::new("update-later")
+          .label(t("update.later"))
+          .on_click(|_, window, cx| window.close_dialog(cx)),
+      )
+      .child(
+        Button::new("update-install")
+          .primary()
+          .label(t("update.install"))
+          .on_click(move |_, _, cx| {
+            view.update(cx, |this, cx| this.install_pending_update(cx));
+          }),
+      )
+      .into_any_element(),
+    UpdateStatus::Installed => h_flex()
+      .w_full()
+      .justify_end()
+      .gap_2()
+      .child(
+        Button::new("update-later")
+          .label(t("update.later"))
+          .on_click(|_, window, cx| window.close_dialog(cx)),
+      )
+      .child(
+        Button::new("update-restart")
+          .primary()
+          .label(t("update.restart"))
+          .on_click(|_, _, cx| {
+            if let Err(err) = updater::relaunch() {
+              tracing::error!("failed to relaunch after update: {err}");
+            }
+            cx.quit();
+          }),
+      )
+      .into_any_element(),
+    UpdateStatus::Checking | UpdateStatus::Downloading { .. } | UpdateStatus::Idle => {
+      h_flex().w_full().into_any_element()
+    }
+    _ => h_flex()
+      .w_full()
+      .justify_end()
+      .child(
+        Button::new("update-ok")
+          .primary()
+          .label(t("update.ok"))
+          .on_click(|_, window, cx| window.close_dialog(cx)),
+      )
+      .into_any_element(),
+  }
 }
 
 /// Window-level view under `Root`. Overlay layers live here so their builders
@@ -557,6 +917,7 @@ impl Render for ImprintApp {
       .on_action(cx.listener(Self::start_flash))
       .on_action(cx.listener(Self::on_toggle_settings))
       .on_action(cx.listener(Self::on_about))
+      .on_action(cx.listener(Self::on_check_for_updates))
       .on_action(|_: &Quit, _, cx| cx.quit())
       .on_drop(cx.listener(Self::on_drop_paths))
       .drag_over::<ExternalPaths>(|style, _, _, cx| {

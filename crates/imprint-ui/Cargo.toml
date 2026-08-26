@@ -15,3 +15,4 @@ gpui = { workspace = true }
 gpui-component = { workspace = true }
 crossbeam-channel = { workspace = true }
 tracing = { workspace = true }
+cargo-packager-updater = { workspace = true }

@@ -4,6 +4,7 @@
   },
   "menu": {
     "about": "关于 Imprint",
+    "check_updates": "检查更新…",
     "settings": "设置…",
     "open_image": "打开镜像…",
     "quit": "退出"
@@ -91,7 +92,24 @@
     "title": "关于 Imprint",
     "tagline": "将操作系统镜像写入 USB 和 SD 卡。",
     "version": "版本 {version}",
+    "check_updates": "检查更新…",
     "ok": "好"
+  },
+  "update": {
+    "title": "软件更新",
+    "checking": "正在检查更新…",
+    "up_to_date": "Imprint 已是最新版本。",
+    "available": "发现新版本 {version}。",
+    "install": "安装",
+    "later": "稍后",
+    "downloading": "正在下载更新…",
+    "progress": "{received} / {total}",
+    "installed": "更新已安装。",
+    "restart": "重新启动",
+    "restart_hint": "请重新启动 Imprint 以完成更新。",
+    "ok": "好",
+    "unpackaged": "安装更新需要已打包的版本（.app、AppImage 或安装包）。",
+    "failed": "无法更新：{error}"
   },
   "error": {
     "image_not_found": "找不到镜像：{path}",

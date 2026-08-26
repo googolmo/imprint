@@ -52,6 +52,7 @@ indicatif = "0.18.0"
 crossbeam-channel = "0.5.15"
 libc = "0.2.175"
 plist = "1.8.0"
+cargo-packager-updater = "0.2.3"
 
 [profile.release]
 lto = true

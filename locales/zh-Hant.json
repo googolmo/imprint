@@ -4,6 +4,7 @@
   },
   "menu": {
     "about": "關於 Imprint",
+    "check_updates": "檢查更新…",
     "settings": "設定…",
     "open_image": "打開映像檔…",
     "quit": "結束"
@@ -91,7 +92,24 @@
     "title": "關於 Imprint",
     "tagline": "將作業系統映像檔寫入 USB 與 SD 卡。",
     "version": "版本 {version}",
+    "check_updates": "檢查更新…",
     "ok": "確定"
+  },
+  "update": {
+    "title": "軟體更新",
+    "checking": "正在檢查更新…",
+    "up_to_date": "Imprint 已是最新版本。",
+    "available": "發現新版本 {version}。",
+    "install": "安裝",
+    "later": "稍後",
+    "downloading": "正在下載更新…",
+    "progress": "{received} / {total}",
+    "installed": "更新已安裝。",
+    "restart": "重新啟動",
+    "restart_hint": "請重新啟動 Imprint 以完成更新。",
+    "ok": "確定",
+    "unpackaged": "安裝更新需要已包裝的版本（.app、AppImage 或安裝程式）。",
+    "failed": "無法更新：{error}"
   },
   "error": {
     "image_not_found": "找不到映像檔：{path}",

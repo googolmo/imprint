@@ -4,6 +4,7 @@
   },
   "menu": {
     "about": "Imprint について",
+    "check_updates": "アップデートを確認…",
     "settings": "設定…",
     "open_image": "イメージを開く…",
     "quit": "終了"
@@ -91,7 +92,24 @@
     "title": "Imprint について",
     "tagline": "OS イメージを USB ドライブと SD カードに書き込みます。",
     "version": "バージョン {version}",
+    "check_updates": "アップデートを確認…",
     "ok": "OK"
+  },
+  "update": {
+    "title": "ソフトウェアアップデート",
+    "checking": "アップデートを確認しています…",
+    "up_to_date": "Imprint は最新です。",
+    "available": "バージョン {version} が利用できます。",
+    "install": "インストール",
+    "later": "後で",
+    "downloading": "アップデートをダウンロードしています…",
+    "progress": "{received} / {total}",
+    "installed": "アップデートをインストールしました。",
+    "restart": "再起動",
+    "restart_hint": "アップデートを完了するには Imprint を再起動してください。",
+    "ok": "OK",
+    "unpackaged": "アップデートのインストールはパッケージ済みビルド（.app、AppImage、インストーラー）でのみ行えます。",
+    "failed": "更新できませんでした: {error}"
   },
   "error": {
     "image_not_found": "イメージが見つかりません: {path}",

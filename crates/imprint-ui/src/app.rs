@@ -14,6 +14,7 @@ use gpui_component::{
   button::{Button, ButtonCustomVariant, ButtonRounded, ButtonVariants as _},
   h_flex,
   menu::{DropdownMenu as _, PopupMenuItem},
+  notification::Notification,
   progress::ProgressCircle,
   separator::Separator,
   spinner::Spinner,
@@ -21,6 +22,7 @@ use gpui_component::{
   switch::Switch,
   tab::{Tab, TabBar},
   tag::Tag,
+  tooltip::Tooltip,
   v_flex,
 };
 use imprint_core::i18n::{self, t, tr};
@@ -66,9 +68,13 @@ enum UpdateStatus {
     received: u64,
     total: Option<u64>,
   },
-  Installed,
+  Installed {
+    version: String,
+  },
   Failed(String),
 }
+
+struct UpdateToast;
 
 pub struct ImprintApp {
   focus: FocusHandle,
@@ -86,6 +92,7 @@ pub struct ImprintApp {
   _pump: Option<gpui::Task<()>>,
   update: UpdateStatus,
   update_interactive: bool,
+  update_dismissed: bool,
   update_events: Option<Receiver<UpdateEvent>>,
   _update_pump: Option<gpui::Task<()>>,
   _appearance: Option<Subscription>,
@@ -124,10 +131,20 @@ impl ImprintApp {
       _pump: None,
       update: UpdateStatus::Idle,
       update_interactive: false,
+      update_dismissed: false,
       update_events: None,
       _update_pump: None,
       _appearance: Some(appearance_sub),
     };
+    if let Some(version) = updater::take_update_notice() {
+      if version == env!("CARGO_PKG_VERSION") {
+        window.push_notification(
+          Notification::success(tr("update.updated_to", &[("version", &version)]))
+            .id::<UpdateToast>(),
+          cx,
+        );
+      }
+    }
     if updater::is_configured() {
       this.begin_update_check(false, window, cx);
     }
@@ -547,22 +564,29 @@ impl ImprintApp {
     });
   }
 
-  fn begin_update_check(&mut self, interactive: bool, window: &mut Window, cx: &mut Context<Self>) {
+  fn begin_update_check(
+    &mut self,
+    interactive: bool,
+    _window: &mut Window,
+    cx: &mut Context<Self>,
+  ) {
     match &self.update {
       UpdateStatus::Checking | UpdateStatus::Downloading { .. } => {
-        if interactive {
-          self.open_update_dialog(window, cx);
-        }
+        self.update_interactive = interactive || self.update_interactive;
+        self.update_dismissed = false;
+        cx.notify();
         return;
       }
-      UpdateStatus::Available(_) | UpdateStatus::Installed if interactive => {
-        self.open_update_dialog(window, cx);
+      UpdateStatus::Available(_) | UpdateStatus::Installed { .. } if interactive => {
+        self.update_dismissed = false;
+        cx.notify();
         return;
       }
       _ => {}
     }
 
     self.update_interactive = interactive;
+    self.update_dismissed = false;
     self.update = UpdateStatus::Checking;
     let (tx, rx): (Sender<UpdateEvent>, Receiver<UpdateEvent>) = unbounded();
     self.update_events = Some(rx);
@@ -578,22 +602,16 @@ impl ImprintApp {
       })
       .ok();
     self.pump_updates(cx);
-    if interactive {
-      self.open_update_dialog(window, cx);
-    }
     cx.notify();
   }
 
-  fn install_pending_update(&mut self, cx: &mut Context<Self>) {
-    let update = match &self.update {
-      UpdateStatus::Available(update) => update.clone(),
-      _ => return,
-    };
+  fn begin_download(&mut self, update: cargo_packager_updater::Update, cx: &mut Context<Self>) {
     if !updater::is_packaged() {
       self.update = UpdateStatus::Failed(t("update.unpackaged"));
       cx.notify();
       return;
     }
+    self.update_dismissed = false;
     self.update = UpdateStatus::Downloading {
       update: update.clone(),
       received: 0,
@@ -634,22 +652,32 @@ impl ImprintApp {
           .await;
         let outcome = this.update(cx, |this, cx| {
           let mut keep = true;
-          let mut open_dialog = false;
+          let mut toast = None;
           if let Some(rx) = this.update_events.clone() {
             while let Ok(event) = rx.try_recv() {
               match event {
                 UpdateEvent::None => {
                   this.update = UpdateStatus::UpToDate;
+                  if this.update_interactive {
+                    toast = Some(UpdateToastKind::UpToDate);
+                  }
                   keep = false;
                 }
                 UpdateEvent::Available(update) => {
                   this.update = UpdateStatus::Available(update);
-                  open_dialog = !this.update_interactive;
+                  this.update_dismissed = false;
                   keep = false;
                 }
                 UpdateEvent::Failed(err) => {
-                  tracing::warn!("update failed: {err}");
-                  this.update = UpdateStatus::Failed(err);
+                  let auto_check =
+                    matches!(this.update, UpdateStatus::Checking) && !this.update_interactive;
+                  if auto_check {
+                    tracing::info!("auto-update check failed: {err}");
+                    this.update = UpdateStatus::Idle;
+                  } else {
+                    tracing::warn!("update failed: {err}");
+                    this.update = UpdateStatus::Failed(err);
+                  }
                   keep = false;
                 }
                 UpdateEvent::DownloadProgress { received, total } => {
@@ -662,7 +690,14 @@ impl ImprintApp {
                   }
                 }
                 UpdateEvent::Installed => {
-                  this.update = UpdateStatus::Installed;
+                  let version = match &this.update {
+                    UpdateStatus::Downloading { update, .. } => update.version.clone(),
+                    UpdateStatus::Installed { version } => version.clone(),
+                    _ => env!("CARGO_PKG_VERSION").to_string(),
+                  };
+                  updater::mark_update_installed(&version);
+                  this.update = UpdateStatus::Installed { version };
+                  this.update_dismissed = false;
                   keep = false;
                 }
               }
@@ -674,13 +709,13 @@ impl ImprintApp {
               UpdateStatus::Checking | UpdateStatus::Downloading { .. }
             );
           cx.notify();
-          (keep, open_dialog)
+          (keep, toast)
         });
-        let (keep, open_dialog) = outcome.unwrap_or((false, false));
-        if open_dialog {
+        let (keep, toast) = outcome.unwrap_or((false, None));
+        if let Some(kind) = toast {
           if let Some(handle) = cx.update(|cx| cx.active_window()) {
             let _ = handle.update(cx, |_, window, cx| {
-              let _ = this.update(cx, |this, cx| this.open_update_dialog(window, cx));
+              window.push_notification(kind.into_notification(), cx);
             });
           }
         }
@@ -691,93 +726,46 @@ impl ImprintApp {
     }));
   }
 
-  fn open_update_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-    let view = cx.entity();
-    window.defer(cx, move |window, cx| {
-      window.open_dialog(cx, move |dialog, _, cx| {
-        let app = view.read(cx);
-        let mut dialog = dialog.title(t("update.title")).w(px(420.));
-        dialog = match &app.update {
-          UpdateStatus::Checking | UpdateStatus::Idle => dialog.child(
-            h_flex()
-              .gap_3()
-              .items_center()
-              .py_4()
-              .child(Spinner::new())
-              .child(muted(cx, t("update.checking"))),
-          ),
-          UpdateStatus::UpToDate => dialog.child(
-            v_flex()
-              .gap_2()
-              .py_3()
-              .child(t("update.up_to_date"))
-              .child(muted(
-                cx,
-                tr("about.version", &[("version", env!("CARGO_PKG_VERSION"))]),
-              )),
-          ),
-          UpdateStatus::Available(update) => {
-            let mut body = v_flex().gap_2().py_3().child(tr(
-              "update.available",
-              &[("version", update.version.as_str())],
-            ));
-            if let Some(notes) = update.body.as_ref().filter(|notes| !notes.is_empty()) {
-              body = body.child(
-                div()
-                  .max_h(px(160.))
-                  .max_w(px(360.))
-                  .child(muted(cx, notes.clone())),
-              );
-            }
-            if !updater::is_packaged() {
-              body = body.child(muted(cx, t("update.unpackaged")));
-            }
-            dialog.child(body)
-          }
-          UpdateStatus::Downloading {
-            received, total, ..
-          } => {
-            let detail = match total {
-              Some(total) if *total > 0 => tr(
-                "update.progress",
-                &[
-                  ("received", &format_bytes(*received)),
-                  ("total", &format_bytes(*total)),
-                ],
-              ),
-              _ => format_bytes(*received),
-            };
-            dialog.child(
-              v_flex()
-                .gap_3()
-                .py_4()
-                .child(
-                  h_flex()
-                    .gap_3()
-                    .items_center()
-                    .child(Spinner::new())
-                    .child(t("update.downloading")),
-                )
-                .child(muted(cx, detail)),
-            )
-          }
-          UpdateStatus::Installed => dialog.child(
-            v_flex()
-              .gap_2()
-              .py_3()
-              .child(t("update.installed"))
-              .child(muted(cx, t("update.restart_hint"))),
-          ),
-          UpdateStatus::Failed(err) => dialog.child(
-            v_flex()
-              .gap_2()
-              .py_3()
-              .child(tr("update.failed", &[("error", err.as_str())])),
-          ),
-        };
-        dialog.footer(update_dialog_footer(&app.update, view.clone()))
-      });
-    });
+  fn dismiss_update_chip(&mut self, cx: &mut Context<Self>) {
+    self.update_dismissed = true;
+    cx.notify();
+  }
+
+  fn restart_to_update(&mut self, cx: &mut Context<Self>) {
+    if let Err(err) = updater::relaunch() {
+      tracing::error!("failed to relaunch after update: {err}");
+      self.update = UpdateStatus::Failed(err);
+      self.update_dismissed = false;
+      cx.notify();
+      return;
+    }
+    cx.quit();
+  }
+
+  fn update_chip_visible(&self) -> bool {
+    if self.update_dismissed {
+      return false;
+    }
+    match &self.update {
+      UpdateStatus::Checking if self.update_interactive => true,
+      UpdateStatus::Available(_)
+      | UpdateStatus::Downloading { .. }
+      | UpdateStatus::Installed { .. }
+      | UpdateStatus::Failed(_) => true,
+      _ => false,
+    }
+  }
+}
+
+enum UpdateToastKind {
+  UpToDate,
+}
+
+impl UpdateToastKind {
+  fn into_notification(self) -> Notification {
+    match self {
+      Self::UpToDate => Notification::success(t("update.up_to_date")).id::<UpdateToast>(),
+    }
   }
 }
 
@@ -820,63 +808,6 @@ fn dispatch_on_app(
   let _ = handle.update(cx, |_, window, cx| {
     let _ = view.update(cx, |this, cx| f(this, window, cx));
   });
-}
-
-fn update_dialog_footer(status: &UpdateStatus, view: Entity<ImprintApp>) -> impl IntoElement {
-  match status {
-    UpdateStatus::Available(_) if updater::is_packaged() => h_flex()
-      .w_full()
-      .justify_end()
-      .gap_2()
-      .child(
-        Button::new("update-later")
-          .label(t("update.later"))
-          .on_click(|_, window, cx| window.close_dialog(cx)),
-      )
-      .child(
-        Button::new("update-install")
-          .primary()
-          .label(t("update.install"))
-          .on_click(move |_, _, cx| {
-            view.update(cx, |this, cx| this.install_pending_update(cx));
-          }),
-      )
-      .into_any_element(),
-    UpdateStatus::Installed => h_flex()
-      .w_full()
-      .justify_end()
-      .gap_2()
-      .child(
-        Button::new("update-later")
-          .label(t("update.later"))
-          .on_click(|_, window, cx| window.close_dialog(cx)),
-      )
-      .child(
-        Button::new("update-restart")
-          .primary()
-          .label(t("update.restart"))
-          .on_click(|_, _, cx| {
-            if let Err(err) = updater::relaunch() {
-              tracing::error!("failed to relaunch after update: {err}");
-            }
-            cx.quit();
-          }),
-      )
-      .into_any_element(),
-    UpdateStatus::Checking | UpdateStatus::Downloading { .. } | UpdateStatus::Idle => {
-      h_flex().w_full().into_any_element()
-    }
-    _ => h_flex()
-      .w_full()
-      .justify_end()
-      .child(
-        Button::new("update-ok")
-          .primary()
-          .label(t("update.ok"))
-          .on_click(|_, window, cx| window.close_dialog(cx)),
-      )
-      .into_any_element(),
-  }
 }
 
 /// Window-level view under `Root`. Overlay layers live here so their builders
@@ -930,7 +861,7 @@ impl Render for ImprintApp {
       .bg(cx.theme().transparent)
       .text_color(cx.theme().foreground)
       .child(atmosphere(cx))
-      .child(header(cx))
+      .child(header(self, cx))
       .child(
         v_flex().flex_1().px_6().py_6().child(if done {
           done_panel(self, cx).into_any_element()
@@ -949,7 +880,7 @@ impl Render for ImprintApp {
   }
 }
 
-fn header(cx: &mut Context<ImprintApp>) -> impl IntoElement {
+fn header(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {
   let view = cx.entity();
   TitleBar::new()
     .bg(linear_gradient(
@@ -972,17 +903,194 @@ fn header(cx: &mut Context<ImprintApp>) -> impl IntoElement {
             .child(t("app.name")),
         )
         .child(
-          Button::new("settings")
-            .ghost()
-            .small()
-            .rounded(ButtonRounded::Large)
-            .icon(IconName::Settings)
-            .tooltip(t("header.settings_tooltip"))
-            .on_click(move |_, window, cx| {
-              view.update(cx, |this, cx| this.open_settings(window, cx));
-            }),
+          h_flex()
+            .items_center()
+            .gap_2()
+            .child(update_status_chip(app, view.clone(), cx))
+            .child(
+              Button::new("settings")
+                .ghost()
+                .small()
+                .rounded(ButtonRounded::Large)
+                .icon(IconName::Settings)
+                .tooltip(t("header.settings_tooltip"))
+                .on_click(move |_, window, cx| {
+                  view.update(cx, |this, cx| this.open_settings(window, cx));
+                }),
+            ),
         ),
     )
+}
+
+fn update_status_chip(
+  app: &ImprintApp,
+  view: Entity<ImprintApp>,
+  cx: &mut Context<ImprintApp>,
+) -> impl IntoElement {
+  if !app.update_chip_visible() {
+    return div().into_any_element();
+  }
+
+  let clickable = matches!(
+    app.update,
+    UpdateStatus::Available(_) | UpdateStatus::Installed { .. } | UpdateStatus::Failed(_)
+  );
+  let dismissable = clickable;
+  let border = if clickable {
+    cx.theme().foreground.divide(0.18)
+  } else {
+    cx.theme().border
+  };
+
+  let (icon, label, tooltip) = match &app.update {
+    UpdateStatus::Checking => (UpdateChipIcon::Spinner, t("update.checking_chip"), None),
+    UpdateStatus::Available(update) => (
+      UpdateChipIcon::ArrowDown,
+      t("update.available_chip"),
+      Some(tr(
+        "update.version_tooltip",
+        &[("version", update.version.as_str())],
+      )),
+    ),
+    UpdateStatus::Downloading {
+      update,
+      received,
+      total,
+    } => {
+      let progress = total
+        .filter(|total| *total > 0)
+        .map(|total| (*received as f32 / total as f32).clamp(0.0, 1.0));
+      let tooltip = Some(match progress {
+        Some(progress) => tr(
+          "update.progress_tooltip",
+          &[
+            ("version", update.version.as_str()),
+            ("percent", &format!("{:.0}", progress * 100.0)),
+          ],
+        ),
+        None => tr(
+          "update.version_tooltip",
+          &[("version", update.version.as_str())],
+        ),
+      });
+      (
+        UpdateChipIcon::Download { progress },
+        t("update.downloading_chip"),
+        tooltip,
+      )
+    }
+    UpdateStatus::Installed { version } => (
+      UpdateChipIcon::ArrowDown,
+      t("update.restart_chip"),
+      Some(tr(
+        "update.version_tooltip",
+        &[("version", version.as_str())],
+      )),
+    ),
+    UpdateStatus::Failed(err) => (
+      UpdateChipIcon::Warning,
+      t("update.failed_chip"),
+      Some(err.clone()),
+    ),
+    _ => {
+      return div().into_any_element();
+    }
+  };
+
+  h_flex()
+    .items_center()
+    .rounded(cx.theme().radius)
+    .border_1()
+    .border_color(border)
+    .overflow_hidden()
+    .child(
+      h_flex()
+        .id("update-chip")
+        .items_center()
+        .gap_1()
+        .h(px(22.))
+        .px_2()
+        .child(update_chip_icon(icon, cx))
+        .child(
+          div()
+            .text_xs()
+            .text_color(cx.theme().foreground)
+            .child(label),
+        )
+        .when(clickable, {
+          let view = view.clone();
+          move |this| {
+            this.cursor_pointer().on_click(move |_, window, cx| {
+              view.update(cx, |this, cx| match &this.update {
+                UpdateStatus::Available(update) => {
+                  let update = update.clone();
+                  this.begin_download(update, cx);
+                }
+                UpdateStatus::Installed { .. } => this.restart_to_update(cx),
+                UpdateStatus::Failed(_) => this.begin_update_check(true, window, cx),
+                _ => {}
+              });
+            })
+          }
+        })
+        .when_some(tooltip, |this, tooltip| {
+          this.tooltip(move |window, cx| Tooltip::new(tooltip.clone()).build(window, cx))
+        }),
+    )
+    .when(dismissable, |this| {
+      this
+        .child(div().w(px(1.)).h_full().min_h(px(22.)).bg(border))
+        .child(
+          Button::new("update-dismiss")
+            .ghost()
+            .xsmall()
+            .compact()
+            .icon(IconName::Close)
+            .tooltip(t("update.dismiss"))
+            .on_click({
+              let view = view.clone();
+              move |_, _, cx| {
+                view.update(cx, |this, cx| this.dismiss_update_chip(cx));
+              }
+            }),
+        )
+    })
+    .into_any_element()
+}
+
+enum UpdateChipIcon {
+  Spinner,
+  Download { progress: Option<f32> },
+  ArrowDown,
+  Warning,
+}
+
+fn update_chip_icon(icon: UpdateChipIcon, cx: &App) -> impl IntoElement {
+  let color = cx.theme().foreground;
+  match icon {
+    UpdateChipIcon::Spinner => Spinner::new()
+      .xsmall()
+      .icon(Icon::new(IconName::LoaderCircle))
+      .color(color)
+      .into_any_element(),
+    UpdateChipIcon::Download {
+      progress: Some(progress),
+    } => ProgressCircle::new("update-download")
+      .size(px(12.))
+      .value(progress.clamp(0.0, 1.0) * 100.0)
+      .color(color)
+      .into_any_element(),
+    UpdateChipIcon::Download { progress: None } | UpdateChipIcon::ArrowDown => {
+      Icon::new(IconName::ArrowDown)
+        .xsmall()
+        .text_color(color)
+        .into_any_element()
+    }
+    UpdateChipIcon::Warning => Icon::new(IconName::TriangleAlert)
+      .xsmall()
+      .text_color(cx.theme().warning)
+      .into_any_element(),
+  }
 }
 
 fn write_form(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {

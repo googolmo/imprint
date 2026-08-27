@@ -28,6 +28,23 @@ sudo cargo run -p imprint-cli -- flash ubuntu.iso --device /dev/rdisk4 --yes
 cargo run -p imprint-app
 ```
 
+Linux GUI builds need Fontconfig, FreeType, Wayland/X11, and Vulkan **development** packages (`*.pc` files). Runtime libs alone are not enough:
+
+```bash
+sudo apt-get install -y --no-install-recommends \
+  pkg-config \
+  libfontconfig-dev \
+  libfreetype6-dev \
+  libxkbcommon-dev \
+  libxkbcommon-x11-dev \
+  libwayland-dev \
+  libx11-dev \
+  libx11-xcb-dev \
+  libasound2-dev \
+  libvulkan-dev \
+  libgl1-mesa-dev
+```
+
 On Linux you typically write to `/dev/sdX` or `/dev/nvmeXn1`. On macOS prefer `/dev/rdiskN` after `diskutil list`. On Windows use `\\.\PhysicalDriveN`.
 
 ## Workspace

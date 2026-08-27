@@ -11,6 +11,7 @@
 //! when packaging. See `scripts/prepare-updater-assets.py`.
 
 use std::env;
+use std::path::PathBuf;
 use std::process::Command;
 use std::time::Duration;
 
@@ -129,6 +130,57 @@ pub fn check_for_update() -> Result<Option<Update>, String> {
     .build()
     .map_err(|err| err.to_string())?;
   updater.check().map_err(|err| err.to_string())
+}
+
+/// Directory for a one-shot “updated to …” notice after relaunch.
+fn notice_dir() -> Option<PathBuf> {
+  #[cfg(target_os = "macos")]
+  {
+    let home = env::var_os("HOME")?;
+    return Some(PathBuf::from(home).join("Library/Application Support/imprint"));
+  }
+
+  #[cfg(windows)]
+  {
+    let appdata = env::var_os("APPDATA")?;
+    return Some(PathBuf::from(appdata).join("imprint"));
+  }
+
+  #[cfg(not(any(target_os = "macos", windows)))]
+  {
+    let base = env::var_os("XDG_DATA_HOME")
+      .map(PathBuf::from)
+      .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share")))?;
+    Some(base.join("imprint"))
+  }
+}
+
+fn notice_path() -> Option<PathBuf> {
+  Some(notice_dir()?.join("updated-to"))
+}
+
+/// Remember the version that was just installed so the next launch can toast.
+pub fn mark_update_installed(version: &str) {
+  let Some(path) = notice_path() else {
+    return;
+  };
+  if let Some(parent) = path.parent() {
+    let _ = std::fs::create_dir_all(parent);
+  }
+  let _ = std::fs::write(path, version);
+}
+
+/// Consume the pending post-update notice, if any.
+pub fn take_update_notice() -> Option<String> {
+  let path = notice_path()?;
+  let version = std::fs::read_to_string(&path).ok()?;
+  let _ = std::fs::remove_file(&path);
+  let version = version.trim().to_string();
+  if version.is_empty() {
+    None
+  } else {
+    Some(version)
+  }
 }
 
 pub fn relaunch() -> Result<(), String> {

@@ -98,18 +98,27 @@
   "update": {
     "title": "Software Update",
     "checking": "Checking for updates…",
+    "checking_chip": "Checking for Updates…",
     "up_to_date": "Imprint is up to date.",
     "available": "Version {version} is available.",
+    "available_chip": "Update Available",
     "install": "Install",
     "later": "Later",
     "downloading": "Downloading update…",
+    "downloading_chip": "Downloading Update…",
     "progress": "{received} of {total}",
     "installed": "The update was installed.",
     "restart": "Restart",
+    "restart_chip": "Restart to Update",
     "restart_hint": "Restart Imprint to finish the update.",
     "ok": "OK",
     "unpackaged": "Installing updates requires a packaged build (.app, AppImage, or installer).",
-    "failed": "Could not update: {error}"
+    "failed": "Could not update: {error}",
+    "failed_chip": "Failed to Update",
+    "dismiss": "Dismiss",
+    "version_tooltip": "Update to Version: {version}",
+    "progress_tooltip": "Update to Version: {version} ({percent}% downloaded)",
+    "updated_to": "Updated to Imprint {version}"
   },
   "error": {
     "image_not_found": "Image not found: {path}",

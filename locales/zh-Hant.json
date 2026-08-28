@@ -98,18 +98,27 @@
   "update": {
     "title": "軟體更新",
     "checking": "正在檢查更新…",
+    "checking_chip": "正在檢查更新…",
     "up_to_date": "Imprint 已是最新版本。",
     "available": "發現新版本 {version}。",
+    "available_chip": "有可用更新",
     "install": "安裝",
     "later": "稍後",
     "downloading": "正在下載更新…",
+    "downloading_chip": "正在下載更新…",
     "progress": "{received} / {total}",
     "installed": "更新已安裝。",
     "restart": "重新啟動",
+    "restart_chip": "重新啟動以更新",
     "restart_hint": "請重新啟動 Imprint 以完成更新。",
     "ok": "確定",
     "unpackaged": "安裝更新需要已包裝的版本（.app、AppImage 或安裝程式）。",
-    "failed": "無法更新：{error}"
+    "failed": "無法更新：{error}",
+    "failed_chip": "更新失敗",
+    "dismiss": "關閉",
+    "version_tooltip": "更新到版本：{version}",
+    "progress_tooltip": "更新到版本：{version}（已下載 {percent}%）",
+    "updated_to": "已更新到 Imprint {version}"
   },
   "error": {
     "image_not_found": "找不到映像檔：{path}",

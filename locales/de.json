@@ -98,18 +98,27 @@
   "update": {
     "title": "Softwareupdate",
     "checking": "Suche nach Updates…",
+    "checking_chip": "Suche nach Updates…",
     "up_to_date": "Imprint ist auf dem neuesten Stand.",
     "available": "Version {version} ist verfügbar.",
+    "available_chip": "Update verfügbar",
     "install": "Installieren",
     "later": "Später",
     "downloading": "Update wird heruntergeladen…",
+    "downloading_chip": "Update wird heruntergeladen…",
     "progress": "{received} von {total}",
     "installed": "Das Update wurde installiert.",
     "restart": "Neu starten",
+    "restart_chip": "Neu starten zum Update",
     "restart_hint": "Starten Sie Imprint neu, um das Update abzuschließen.",
     "ok": "OK",
     "unpackaged": "Updates lassen sich nur in einer paketierten Version (.app, AppImage oder Installer) einspielen.",
-    "failed": "Update fehlgeschlagen: {error}"
+    "failed": "Update fehlgeschlagen: {error}",
+    "failed_chip": "Update fehlgeschlagen",
+    "dismiss": "Schließen",
+    "version_tooltip": "Update auf Version: {version}",
+    "progress_tooltip": "Update auf Version: {version} ({percent}% heruntergeladen)",
+    "updated_to": "Aktualisiert auf Imprint {version}"
   },
   "error": {
     "image_not_found": "Image nicht gefunden: {path}",

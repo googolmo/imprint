@@ -98,18 +98,27 @@
   "update": {
     "title": "ソフトウェアアップデート",
     "checking": "アップデートを確認しています…",
+    "checking_chip": "アップデートを確認中…",
     "up_to_date": "Imprint は最新です。",
     "available": "バージョン {version} が利用できます。",
+    "available_chip": "アップデートがあります",
     "install": "インストール",
     "later": "後で",
     "downloading": "アップデートをダウンロードしています…",
+    "downloading_chip": "アップデートをダウンロード中…",
     "progress": "{received} / {total}",
     "installed": "アップデートをインストールしました。",
     "restart": "再起動",
+    "restart_chip": "再起動して更新",
     "restart_hint": "アップデートを完了するには Imprint を再起動してください。",
     "ok": "OK",
     "unpackaged": "アップデートのインストールはパッケージ済みビルド（.app、AppImage、インストーラー）でのみ行えます。",
-    "failed": "更新できませんでした: {error}"
+    "failed": "更新できませんでした: {error}",
+    "failed_chip": "更新に失敗",
+    "dismiss": "閉じる",
+    "version_tooltip": "バージョン {version} に更新",
+    "progress_tooltip": "バージョン {version} に更新（{percent}% ダウンロード済み）",
+    "updated_to": "Imprint {version} に更新しました"
   },
   "error": {
     "image_not_found": "イメージが見つかりません: {path}",

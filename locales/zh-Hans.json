@@ -98,18 +98,27 @@
   "update": {
     "title": "软件更新",
     "checking": "正在检查更新…",
+    "checking_chip": "正在检查更新…",
     "up_to_date": "Imprint 已是最新版本。",
     "available": "发现新版本 {version}。",
+    "available_chip": "有可用更新",
     "install": "安装",
     "later": "稍后",
     "downloading": "正在下载更新…",
+    "downloading_chip": "正在下载更新…",
     "progress": "{received} / {total}",
     "installed": "更新已安装。",
     "restart": "重新启动",
+    "restart_chip": "重启以更新",
     "restart_hint": "请重新启动 Imprint 以完成更新。",
     "ok": "好",
     "unpackaged": "安装更新需要已打包的版本（.app、AppImage 或安装包）。",
-    "failed": "无法更新：{error}"
+    "failed": "无法更新：{error}",
+    "failed_chip": "更新失败",
+    "dismiss": "关闭",
+    "version_tooltip": "更新到版本：{version}",
+    "progress_tooltip": "更新到版本：{version}（已下载 {percent}%）",
+    "updated_to": "已更新到 Imprint {version}"
   },
   "error": {
     "image_not_found": "找不到镜像：{path}",

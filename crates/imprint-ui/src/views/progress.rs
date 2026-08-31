@@ -17,7 +17,6 @@ use crate::widgets::{glass_surface, muted, section_label};
 
 pub(crate) fn panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {
   let progress = app.progress.clone();
-  let fraction = progress.as_ref().map(|p| p.fraction()).unwrap_or(0.0);
   let phase = progress
     .as_ref()
     .map(|p| phase_label(p.phase))
@@ -36,10 +35,8 @@ pub(crate) fn panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl Into
   let failed = progress
     .as_ref()
     .is_some_and(|p| p.phase == FlashPhase::Failed);
-  let preparing = progress
-    .as_ref()
-    .is_some_and(|p| p.phase == FlashPhase::Preparing);
-  let pct_value = (fraction * 100.0).round();
+  let indeterminate = progress.as_ref().is_some_and(|p| p.is_indeterminate());
+  let pct_value = progress.as_ref().map(|p| p.percent() as f32).unwrap_or(0.0);
   let pct = format!("{}%", pct_value as u32);
   let view = cx.entity();
   let ring_color = if failed {
@@ -72,10 +69,10 @@ pub(crate) fn panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl Into
     .child(
       ProgressCircle::new("write-progress")
         .size(px(148.))
-        .value(if preparing { 0.0 } else { pct_value })
-        .loading(preparing && !failed)
+        .value(if indeterminate { 0.0 } else { pct_value })
+        .loading(indeterminate && !failed)
         .color(ring_color)
-        .child(if preparing && !failed {
+        .child(if indeterminate && !failed {
           Spinner::new()
             .icon(Icon::new(IconName::LoaderCircle))
             .color(ring_color)

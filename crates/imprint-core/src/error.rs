@@ -27,6 +27,12 @@ pub enum Error {
   #[error("need administrator / root privileges to write to {0}")]
   Privileges(String),
 
+  #[error("administrator authorization was cancelled")]
+  ElevationCancelled,
+
+  #[error("could not obtain administrator privileges: {0}")]
+  ElevationFailed(String),
+
   #[error("flash cancelled")]
   Cancelled,
 
@@ -68,6 +74,8 @@ impl Error {
         &[("disk", disk), ("have", have), ("need", need)],
       ),
       Self::Privileges(path) => tr("error.privileges", &[("path", path)]),
+      Self::ElevationCancelled => t("error.elevation_cancelled"),
+      Self::ElevationFailed(reason) => tr("error.elevation_failed", &[("reason", reason)]),
       Self::Cancelled => t("error.cancelled"),
       Self::VerifyMismatch {
         offset,

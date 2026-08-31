@@ -73,11 +73,39 @@ impl ImageRef {
     }
   }
 
+  /// Bytes that will land on the target. For compressed images this is the
+  /// uncompressed payload, not the `.gz` / `.xz` file length. `0` means unknown.
   pub fn write_size(&self) -> u64 {
     if self.payload_size > 0 {
       self.payload_size
-    } else {
+    } else if self.compression.is_none() {
       self.file_size
+    } else {
+      0
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn compressed_file_size_is_not_the_write_size() {
+    let image = ImageRef {
+      path: PathBuf::from("disk.img.gz"),
+      display_name: "disk.img.gz".into(),
+      kind: ImageKind::Img,
+      compression: Some(Compression::Gzip),
+      file_size: 200 * 1024 * 1024,
+      payload_size: 0,
+    };
+    assert_eq!(image.write_size(), 0);
+
+    let known = ImageRef {
+      payload_size: 1200 * 1024 * 1024,
+      ..image.clone()
+    };
+    assert_eq!(known.write_size(), 1200 * 1024 * 1024);
   }
 }

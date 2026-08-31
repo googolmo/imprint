@@ -21,8 +21,8 @@ Writing a disk **erases it**. Imprint will not list internal / system drives unl
 # List removable disks
 cargo run -p imprint-cli -- devices
 
-# Flash (requires root / Administrator)
-sudo cargo run -p imprint-cli -- flash ubuntu.iso --device /dev/rdisk4 --yes
+# Flash — prompts for administrator / root access
+cargo run -p imprint-cli -- flash ubuntu.iso --device /dev/rdisk4 --yes
 
 # GUI — macOS needs full Xcode (Metal shader compiler), not just CLT
 cargo run -p imprint-app
@@ -65,12 +65,13 @@ GPUI comes from the **official Zed tree** (`github.com/zed-industries/zed`) as a
 
 ## Privileges
 
-Opening a raw disk requires elevated rights:
+Opening a raw disk requires elevated rights. Imprint asks for them when you write:
 
-- macOS / Linux: `sudo`
-- Windows: “Run as administrator”
+- macOS: system authorization dialog (Touch ID / Apple Watch when the Mac allows it, otherwise password)
+- Linux: polkit (`pkexec`) or `sudo`
+- Windows: UAC prompt
 
-The GUI will error with a privileges message if it cannot open the device.
+You can still launch with `sudo` / “Run as administrator” if you prefer. The GUI no longer needs to be started as root.
 
 ## License
 

@@ -12,6 +12,10 @@ fn main() {
     .with_env_filter(EnvFilter::from_default_env().add_directive("imprint=info".parse().unwrap()))
     .init();
 
+  if let Some(code) = imprint_flash::run_internal_flash() {
+    std::process::exit(code);
+  }
+
   gpui_platform::application()
     .with_quit_mode(QuitMode::LastWindowClosed)
     .with_assets(gpui_component_assets::Assets)

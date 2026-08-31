@@ -5,7 +5,7 @@ use anyhow::{Context, bail};
 use clap::{Parser, Subcommand};
 use imprint_core::{FlashRequest, Settings, format_bytes};
 use imprint_device::list_targets;
-use imprint_flash::{flash, has_block_privileges, validate_request};
+use imprint_flash::{flash, validate_request};
 use imprint_image::inspect;
 use indicatif::{ProgressBar, ProgressStyle};
 use tracing_subscriber::EnvFilter;
@@ -48,6 +48,10 @@ fn main() -> anyhow::Result<()> {
     .with_env_filter(EnvFilter::from_default_env().add_directive("imprint=info".parse()?))
     .init();
 
+  if let Some(code) = imprint_flash::run_internal_flash() {
+    std::process::exit(code);
+  }
+
   match Cli::parse().command {
     Command::Devices { all } => {
       let mut settings = Settings::default();
@@ -81,9 +85,6 @@ fn main() -> anyhow::Result<()> {
       if !yes {
         bail!("refusing to write without --yes");
       }
-      if !has_block_privileges() {
-        bail!("need root / Administrator to write to {}", device.display());
-      }
       let image = inspect(&image).with_context(|| format!("inspect {}", image.display()))?;
       let settings = Settings {
         hide_system_drives: false,
@@ -108,7 +109,7 @@ fn main() -> anyhow::Result<()> {
       };
       validate_request(&request)?;
 
-      let bar = ProgressBar::new(request.image.write_size().max(1));
+      let bar = ProgressBar::new(request.image.write_size());
       bar.set_style(
         ProgressStyle::with_template(
           "{spinner:.green} {msg} {wide_bar:.cyan/blue} {bytes}/{total_bytes} ({bytes_per_sec})",
@@ -118,8 +119,13 @@ fn main() -> anyhow::Result<()> {
       let cancel = AtomicBool::new(false);
       ctrlc_stub(&cancel);
       flash(request, &cancel, |p| {
-        bar.set_length(p.bytes_total.max(1));
-        bar.set_position(p.bytes_done);
+        if p.bytes_total > 0 {
+          bar.set_length(p.bytes_total);
+          bar.set_position(p.bytes_done);
+        } else {
+          bar.set_length(p.bytes_done.saturating_add(1));
+          bar.set_position(p.bytes_done);
+        }
         bar.set_message(p.phase.as_str().to_string());
       })?;
       bar.finish_with_message("done");

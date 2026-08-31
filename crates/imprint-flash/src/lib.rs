@@ -1,9 +1,15 @@
 //! Write an image stream to one or more block devices, then optionally verify.
 
+#[cfg(target_os = "macos")]
+mod authopen;
+mod elevate;
+mod helper;
 mod privilege;
+mod raw;
 mod verify;
 mod write;
 
+pub use helper::run_internal_flash;
 pub use privilege::has_block_privileges;
 pub use write::flash;
 

@@ -114,4 +114,34 @@ mod tests {
       Some(Compression::Gzip)
     );
   }
+
+  #[test]
+  fn gzip_payload_size_uses_isize_not_file_size() {
+    use std::io::Write;
+
+    use flate2::Compression as GzLevel;
+    use flate2::write::GzEncoder;
+
+    let payload = vec![0u8; 12_345];
+    let path = std::env::temp_dir().join(format!(
+      "imprint-gzip-isize-{}-{}.img.gz",
+      std::process::id(),
+      std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0)
+    ));
+    {
+      let file = std::fs::File::create(&path).expect("temp gzip");
+      let mut encoder = GzEncoder::new(file, GzLevel::default());
+      encoder.write_all(&payload).expect("gzip write");
+      encoder.finish().expect("gzip finish");
+    }
+    let image = inspect::inspect(&path).expect("inspect gzip");
+    let _ = std::fs::remove_file(&path);
+    assert_eq!(image.compression, Some(Compression::Gzip));
+    assert_eq!(image.payload_size, payload.len() as u64);
+    assert_eq!(image.write_size(), payload.len() as u64);
+    assert!(image.file_size < image.payload_size);
+  }
 }

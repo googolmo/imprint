@@ -127,6 +127,9 @@
     "system_disk": "システムディスク {disk} への書き込みを拒否しました",
     "target_too_small": "ターゲット {disk} の容量が不足しています（{have}）。イメージには {need} 必要です",
     "privileges": "{path} への書き込みには管理者 / root 権限が必要です",
+    "privileges_prompt": "ディスクに書き込むには管理者権限が必要です。",
+    "elevation_cancelled": "管理者承認がキャンセルされました",
+    "elevation_failed": "管理者権限を取得できませんでした: {reason}",
     "cancelled": "書き込みはキャンセルされました",
     "verify_mismatch": "オフセット {offset} で検証に失敗しました: 書き込み {expected}、読み取り {actual}"
   }

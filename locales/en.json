@@ -127,6 +127,9 @@
     "system_disk": "Refusing to write to system disk {disk}",
     "target_too_small": "Target {disk} is too small ({have}); image needs {need}",
     "privileges": "Need administrator / root privileges to write to {path}",
+    "privileges_prompt": "Imprint needs administrator access to write to the disk.",
+    "elevation_cancelled": "Administrator authorization was cancelled",
+    "elevation_failed": "Could not obtain administrator privileges: {reason}",
     "cancelled": "Flash cancelled",
     "verify_mismatch": "Verification failed at offset {offset}: wrote {expected}, read {actual}"
   }

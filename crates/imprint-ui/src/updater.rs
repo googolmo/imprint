@@ -66,6 +66,7 @@ pub fn is_configured() -> bool {
   !UPDATER_PUBKEY.is_empty() && endpoint_tokens(UPDATE_ENDPOINT).next().is_some()
 }
 
+#[cfg(test)]
 pub fn endpoint_urls() -> Result<Vec<Url>, String> {
   parse_endpoints(UPDATE_ENDPOINT)
 }

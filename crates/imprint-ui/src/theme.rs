@@ -57,27 +57,27 @@ pub fn glass(cx: &App) -> Glass {
 fn glass_for(dark: bool) -> Glass {
   if dark {
     Glass {
-      fill: hsla(H_VIOLET, 0.30, 0.16, 0.62),
-      fill_top: hsla(H_CYAN, 0.36, 0.52, 0.38),
-      fill_hover: hsla(H_CYAN, 0.34, 0.48, 0.50),
-      panel: hsla(H_VIOLET, 0.40, 0.12, 0.86),
-      panel_top: hsla(H_CYAN, 0.32, 0.42, 0.40),
-      border: hsla(H_CYAN, 0.42, 0.78, 0.22),
-      highlight: hsla(0.0, 0.0, 1.0, 0.28),
-      glow: hsla(H_SAPPHIRE, 0.78, 0.48, 0.16),
-      shadow: hsla(0.70, 0.48, 0.03, 0.55),
+      fill: hsla(H_VIOLET, 0.30, 0.16, 0.70),
+      fill_top: hsla(H_CYAN, 0.36, 0.52, 0.50),
+      fill_hover: hsla(H_CYAN, 0.34, 0.48, 0.56),
+      panel: hsla(H_VIOLET, 0.40, 0.12, 0.90),
+      panel_top: hsla(H_CYAN, 0.32, 0.42, 0.48),
+      border: hsla(H_CYAN, 0.42, 0.78, 0.42),
+      highlight: hsla(0.0, 0.0, 1.0, 0.22),
+      glow: hsla(H_SAPPHIRE, 0.78, 0.48, 0.14),
+      shadow: hsla(0.70, 0.48, 0.03, 0.48),
     }
   } else {
     Glass {
-      fill: hsla(H_SAPPHIRE, 0.14, 0.99, 0.78),
-      fill_top: hsla(0.0, 0.0, 1.0, 0.92),
-      fill_hover: hsla(H_SAPPHIRE, 0.18, 0.98, 0.90),
-      panel: hsla(H_SAPPHIRE, 0.16, 0.99, 0.88),
-      panel_top: hsla(0.0, 0.0, 1.0, 0.94),
-      border: hsla(H_SAPPHIRE, 0.28, 0.46, 0.16),
-      highlight: hsla(0.0, 0.0, 1.0, 0.92),
+      fill: hsla(H_SAPPHIRE, 0.14, 0.99, 0.86),
+      fill_top: hsla(0.0, 0.0, 1.0, 0.94),
+      fill_hover: hsla(H_SAPPHIRE, 0.18, 0.98, 0.94),
+      panel: hsla(H_SAPPHIRE, 0.16, 0.99, 0.94),
+      panel_top: hsla(0.0, 0.0, 1.0, 0.96),
+      border: hsla(H_SAPPHIRE, 0.32, 0.50, 0.32),
+      highlight: hsla(0.0, 0.0, 1.0, 0.55),
       glow: hsla(H_SAPPHIRE, 0.48, 0.52, 0.08),
-      shadow: hsla(H_SAPPHIRE, 0.32, 0.22, 0.12),
+      shadow: hsla(H_SAPPHIRE, 0.32, 0.22, 0.14),
     }
   }
 }
@@ -176,9 +176,9 @@ fn paint_glass(theme: &mut Theme) {
     theme.title_bar_border = hsla(H_CYAN, 0.32, 0.70, 0.12);
     theme.status_bar = hsla(H_VIOLET, 0.38, 0.08, 0.55);
     theme.status_bar_border = hsla(H_CYAN, 0.32, 0.70, 0.10);
-    theme.popover = hsla(H_SAPPHIRE, 0.42, 0.11, 0.94);
+    theme.popover = hsla(H_SAPPHIRE, 0.40, 0.16, 0.98);
     theme.popover_foreground = theme.foreground;
-    theme.border = hsla(H_CYAN, 0.42, 0.72, 0.26);
+    theme.border = hsla(H_CYAN, 0.42, 0.72, 0.38);
     theme.input = hsla(H_CYAN, 0.30, 0.70, 0.16);
     theme.secondary = hsla(H_SAPPHIRE, 0.35, 0.55, 0.16);
     theme.secondary_hover = hsla(H_CYAN, 0.40, 0.62, 0.22);
@@ -217,9 +217,9 @@ fn paint_glass(theme: &mut Theme) {
     theme.title_bar_border = hsla(H_SAPPHIRE, 0.28, 0.55, 0.18);
     theme.status_bar = hsla(H_SAPPHIRE, 0.16, 0.97, 0.92);
     theme.status_bar_border = hsla(H_SAPPHIRE, 0.30, 0.70, 0.14);
-    theme.popover = hsla(0.0, 0.0, 1.0, 0.96);
+    theme.popover = hsla(0.0, 0.0, 1.0, 1.0);
     theme.popover_foreground = theme.foreground;
-    theme.border = hsla(H_SAPPHIRE, 0.32, 0.55, 0.22);
+    theme.border = hsla(H_SAPPHIRE, 0.32, 0.55, 0.34);
     theme.input = hsla(H_SAPPHIRE, 0.25, 0.98, 0.70);
     theme.secondary = hsla(H_SAPPHIRE, 0.35, 0.96, 0.55);
     theme.secondary_hover = hsla(H_CYAN, 0.30, 0.96, 0.70);

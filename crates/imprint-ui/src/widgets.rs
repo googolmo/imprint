@@ -1,12 +1,55 @@
 use gpui::{
-  App, Div, FontWeight, Hsla, Pixels, Styled, div, hsla, linear_color_stop, linear_gradient,
-  prelude::*, px,
+  App, BoxShadow, Div, FontWeight, Hsla, Pixels, Styled, div, hsla, linear_color_stop,
+  linear_gradient, prelude::*, px,
 };
 use gpui_component::{
   ActiveTheme as _, Colorize as _, Icon, IconName, Sizable as _, box_shadow, h_flex,
 };
 
 use crate::theme::{glass, glass_fill, glass_hover_fill, glass_panel_fill};
+
+/// GPUI's blur is gaussian σ (~half of CSS). Any blur on the perimeter reads as
+/// a soft fringe, so the rim stays at 0 and drops sit below the surface.
+fn glass_rim(cx: &App) -> BoxShadow {
+  BoxShadow::new(px(0.), px(1.), glass(cx).highlight).inset()
+}
+
+fn glass_drop(cx: &App) -> Vec<BoxShadow> {
+  let g = glass(cx);
+  vec![
+    glass_rim(cx),
+    box_shadow(px(0.), px(6.), px(10.), px(-4.), g.shadow),
+    box_shadow(px(0.), px(2.), px(3.), px(-1.), g.glow),
+  ]
+}
+
+pub fn glass_shadows(cx: &App) -> Vec<BoxShadow> {
+  glass_drop(cx)
+}
+
+pub fn glass_ready_shadows(cx: &App) -> Vec<BoxShadow> {
+  let mut shadows = glass_drop(cx);
+  shadows.push(box_shadow(
+    px(0.),
+    px(8.),
+    px(12.),
+    px(-4.),
+    cx.theme().accent.divide(0.22),
+  ));
+  shadows
+}
+
+pub fn glass_primary_shadows(cx: &App) -> Vec<BoxShadow> {
+  let mut shadows = glass_drop(cx);
+  shadows.push(box_shadow(
+    px(0.),
+    px(8.),
+    px(12.),
+    px(-4.),
+    cx.theme().primary.divide(0.32),
+  ));
+  shadows
+}
 
 pub fn section_label(cx: &App, text: impl Into<String>) -> impl gpui::IntoElement {
   h_flex()
@@ -67,26 +110,18 @@ pub fn glass_surface(element: Div, cx: &App) -> Div {
     .border_1()
     .border_color(g.border)
     .bg(glass_fill(cx))
-    .shadow(vec![
-      box_shadow(px(0.), px(-1.), px(1.), px(0.), g.highlight),
-      box_shadow(px(0.), px(12.), px(32.), px(-6.), g.shadow),
-      box_shadow(px(0.), px(4.), px(18.), px(0.), g.glow),
-    ])
+    .shadow(glass_shadows(cx))
 }
 
 /// Denser glass wash for side sheets; cards still use [`glass_surface`].
 pub fn glass_panel<E: Styled>(element: E, cx: &App) -> E {
   let g = glass(cx);
-  let radius = cx.theme().radius_lg;
   element
-    .rounded_tl(radius)
-    .rounded_bl(radius)
     .border_color(g.border)
     .bg(glass_panel_fill(cx))
     .shadow(vec![
-      box_shadow(px(0.), px(-1.), px(1.), px(0.), g.highlight),
-      box_shadow(px(-12.), px(8.), px(36.), px(-4.), g.shadow),
-      box_shadow(px(-10.), px(0.), px(28.), px(0.), g.glow),
+      glass_rim(cx),
+      box_shadow(px(-4.), px(0.), px(8.), px(-2.), g.shadow),
     ])
 }
 
@@ -110,14 +145,14 @@ pub fn icon_badge(cx: &App, icon: IconName, ready: bool, size: Pixels) -> impl g
       linear_color_stop(g.fill, 1.),
     )
   };
-  let mut shadows = vec![box_shadow(px(0.), px(-1.), px(1.), px(0.), g.highlight)];
+  let mut shadows = vec![glass_rim(cx)];
   if ready {
     shadows.push(box_shadow(
       px(0.),
-      px(0.),
-      px(18.),
-      px(1.),
-      cx.theme().accent.divide(0.32),
+      px(4.),
+      px(8.),
+      px(-2.),
+      cx.theme().accent.divide(0.28),
     ));
   }
   div()

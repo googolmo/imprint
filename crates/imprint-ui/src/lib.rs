@@ -4,6 +4,7 @@ mod actions;
 mod app;
 mod theme;
 mod updater;
+mod views;
 mod widgets;
 
 use gpui::{App, Menu, MenuItem, TextRenderingMode, actions};

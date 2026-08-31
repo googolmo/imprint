@@ -5,30 +5,15 @@ use std::time::Duration;
 
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use gpui::{
-  App, ClickEvent, Context, Entity, ExternalPaths, FocusHandle, FontWeight, InteractiveElement,
-  IntoElement, ParentElement, PathPromptOptions, Render, StatefulInteractiveElement, Styled,
-  Subscription, Window, div, linear_color_stop, linear_gradient, prelude::*, px,
+  App, ClickEvent, Context, Entity, ExternalPaths, FocusHandle, InteractiveElement, IntoElement,
+  ParentElement, PathPromptOptions, Render, Styled, Subscription, Window, div,
 };
 use gpui_component::{
-  ActiveTheme as _, Colorize as _, Icon, IconName, Root, Sizable as _, TitleBar, WindowExt as _,
-  button::{Button, ButtonCustomVariant, ButtonRounded, ButtonVariants as _},
-  h_flex,
-  menu::{DropdownMenu as _, PopupMenuItem},
-  notification::Notification,
-  progress::ProgressCircle,
-  separator::Separator,
-  spinner::Spinner,
-  status_bar::StatusBar,
-  switch::Switch,
-  tab::{Tab, TabBar},
-  tag::Tag,
-  tooltip::Tooltip,
-  v_flex,
+  ActiveTheme as _, Colorize as _, Root, WindowExt as _, notification::Notification, v_flex,
 };
 use imprint_core::i18n::{self, t, tr};
 use imprint_core::{
-  FlashPhase, FlashProgress, FlashRequest, ImageRef, Language, LocalePref, Settings, TargetDisk,
-  format_bytes,
+  FlashPhase, FlashProgress, FlashRequest, ImageRef, LocalePref, Settings, TargetDisk,
 };
 use imprint_device::list_targets;
 use imprint_flash::flash;
@@ -38,12 +23,9 @@ use crate::actions::{
   About, CheckForUpdates, OpenImage, Quit, SelectTarget, StartFlash, ToggleSettings,
 };
 use crate::theme::Appearance;
-use crate::theme::glass;
 use crate::updater;
-use crate::widgets::{
-  atmosphere, brand_mark, glass_panel, glass_surface, hover_fill, icon_badge, icon_well, muted,
-  section_label, stage_connector, stage_kicker,
-};
+use crate::views;
+use crate::widgets::atmosphere;
 
 enum ProgressEvent {
   Update(FlashProgress),
@@ -58,7 +40,7 @@ enum UpdateEvent {
   Installed,
 }
 
-enum UpdateStatus {
+pub(crate) enum UpdateStatus {
   Idle,
   Checking,
   UpToDate,
@@ -78,19 +60,19 @@ struct UpdateToast;
 
 pub struct ImprintApp {
   focus: FocusHandle,
-  settings: Settings,
-  appearance: Appearance,
-  image: Option<ImageRef>,
-  disks: Vec<TargetDisk>,
-  selected: Vec<usize>,
-  flashing: bool,
-  progress: Option<FlashProgress>,
-  error: Option<String>,
+  pub(crate) settings: Settings,
+  pub(crate) appearance: Appearance,
+  pub(crate) image: Option<ImageRef>,
+  pub(crate) disks: Vec<TargetDisk>,
+  pub(crate) selected: Vec<usize>,
+  pub(crate) flashing: bool,
+  pub(crate) progress: Option<FlashProgress>,
+  pub(crate) error: Option<String>,
   drag_over: bool,
-  cancel: Arc<AtomicBool>,
+  pub(crate) cancel: Arc<AtomicBool>,
   events: Option<Receiver<ProgressEvent>>,
   _pump: Option<gpui::Task<()>>,
-  update: UpdateStatus,
+  pub(crate) update: UpdateStatus,
   update_interactive: bool,
   update_dismissed: bool,
   update_events: Option<Receiver<UpdateEvent>>,
@@ -151,7 +133,7 @@ impl ImprintApp {
     this
   }
 
-  fn set_appearance(
+  pub(crate) fn set_appearance(
     &mut self,
     appearance: Appearance,
     window: &mut Window,
@@ -162,14 +144,14 @@ impl ImprintApp {
     cx.notify();
   }
 
-  fn set_locale(&mut self, locale: LocalePref, cx: &mut Context<Self>) {
+  pub(crate) fn set_locale(&mut self, locale: LocalePref, cx: &mut Context<Self>) {
     self.settings.locale = locale;
     i18n::set_pref(locale);
     crate::install_menus(cx);
     cx.notify();
   }
 
-  fn refresh_disks(&mut self, cx: &mut Context<Self>) {
+  pub(crate) fn refresh_disks(&mut self, cx: &mut Context<Self>) {
     match list_targets(&self.settings) {
       Ok(disks) => {
         self.disks = disks;
@@ -192,7 +174,7 @@ impl ImprintApp {
     cx.notify();
   }
 
-  fn pick_image(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
+  pub(crate) fn pick_image(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
     let rx = cx.prompt_for_paths(PathPromptOptions {
       files: true,
       directories: false,
@@ -254,7 +236,7 @@ impl ImprintApp {
     self.begin_update_check(true, window, cx);
   }
 
-  fn selected_disks(&self) -> Vec<TargetDisk> {
+  pub(crate) fn selected_disks(&self) -> Vec<TargetDisk> {
     self
       .selected
       .iter()
@@ -262,7 +244,7 @@ impl ImprintApp {
       .collect()
   }
 
-  fn can_flash(&self) -> bool {
+  pub(crate) fn can_flash(&self) -> bool {
     self.image.is_some() && !self.selected.is_empty() && !self.flashing
   }
 
@@ -362,14 +344,14 @@ impl ImprintApp {
     }));
   }
 
-  fn flash_another(&mut self, cx: &mut Context<Self>) {
+  pub(crate) fn flash_another(&mut self, cx: &mut Context<Self>) {
     self.progress = None;
     self.flashing = false;
     self.error = None;
     cx.notify();
   }
 
-  fn click_flash(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
+  pub(crate) fn click_flash(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
     self.begin_flash(cx);
   }
 
@@ -380,191 +362,20 @@ impl ImprintApp {
     }
   }
 
-  fn open_drives(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+  pub(crate) fn open_drives(&mut self, window: &mut Window, cx: &mut Context<Self>) {
     self.refresh_disks(cx);
-    let view = cx.entity();
-    // Defer so the dialog builder is not invoked while ImprintApp is updating.
-    window.defer(cx, move |window, cx| {
-      window.open_dialog(cx, move |dialog, _, cx| {
-        let app = view.read(cx);
-        dialog
-          .title(t("drives.title"))
-          .w(px(520.))
-          .child(muted(cx, t("drives.hint")))
-          .child(drive_list(&app, view.clone(), cx))
-          .footer(
-            h_flex()
-              .w_full()
-              .justify_end()
-              .gap_2()
-              .child(Button::new("refresh").label(t("drives.refresh")).on_click({
-                let view = view.clone();
-                move |_, _, cx| {
-                  view.update(cx, |this, cx| this.refresh_disks(cx));
-                }
-              }))
-              .child(
-                Button::new("confirm-drives")
-                  .primary()
-                  .label(t("drives.done"))
-                  .on_click(|_, window, cx| window.close_dialog(cx)),
-              ),
-          )
-      });
-    });
+    views::drives::open(cx.entity(), window, cx);
   }
 
-  fn open_settings(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-    let view = cx.entity();
-    // Defer so the sheet builder is not invoked while ImprintApp is updating.
-    window.defer(cx, move |window, cx| {
-      window.open_sheet(cx, move |sheet, _, cx| {
-        let app = view.read(cx);
-        glass_panel(sheet, cx)
-          .title(t("settings.title"))
-          .size(px(380.))
-          .child(
-            v_flex()
-              .gap_5()
-              .py_3()
-              .child(
-                v_flex()
-                  .gap_2()
-                  .child(section_label(cx, t("settings.appearance")))
-                  .child(
-                    glass_surface(v_flex().w_full().gap_3().px_4().py_4(), cx)
-                      .child(
-                        TabBar::new("appearance")
-                          .segmented()
-                          .small()
-                          .w_full()
-                          .selected_index(app.appearance.as_index())
-                          .child(Tab::new().label(t("settings.appearance_system")))
-                          .child(Tab::new().label(t("settings.appearance_light")))
-                          .child(Tab::new().label(t("settings.appearance_dark")))
-                          .on_click({
-                            let view = view.clone();
-                            move |ix, window, cx| {
-                              let appearance = Appearance::from_index(*ix);
-                              view
-                                .update(cx, |this, cx| this.set_appearance(appearance, window, cx));
-                            }
-                          }),
-                      )
-                      .child(muted(cx, t("settings.appearance_hint"))),
-                  ),
-              )
-              .child(
-                v_flex()
-                  .gap_2()
-                  .child(section_label(cx, t("settings.language")))
-                  .child(
-                    glass_surface(v_flex().w_full().gap_3().px_4().py_4(), cx)
-                      .child(locale_dropdown(i18n::active_language(), view.clone()))
-                      .child(muted(cx, t("settings.language_hint"))),
-                  ),
-              )
-              .child(
-                v_flex()
-                  .gap_2()
-                  .child(section_label(cx, t("settings.writing")))
-                  .child(
-                    glass_surface(v_flex().w_full(), cx)
-                      .child(setting_switch(
-                        "verify",
-                        t("settings.verify"),
-                        t("settings.verify_hint"),
-                        app.settings.verify,
-                        view.clone(),
-                        |s, on| s.verify = on,
-                        cx,
-                      ))
-                      .child(Separator::horizontal())
-                      .child(setting_switch(
-                        "unmount",
-                        t("settings.eject"),
-                        t("settings.eject_hint"),
-                        app.settings.unmount_on_success,
-                        view.clone(),
-                        |s, on| s.unmount_on_success = on,
-                        cx,
-                      ))
-                      .child(Separator::horizontal())
-                      .child(setting_switch(
-                        "hide-system",
-                        t("settings.hide_system"),
-                        t("settings.hide_system_hint"),
-                        app.settings.hide_system_drives,
-                        view.clone(),
-                        |s, on| s.hide_system_drives = on,
-                        cx,
-                      )),
-                  ),
-              ),
-          )
-      });
-    });
+  pub(crate) fn open_settings(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    views::settings::open(cx.entity(), window, cx);
   }
 
-  fn open_about(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-    let view = cx.entity();
-    window.defer(cx, move |window, cx| {
-      window.open_dialog(cx, move |dialog, _, cx| {
-        dialog
-          .title(t("about.title"))
-          .w(px(400.))
-          .child(
-            v_flex()
-              .gap_3()
-              .items_center()
-              .py_4()
-              .child(brand_mark(cx, px(56.)))
-              .child(
-                div()
-                  .text_xl()
-                  .font_weight(FontWeight::SEMIBOLD)
-                  .child(t("app.name")),
-              )
-              .child(muted(
-                cx,
-                tr("about.version", &[("version", env!("CARGO_PKG_VERSION"))]),
-              ))
-              .child(
-                div()
-                  .max_w(px(280.))
-                  .text_center()
-                  .child(muted(cx, t("about.tagline"))),
-              )
-              .child(muted(cx, env!("CARGO_PKG_LICENSE"))),
-          )
-          .footer(
-            h_flex()
-              .w_full()
-              .justify_between()
-              .child(
-                Button::new("about-check-updates")
-                  .ghost()
-                  .label(t("about.check_updates"))
-                  .on_click({
-                    let view = view.clone();
-                    move |_, window, cx| {
-                      window.close_dialog(cx);
-                      view.update(cx, |this, cx| this.begin_update_check(true, window, cx));
-                    }
-                  }),
-              )
-              .child(
-                Button::new("about-ok")
-                  .primary()
-                  .label(t("about.ok"))
-                  .on_click(|_, window, cx| window.close_dialog(cx)),
-              ),
-          )
-      });
-    });
+  pub(crate) fn open_about(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    views::about::open(cx.entity(), window, cx);
   }
 
-  fn begin_update_check(
+  pub(crate) fn begin_update_check(
     &mut self,
     interactive: bool,
     _window: &mut Window,
@@ -605,7 +416,11 @@ impl ImprintApp {
     cx.notify();
   }
 
-  fn begin_download(&mut self, update: cargo_packager_updater::Update, cx: &mut Context<Self>) {
+  pub(crate) fn begin_download(
+    &mut self,
+    update: cargo_packager_updater::Update,
+    cx: &mut Context<Self>,
+  ) {
     if !updater::is_packaged() {
       self.update = UpdateStatus::Failed(t("update.unpackaged"));
       cx.notify();
@@ -726,12 +541,12 @@ impl ImprintApp {
     }));
   }
 
-  fn dismiss_update_chip(&mut self, cx: &mut Context<Self>) {
+  pub(crate) fn dismiss_update_chip(&mut self, cx: &mut Context<Self>) {
     self.update_dismissed = true;
     cx.notify();
   }
 
-  fn restart_to_update(&mut self, cx: &mut Context<Self>) {
+  pub(crate) fn restart_to_update(&mut self, cx: &mut Context<Self>) {
     if let Err(err) = updater::relaunch() {
       tracing::error!("failed to relaunch after update: {err}");
       self.update = UpdateStatus::Failed(err);
@@ -742,7 +557,7 @@ impl ImprintApp {
     cx.quit();
   }
 
-  fn update_chip_visible(&self) -> bool {
+  pub(crate) fn update_chip_visible(&self) -> bool {
     if self.update_dismissed {
       return false;
     }
@@ -861,1010 +676,21 @@ impl Render for ImprintApp {
       .bg(cx.theme().transparent)
       .text_color(cx.theme().foreground)
       .child(atmosphere(cx))
-      .child(header(self, cx))
+      .child(views::chrome::header(self, cx))
       .child(
         v_flex().flex_1().px_6().py_6().child(if done {
-          done_panel(self, cx).into_any_element()
+          views::done::panel(self, cx).into_any_element()
         } else if self.flashing
           || self
             .progress
             .as_ref()
             .is_some_and(|p| p.phase == FlashPhase::Failed)
         {
-          progress_panel(self, cx).into_any_element()
+          views::progress::panel(self, cx).into_any_element()
         } else {
-          write_form(self, cx).into_any_element()
+          views::write::form(self, cx).into_any_element()
         }),
       )
-      .child(status_bar(self, cx))
-  }
-}
-
-fn header(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {
-  let view = cx.entity();
-  TitleBar::new()
-    .bg(linear_gradient(
-      180.,
-      linear_color_stop(cx.theme().title_bar, 0.),
-      linear_color_stop(cx.theme().title_bar.divide(0.28), 1.),
-    ))
-    .border_color(cx.theme().title_bar_border)
-    .child(
-      h_flex()
-        .w_full()
-        .pr_2()
-        .items_center()
-        .justify_between()
-        .child(
-          div()
-            .text_sm()
-            .font_weight(FontWeight::SEMIBOLD)
-            .text_color(cx.theme().foreground)
-            .child(t("app.name")),
-        )
-        .child(
-          h_flex()
-            .items_center()
-            .gap_2()
-            .child(update_status_chip(app, view.clone(), cx))
-            .child(
-              Button::new("settings")
-                .ghost()
-                .small()
-                .rounded(ButtonRounded::Large)
-                .icon(IconName::Settings)
-                .tooltip(t("header.settings_tooltip"))
-                .on_click(move |_, window, cx| {
-                  view.update(cx, |this, cx| this.open_settings(window, cx));
-                }),
-            ),
-        ),
-    )
-}
-
-fn update_status_chip(
-  app: &ImprintApp,
-  view: Entity<ImprintApp>,
-  cx: &mut Context<ImprintApp>,
-) -> impl IntoElement {
-  if !app.update_chip_visible() {
-    return div().into_any_element();
-  }
-
-  let clickable = matches!(
-    app.update,
-    UpdateStatus::Available(_) | UpdateStatus::Installed { .. } | UpdateStatus::Failed(_)
-  );
-  let dismissable = clickable;
-  let border = if clickable {
-    cx.theme().foreground.divide(0.18)
-  } else {
-    cx.theme().border
-  };
-
-  let (icon, label, tooltip) = match &app.update {
-    UpdateStatus::Checking => (UpdateChipIcon::Spinner, t("update.checking_chip"), None),
-    UpdateStatus::Available(update) => (
-      UpdateChipIcon::ArrowDown,
-      t("update.available_chip"),
-      Some(tr(
-        "update.version_tooltip",
-        &[("version", update.version.as_str())],
-      )),
-    ),
-    UpdateStatus::Downloading {
-      update,
-      received,
-      total,
-    } => {
-      let progress = total
-        .filter(|total| *total > 0)
-        .map(|total| (*received as f32 / total as f32).clamp(0.0, 1.0));
-      let tooltip = Some(match progress {
-        Some(progress) => tr(
-          "update.progress_tooltip",
-          &[
-            ("version", update.version.as_str()),
-            ("percent", &format!("{:.0}", progress * 100.0)),
-          ],
-        ),
-        None => tr(
-          "update.version_tooltip",
-          &[("version", update.version.as_str())],
-        ),
-      });
-      (
-        UpdateChipIcon::Download { progress },
-        t("update.downloading_chip"),
-        tooltip,
-      )
-    }
-    UpdateStatus::Installed { version } => (
-      UpdateChipIcon::ArrowDown,
-      t("update.restart_chip"),
-      Some(tr(
-        "update.version_tooltip",
-        &[("version", version.as_str())],
-      )),
-    ),
-    UpdateStatus::Failed(err) => (
-      UpdateChipIcon::Warning,
-      t("update.failed_chip"),
-      Some(err.clone()),
-    ),
-    _ => {
-      return div().into_any_element();
-    }
-  };
-
-  h_flex()
-    .items_center()
-    .rounded(cx.theme().radius)
-    .border_1()
-    .border_color(border)
-    .overflow_hidden()
-    .child(
-      h_flex()
-        .id("update-chip")
-        .items_center()
-        .gap_1()
-        .h(px(22.))
-        .px_2()
-        .child(update_chip_icon(icon, cx))
-        .child(
-          div()
-            .text_xs()
-            .text_color(cx.theme().foreground)
-            .child(label),
-        )
-        .when(clickable, {
-          let view = view.clone();
-          move |this| {
-            this.cursor_pointer().on_click(move |_, window, cx| {
-              view.update(cx, |this, cx| match &this.update {
-                UpdateStatus::Available(update) => {
-                  let update = update.clone();
-                  this.begin_download(update, cx);
-                }
-                UpdateStatus::Installed { .. } => this.restart_to_update(cx),
-                UpdateStatus::Failed(_) => this.begin_update_check(true, window, cx),
-                _ => {}
-              });
-            })
-          }
-        })
-        .when_some(tooltip, |this, tooltip| {
-          this.tooltip(move |window, cx| Tooltip::new(tooltip.clone()).build(window, cx))
-        }),
-    )
-    .when(dismissable, |this| {
-      this
-        .child(div().w(px(1.)).h_full().min_h(px(22.)).bg(border))
-        .child(
-          Button::new("update-dismiss")
-            .ghost()
-            .xsmall()
-            .compact()
-            .icon(IconName::Close)
-            .tooltip(t("update.dismiss"))
-            .on_click({
-              let view = view.clone();
-              move |_, _, cx| {
-                view.update(cx, |this, cx| this.dismiss_update_chip(cx));
-              }
-            }),
-        )
-    })
-    .into_any_element()
-}
-
-enum UpdateChipIcon {
-  Spinner,
-  Download { progress: Option<f32> },
-  ArrowDown,
-  Warning,
-}
-
-fn update_chip_icon(icon: UpdateChipIcon, cx: &App) -> impl IntoElement {
-  let color = cx.theme().foreground;
-  match icon {
-    UpdateChipIcon::Spinner => Spinner::new()
-      .xsmall()
-      .icon(Icon::new(IconName::LoaderCircle))
-      .color(color)
-      .into_any_element(),
-    UpdateChipIcon::Download {
-      progress: Some(progress),
-    } => ProgressCircle::new("update-download")
-      .size(px(12.))
-      .value(progress.clamp(0.0, 1.0) * 100.0)
-      .color(color)
-      .into_any_element(),
-    UpdateChipIcon::Download { progress: None } | UpdateChipIcon::ArrowDown => {
-      Icon::new(IconName::ArrowDown)
-        .xsmall()
-        .text_color(color)
-        .into_any_element()
-    }
-    UpdateChipIcon::Warning => Icon::new(IconName::TriangleAlert)
-      .xsmall()
-      .text_color(cx.theme().warning)
-      .into_any_element(),
-  }
-}
-
-fn write_form(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {
-  let view = cx.entity();
-  v_flex().size_full().items_center().justify_center().child(
-    h_flex()
-      .w_full()
-      .h(px(348.))
-      .items_stretch()
-      .gap_3()
-      .child(stage_card(
-        cx,
-        "image",
-        "01",
-        t("image.title"),
-        IconName::FolderOpen,
-        app
-          .image
-          .as_ref()
-          .map(|i| i.display_name.clone())
-          .unwrap_or_else(|| t("image.none")),
-        image_subtitle(app),
-        app.image.is_some(),
-        t("image.select"),
-        {
-          let view = view.clone();
-          move |_, window, cx| {
-            view.update(cx, |this, cx| {
-              if !this.flashing {
-                this.pick_image(window, cx);
-              }
-            });
-          }
-        },
-      ))
-      .child(stage_connector(cx))
-      .child(stage_card(
-        cx,
-        "target",
-        "02",
-        t("target.title"),
-        IconName::HardDrive,
-        target_title(app),
-        target_subtitle(app),
-        !app.selected.is_empty(),
-        t("target.select"),
-        {
-          let view = view.clone();
-          move |_, window, cx| {
-            view.update(cx, |this, cx| {
-              if !this.flashing {
-                this.open_drives(window, cx);
-              }
-            });
-          }
-        },
-      ))
-      .child(stage_connector(cx))
-      .child(write_stage(app, cx)),
-  )
-}
-
-fn image_subtitle(app: &ImprintApp) -> String {
-  if let Some(image) = &app.image {
-    let kind = image.kind.as_str();
-    let size = format_bytes(image.file_size);
-    if let Some(c) = image.compression {
-      format!("{kind} · {size} · {}", c.as_str())
-    } else {
-      format!("{kind} · {size}")
-    }
-  } else {
-    t("image.hint")
-  }
-}
-
-fn target_title(app: &ImprintApp) -> String {
-  if app.selected.len() == 1 {
-    app.selected_disks()[0].label()
-  } else if app.selected.len() > 1 {
-    tr("target.count", &[("n", &app.selected.len().to_string())])
-  } else {
-    t("target.none")
-  }
-}
-
-fn target_subtitle(app: &ImprintApp) -> String {
-  if let Some(disk) = app.selected_disks().first() {
-    format!("{} · {}", disk.bus.as_str(), format_bytes(disk.size))
-  } else {
-    t("target.hint")
-  }
-}
-
-fn stage_card(
-  cx: &App,
-  id: &'static str,
-  step: &'static str,
-  label: impl Into<String>,
-  icon: IconName,
-  title: String,
-  subtitle: String,
-  ready: bool,
-  action: impl Into<String>,
-  on_click: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
-) -> impl IntoElement {
-  let on_click = std::rc::Rc::new(on_click);
-  let action = action.into();
-  let g = glass(cx);
-  let hover = hover_fill(cx);
-  glass_surface(
-    v_flex()
-      .size_full()
-      .items_center()
-      .justify_center()
-      .gap_3()
-      .px_4()
-      .py_5(),
-    cx,
-  )
-  .flex_1()
-  .min_w_0()
-  .h_full()
-  .id(id)
-  .overflow_hidden()
-  .cursor_pointer()
-  .hover(move |s| s.bg(hover))
-  .when(ready, |d| {
-    d.border_color(cx.theme().accent.divide(0.50)).shadow(vec![
-      gpui_component::box_shadow(px(0.), px(-1.), px(1.), px(0.), g.highlight),
-      gpui_component::box_shadow(px(0.), px(12.), px(32.), px(-6.), g.shadow),
-      gpui_component::box_shadow(
-        px(0.),
-        px(0.),
-        px(28.),
-        px(2.),
-        cx.theme().accent.divide(0.22),
-      ),
-    ])
-  })
-  .on_click({
-    let on_click = on_click.clone();
-    move |ev, window, cx| on_click(ev, window, cx)
-  })
-  .child(stage_kicker(cx, step, label))
-  .child(icon_badge(cx, icon, ready, px(56.)))
-  .child(
-    div()
-      .w_full()
-      .px_1()
-      .text_center()
-      .font_weight(FontWeight::SEMIBOLD)
-      .truncate()
-      .child(title),
-  )
-  .child(
-    div()
-      .w_full()
-      .px_2()
-      .text_center()
-      .child(muted(cx, subtitle)),
-  )
-  .child(
-    Button::new(format!("{id}-select"))
-      .small()
-      .rounded(ButtonRounded::Large)
-      .custom(
-        ButtonCustomVariant::new(cx)
-          .color(g.fill)
-          .hover(g.fill_hover)
-          .foreground(if cx.theme().is_dark() {
-            cx.theme().accent
-          } else {
-            cx.theme().primary
-          }),
-      )
-      .label(action)
-      .on_click(move |ev, window, cx| {
-        cx.stop_propagation();
-        on_click(ev, window, cx);
-      }),
-  )
-}
-
-fn write_stage(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {
-  let can_write = app.can_flash();
-  let g = glass(cx);
-  let primary_fill = cx.theme().tokens.button_primary.background;
-  let primary_hover = cx.theme().tokens.button_primary_hover.background;
-  glass_surface(
-    v_flex()
-      .size_full()
-      .items_center()
-      .justify_center()
-      .gap_3()
-      .px_4()
-      .py_5(),
-    cx,
-  )
-  .flex_1()
-  .min_w_0()
-  .h_full()
-  .id("flash-stage")
-  .overflow_hidden()
-  .when(can_write, |d| {
-    d.cursor_pointer()
-      .bg(primary_fill)
-      .border_color(cx.theme().accent.divide(0.40))
-      .shadow(vec![
-        gpui_component::box_shadow(px(0.), px(-1.), px(1.), px(0.), g.highlight),
-        gpui_component::box_shadow(
-          px(0.),
-          px(14.),
-          px(36.),
-          px(-4.),
-          cx.theme().primary.divide(0.40),
-        ),
-        gpui_component::box_shadow(
-          px(0.),
-          px(0.),
-          px(28.),
-          px(2.),
-          cx.theme().accent.divide(0.28),
-        ),
-      ])
-      .hover(move |s| s.bg(primary_hover))
-      .on_click(cx.listener(ImprintApp::click_flash))
-  })
-  .child({
-    let step_color = if can_write {
-      cx.theme().primary_foreground
-    } else if cx.theme().is_dark() {
-      cx.theme().accent
-    } else {
-      cx.theme().primary
-    };
-    let label_color = if can_write {
-      cx.theme().primary_foreground
-    } else {
-      cx.theme().muted_foreground
-    };
-    h_flex()
-      .items_center()
-      .gap_2()
-      .child(
-        div()
-          .text_xs()
-          .font_weight(FontWeight::SEMIBOLD)
-          .text_color(step_color)
-          .child("03"),
-      )
-      .child(
-        div()
-          .text_xs()
-          .font_weight(FontWeight::SEMIBOLD)
-          .text_color(label_color)
-          .child(t("write.action")),
-      )
-  })
-  .child(if can_write {
-    div()
-      .flex()
-      .items_center()
-      .justify_center()
-      .size(px(56.))
-      .rounded(cx.theme().radius)
-      .bg(cx.theme().primary_foreground.divide(0.22))
-      .child(
-        Icon::new(IconName::Play)
-          .large()
-          .text_color(cx.theme().primary_foreground),
-      )
-      .into_any_element()
-  } else {
-    icon_badge(cx, IconName::Play, false, px(56.)).into_any_element()
-  })
-  .child(
-    div()
-      .w_full()
-      .px_1()
-      .text_center()
-      .text_lg()
-      .font_weight(FontWeight::SEMIBOLD)
-      .text_color(if can_write {
-        cx.theme().primary_foreground
-      } else {
-        cx.theme().foreground
-      })
-      .child(t("write.action")),
-  )
-  .child(
-    div()
-      .w_full()
-      .px_2()
-      .text_center()
-      .text_sm()
-      .font_weight(FontWeight::MEDIUM)
-      .text_color(if can_write {
-        cx.theme().primary_foreground
-      } else {
-        cx.theme().muted_foreground
-      })
-      .child(if can_write {
-        t("write.erase_warning")
-      } else {
-        t("write.choose_hint")
-      }),
-  )
-}
-
-fn progress_panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {
-  let progress = app.progress.clone();
-  let fraction = progress.as_ref().map(|p| p.fraction()).unwrap_or(0.0);
-  let phase = progress
-    .as_ref()
-    .map(|p| phase_label(p.phase))
-    .unwrap_or_else(|| t("progress.working"));
-  let message = localized_progress_message(app);
-  let speed = progress
-    .as_ref()
-    .map(|p| {
-      if p.bytes_per_sec == 0 {
-        String::new()
-      } else {
-        format!("{}/s", format_bytes(p.bytes_per_sec))
-      }
-    })
-    .unwrap_or_default();
-  let failed = progress
-    .as_ref()
-    .is_some_and(|p| p.phase == FlashPhase::Failed);
-  let preparing = progress
-    .as_ref()
-    .is_some_and(|p| p.phase == FlashPhase::Preparing);
-  let pct_value = (fraction * 100.0).round();
-  let pct = format!("{}%", pct_value as u32);
-  let view = cx.entity();
-  let ring_color = if failed {
-    cx.theme().danger
-  } else if cx.theme().is_dark() {
-    cx.theme().accent
-  } else {
-    cx.theme().primary
-  };
-
-  v_flex().size_full().items_center().justify_center().child(
-    glass_surface(
-      v_flex()
-        .w(px(420.))
-        .max_w_full()
-        .items_center()
-        .gap_4()
-        .px_8()
-        .py_8(),
-      cx,
-    )
-    .child(section_label(
-      cx,
-      if failed {
-        t("progress.phase.failed")
-      } else {
-        phase
-      },
-    ))
-    .child(
-      ProgressCircle::new("write-progress")
-        .size(px(148.))
-        .value(if preparing { 0.0 } else { pct_value })
-        .loading(preparing && !failed)
-        .color(ring_color)
-        .child(if preparing && !failed {
-          Spinner::new()
-            .icon(Icon::new(IconName::LoaderCircle))
-            .color(ring_color)
-            .into_any_element()
-        } else {
-          div()
-            .text_3xl()
-            .font_weight(FontWeight::SEMIBOLD)
-            .text_color(if failed {
-              cx.theme().danger
-            } else {
-              cx.theme().foreground
-            })
-            .child(pct)
-            .into_any_element()
-        }),
-    )
-    .child(
-      div()
-        .w_full()
-        .text_center()
-        .text_lg()
-        .font_weight(FontWeight::MEDIUM)
-        .text_color(if failed {
-          cx.theme().danger
-        } else {
-          cx.theme().foreground
-        })
-        .child(message),
-    )
-    .when(!speed.is_empty(), |d| {
-      d.child(
-        div()
-          .px_3()
-          .py_1()
-          .rounded_full()
-          .bg(cx.theme().muted)
-          .child(muted(cx, speed)),
-      )
-    })
-    .when(app.flashing, |d| {
-      d.child(
-        Button::new("cancel")
-          .ghost()
-          .rounded(ButtonRounded::Large)
-          .label(t("progress.cancel"))
-          .on_click(move |_, _, cx| {
-            view.update(cx, |this, cx| {
-              this.cancel.store(true, Ordering::Relaxed);
-              cx.notify();
-            });
-          }),
-      )
-    })
-    .when(failed, |d| {
-      let view = cx.entity();
-      d.child(
-        Button::new("retry")
-          .rounded(ButtonRounded::Large)
-          .label(t("progress.back"))
-          .on_click(move |_, _, cx| {
-            view.update(cx, |this, cx| this.flash_another(cx));
-          }),
-      )
-    }),
-  )
-}
-
-fn done_panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {
-  let name = app
-    .image
-    .as_ref()
-    .map(|i| i.display_name.clone())
-    .unwrap_or_default();
-  let view = cx.entity();
-  v_flex().size_full().items_center().justify_center().child(
-    glass_surface(
-      v_flex()
-        .w(px(420.))
-        .max_w_full()
-        .items_center()
-        .gap_3()
-        .px_8()
-        .py_8(),
-      cx,
-    )
-    .child(
-      div()
-        .flex()
-        .items_center()
-        .justify_center()
-        .size(px(64.))
-        .rounded_full()
-        .bg(cx.theme().success.divide(0.16))
-        .shadow(vec![gpui_component::box_shadow(
-          px(0.),
-          px(0.),
-          px(24.),
-          px(2.),
-          cx.theme().success.divide(0.28),
-        )])
-        .child(
-          Icon::new(IconName::CircleCheck)
-            .large()
-            .text_color(cx.theme().success),
-        ),
-    )
-    .child(
-      div()
-        .text_xl()
-        .font_weight(FontWeight::SEMIBOLD)
-        .child(t("done.title")),
-    )
-    .child(
-      div()
-        .w_full()
-        .text_center()
-        .child(muted(cx, tr("done.ready", &[("name", &name)]))),
-    )
-    .child(
-      h_flex()
-        .gap_2()
-        .mt_4()
-        .child(
-          Button::new("again")
-            .primary()
-            .rounded(ButtonRounded::Large)
-            .label(t("done.another"))
-            .on_click({
-              let view = view.clone();
-              move |_, _, cx| {
-                view.update(cx, |this, cx| this.flash_another(cx));
-              }
-            }),
-        )
-        .child(
-          Button::new("same")
-            .ghost()
-            .rounded(ButtonRounded::Large)
-            .label(t("done.keep"))
-            .on_click(move |_, _, cx| {
-              view.update(cx, |this, cx| {
-                this.progress = None;
-                this.selected.clear();
-                cx.notify();
-              });
-            }),
-        ),
-    ),
-  )
-}
-
-fn status_bar(app: &ImprintApp, cx: &App) -> impl IntoElement {
-  let ready = app.can_flash();
-  StatusBar::new()
-    .px_4()
-    .py_1p5()
-    .text_sm()
-    .bg(linear_gradient(
-      180.,
-      linear_color_stop(cx.theme().status_bar.divide(0.55), 0.),
-      linear_color_stop(cx.theme().status_bar, 1.),
-    ))
-    .border_color(cx.theme().status_bar_border)
-    .left(tr("status.drives", &[("n", &app.disks.len().to_string())]))
-    .right(if let Some(err) = app.error.clone() {
-      err
-    } else if app.flashing {
-      t("status.writing")
-    } else if ready {
-      t("status.ready")
-    } else {
-      String::new()
-    })
-    .when(app.error.is_some(), |d| d.text_color(cx.theme().danger))
-    .when(app.error.is_none() && ready, |d| {
-      d.text_color(cx.theme().accent)
-    })
-}
-
-fn drive_list(app: &ImprintApp, view: Entity<ImprintApp>, cx: &App) -> impl IntoElement {
-  v_flex()
-    .id("drive-list")
-    .gap_2()
-    .max_h(px(320.))
-    .overflow_y_scroll()
-    .when(app.disks.is_empty(), |d| {
-      d.child(
-        v_flex()
-          .items_center()
-          .gap_2()
-          .py_8()
-          .child(icon_well(cx, IconName::HardDrive, false))
-          .child(muted(cx, t("drives.empty"))),
-      )
-    })
-    .children({
-      let mut rows = Vec::new();
-      for (ix, disk) in app.disks.iter().enumerate() {
-        let selected = app.selected.contains(&ix);
-        let too_small = app
-          .image
-          .as_ref()
-          .is_some_and(|img| img.write_size() > 0 && disk.size < img.write_size());
-        rows.push(drive_row(
-          ix,
-          disk.label(),
-          format!(
-            "{} · {} · {}",
-            disk.bus.as_str(),
-            format_bytes(disk.size),
-            disk.path.display()
-          ),
-          selected,
-          too_small,
-          view.clone(),
-          cx,
-        ));
-      }
-      rows
-    })
-}
-
-fn drive_row(
-  ix: usize,
-  label: String,
-  detail: String,
-  selected: bool,
-  too_small: bool,
-  view: Entity<ImprintApp>,
-  cx: &App,
-) -> impl IntoElement {
-  let g = glass(cx);
-  h_flex()
-    .id(("drive", ix))
-    .justify_between()
-    .items_center()
-    .gap_3()
-    .px_3()
-    .py_3()
-    .rounded(cx.theme().radius)
-    .border_1()
-    .border_color(if selected {
-      cx.theme().list_active_border
-    } else {
-      g.border
-    })
-    .bg(if selected {
-      cx.theme().list_active
-    } else {
-      g.fill
-    })
-    .cursor_pointer()
-    .hover(|s| {
-      s.bg(if selected {
-        cx.theme().list_active
-      } else {
-        g.fill_hover
-      })
-    })
-    .on_click(move |_, _, cx| {
-      view.update(cx, |this, cx| {
-        if this.selected.contains(&ix) {
-          this.selected.retain(|i| *i != ix);
-        } else {
-          this.selected.push(ix);
-        }
-        cx.notify();
-      });
-    })
-    .child(icon_well(cx, IconName::HardDrive, selected))
-    .child(
-      v_flex()
-        .flex_1()
-        .gap_1()
-        .min_w_0()
-        .child(
-          div()
-            .font_weight(FontWeight::MEDIUM)
-            .truncate()
-            .child(label),
-        )
-        .child(muted(cx, detail)),
-    )
-    .child(if too_small {
-      Tag::warning()
-        .small()
-        .child(t("drives.too_small"))
-        .into_any_element()
-    } else if selected {
-      Icon::new(IconName::CircleCheck)
-        .text_color(cx.theme().accent)
-        .into_any_element()
-    } else {
-      div().into_any_element()
-    })
-}
-
-fn setting_switch(
-  id: &'static str,
-  title: impl Into<String>,
-  hint: impl Into<String>,
-  on: bool,
-  view: Entity<ImprintApp>,
-  flip: fn(&mut Settings, bool),
-  cx: &App,
-) -> impl IntoElement {
-  let title = title.into();
-  let hint = hint.into();
-  let g = glass(cx);
-  h_flex()
-    .id(id)
-    .justify_between()
-    .items_start()
-    .gap_4()
-    .px_4()
-    .py_3()
-    .hover(|s| s.bg(g.fill_hover))
-    .child(
-      v_flex()
-        .gap_1()
-        .child(div().child(title))
-        .child(muted(cx, hint)),
-    )
-    .child(Switch::new(id).checked(on).on_click(move |checked, _, cx| {
-      let on = *checked;
-      view.update(cx, |this, cx| {
-        flip(&mut this.settings, on);
-        if id == "hide-system" {
-          this.refresh_disks(cx);
-        }
-        cx.notify();
-      });
-    }))
-}
-
-fn locale_dropdown(current: Language, view: Entity<ImprintApp>) -> impl IntoElement {
-  Button::new("locale")
-    .w_full()
-    .outline()
-    .label(current.native_name())
-    .dropdown_caret(true)
-    .dropdown_menu(move |menu, _, _| {
-      Language::ALL.into_iter().fold(menu, |menu, lang| {
-        menu.item(
-          PopupMenuItem::new(lang.native_name())
-            .checked(current == lang)
-            .on_click({
-              let view = view.clone();
-              move |_, _, cx| {
-                view.update(cx, |this, cx| {
-                  this.set_locale(LocalePref::Language(lang), cx);
-                });
-              }
-            }),
-        )
-      })
-    })
-}
-
-fn phase_label(phase: FlashPhase) -> String {
-  t(match phase {
-    FlashPhase::Preparing => "progress.phase.preparing",
-    FlashPhase::Writing => "progress.phase.writing",
-    FlashPhase::Verifying => "progress.phase.verifying",
-    FlashPhase::Finishing => "progress.phase.finishing",
-    FlashPhase::Done => "progress.phase.done",
-    FlashPhase::Failed => "progress.phase.failed",
-  })
-}
-
-fn localized_progress_message(app: &ImprintApp) -> String {
-  let Some(progress) = &app.progress else {
-    return t("progress.working");
-  };
-  match progress.phase {
-    FlashPhase::Preparing => tr("progress.unmounting", &[("disk", &progress.target_label)]),
-    FlashPhase::Writing => {
-      if progress.bytes_done == 0 {
-        let image = app
-          .image
-          .as_ref()
-          .map(|i| i.display_name.as_str())
-          .unwrap_or("");
-        tr(
-          "progress.writing",
-          &[("image", image), ("disk", &progress.target_label)],
-        )
-      } else {
-        let bytes = format_bytes(progress.bytes_done);
-        tr("progress.written", &[("bytes", &bytes)])
-      }
-    }
-    FlashPhase::Verifying => {
-      if progress.bytes_done == 0 {
-        t("progress.validating")
-      } else {
-        let bytes = format_bytes(progress.bytes_done);
-        tr("progress.checked", &[("bytes", &bytes)])
-      }
-    }
-    FlashPhase::Finishing => t("progress.syncing"),
-    FlashPhase::Done => t("progress.complete"),
-    FlashPhase::Failed => progress.message.clone(),
+      .child(views::chrome::status_bar(self, cx))
   }
 }

@@ -127,6 +127,9 @@
     "system_disk": "拒絕寫入系統磁碟 {disk}",
     "target_too_small": "目標磁碟 {disk} 空間不足（{have}）；映像檔需要 {need}",
     "privileges": "寫入 {path} 需要系統管理員 / root 權限",
+    "privileges_prompt": "Imprint 需要系統管理員權限才能寫入磁碟。",
+    "elevation_cancelled": "已取消系統管理員授權",
+    "elevation_failed": "無法取得系統管理員權限：{reason}",
     "cancelled": "寫入已取消",
     "verify_mismatch": "驗證失敗，偏移 {offset}：寫入 {expected}，讀到 {actual}"
   }

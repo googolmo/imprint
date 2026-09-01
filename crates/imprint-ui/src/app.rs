@@ -274,7 +274,7 @@ impl ImprintApp {
     self.progress = Some(FlashProgress {
       phase: FlashPhase::Preparing,
       bytes_done: 0,
-      bytes_total: request.image.write_size().max(1),
+      bytes_total: request.image.write_size(),
       bytes_per_sec: 0,
       target_label: request.targets[0].label(),
       message: t("progress.starting"),

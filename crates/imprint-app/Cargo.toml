@@ -21,6 +21,7 @@ icon = [
 
 [dependencies]
 imprint-ui = { workspace = true }
+imprint-flash = { workspace = true }
 gpui = { workspace = true }
 gpui_platform = { workspace = true, features = ["font-kit", "wayland", "x11"] }
 gpui-component = { workspace = true }

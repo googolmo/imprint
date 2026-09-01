@@ -127,6 +127,9 @@
     "system_disk": "Schreiben auf Systemdatenträger {disk} abgelehnt",
     "target_too_small": "Ziel {disk} ist zu klein ({have}); Image benötigt {need}",
     "privileges": "Zum Schreiben auf {path} sind Administrator-/Root-Rechte nötig",
+    "privileges_prompt": "Imprint benötigt Administratorrechte, um auf den Datenträger zu schreiben.",
+    "elevation_cancelled": "Administrator-Freigabe wurde abgebrochen",
+    "elevation_failed": "Administratorrechte konnten nicht eingeholt werden: {reason}",
     "cancelled": "Schreiben abgebrochen",
     "verify_mismatch": "Prüfung fehlgeschlagen bei Offset {offset}: geschrieben {expected}, gelesen {actual}"
   }

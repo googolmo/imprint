@@ -80,11 +80,19 @@ pub(crate) fn form(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoE
 fn image_subtitle(app: &ImprintApp) -> String {
   if let Some(image) = &app.image {
     let kind = image.kind.as_str();
-    let size = format_bytes(image.file_size);
+    let file = format_bytes(image.file_size);
     if let Some(c) = image.compression {
-      format!("{kind} · {size} · {}", c.as_str())
+      if image.payload_size > 0 && image.payload_size != image.file_size {
+        format!(
+          "{kind} · {file} → {} · {}",
+          format_bytes(image.payload_size),
+          c.as_str()
+        )
+      } else {
+        format!("{kind} · {file} · {}", c.as_str())
+      }
     } else {
-      format!("{kind} · {size}")
+      format!("{kind} · {file}")
     }
   } else {
     t("image.hint")

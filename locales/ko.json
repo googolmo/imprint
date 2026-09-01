@@ -127,6 +127,9 @@
     "system_disk": "시스템 디스크 {disk}에 쓰기를 거부했습니다",
     "target_too_small": "대상 {disk}의 용량이 부족합니다({have}). 이미지에는 {need}이(가) 필요합니다",
     "privileges": "{path}에 쓰려면 관리자 / root 권한이 필요합니다",
+    "privileges_prompt": "디스크에 쓰려면 관리자 권한이 필요합니다.",
+    "elevation_cancelled": "관리자 권한이 취소되었습니다",
+    "elevation_failed": "관리자 권한을 얻을 수 없습니다: {reason}",
     "cancelled": "쓰기가 취소되었습니다",
     "verify_mismatch": "오프셋 {offset}에서 검증 실패: 씀 {expected}, 읽음 {actual}"
   }

@@ -127,6 +127,9 @@
     "system_disk": "拒绝写入系统磁盘 {disk}",
     "target_too_small": "目标磁盘 {disk} 空间不足（{have}）；镜像需要 {need}",
     "privileges": "写入 {path} 需要管理员 / root 权限",
+    "privileges_prompt": "Imprint 需要管理员权限才能写入磁盘。",
+    "elevation_cancelled": "已取消管理员授权",
+    "elevation_failed": "无法获取管理员权限：{reason}",
     "cancelled": "写入已取消",
     "verify_mismatch": "校验失败，偏移 {offset}：写入 {expected}，读到 {actual}"
   }

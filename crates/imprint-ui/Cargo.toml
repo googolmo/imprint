@@ -10,6 +10,7 @@ description = "GPUI views and theme for Imprint"
 imprint-core = { workspace = true }
 imprint-image = { workspace = true }
 imprint-device = { workspace = true }
+imprint-rpi = { workspace = true }
 imprint-flash = { workspace = true }
 gpui = { workspace = true }
 gpui-component = { workspace = true }

@@ -4,6 +4,7 @@ members = [
   "crates/imprint-core",
   "crates/imprint-image",
   "crates/imprint-device",
+  "crates/imprint-rpi",
   "crates/imprint-flash",
   "crates/imprint-ui",
   "crates/imprint-app",
@@ -24,6 +25,7 @@ authors = ["Imprint Contributors"]
 imprint-core = { path = "crates/imprint-core" }
 imprint-image = { path = "crates/imprint-image" }
 imprint-device = { path = "crates/imprint-device" }
+imprint-rpi = { path = "crates/imprint-rpi" }
 imprint-flash = { path = "crates/imprint-flash" }
 imprint-ui = { path = "crates/imprint-ui" }
 
@@ -53,6 +55,10 @@ crossbeam-channel = "0.5.15"
 libc = "0.2.175"
 plist = "1.8.0"
 cargo-packager-updater = "0.2.3"
+ureq = "2.12.1"
+sha-crypt = "0.5.0"
+dirs = "6.0.0"
+fatfs = "0.3.6"
 
 [profile.release]
 lto = true

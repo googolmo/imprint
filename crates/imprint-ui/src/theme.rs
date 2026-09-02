@@ -1,14 +1,113 @@
-use gpui::{App, Background, Hsla, Window, hsla, linear_color_stop, linear_gradient, px, rgb};
+use gpui::{App, Background, Hsla, Window, linear_color_stop, linear_gradient, px, rgb};
 use gpui_component::{ActiveTheme as _, Colorize as _, Theme, ThemeMode, ThemeToken, ThemeTokens};
 
-/// Imprint brand sapphire.
-pub const PRIMARY: u32 = 0x0E4BEF;
+/// Raspberry Pi brand red.
+pub const RASPBERRY: u32 = 0xC51A4A;
 
-const H_SAPPHIRE: f32 = 0.617;
-const H_CYAN: f32 = 0.515;
-const H_VIOLET: f32 = 0.76;
-const H_MINT: f32 = 0.45;
-const H_CORAL: f32 = 0.985;
+/// Official Catppuccin palette: https://github.com/catppuccin/catppuccin
+#[derive(Clone, Copy)]
+struct Flavor {
+  rosewater: Hsla,
+  mauve: Hsla,
+  red: Hsla,
+  maroon: Hsla,
+  peach: Hsla,
+  yellow: Hsla,
+  green: Hsla,
+  teal: Hsla,
+  sky: Hsla,
+  sapphire: Hsla,
+  blue: Hsla,
+  lavender: Hsla,
+  pink: Hsla,
+  text: Hsla,
+  subtext1: Hsla,
+  subtext0: Hsla,
+  overlay2: Hsla,
+  overlay1: Hsla,
+  overlay0: Hsla,
+  surface2: Hsla,
+  surface1: Hsla,
+  surface0: Hsla,
+  base: Hsla,
+  mantle: Hsla,
+  crust: Hsla,
+}
+
+fn hex(color: u32) -> Hsla {
+  rgb(color).into()
+}
+
+/// Catppuccin Latte — light.
+fn latte() -> Flavor {
+  Flavor {
+    rosewater: hex(0xdc8a78),
+    mauve: hex(0x8839ef),
+    red: hex(0xd20f39),
+    maroon: hex(0xe64553),
+    peach: hex(0xfe640b),
+    yellow: hex(0xdf8e1d),
+    green: hex(0x40a02b),
+    teal: hex(0x179299),
+    sky: hex(0x04a5e5),
+    sapphire: hex(0x209fb5),
+    blue: hex(0x1e66f5),
+    lavender: hex(0x7287fd),
+    pink: hex(0xea76cb),
+    text: hex(0x4c4f69),
+    subtext1: hex(0x5c5f77),
+    subtext0: hex(0x6c6f85),
+    overlay2: hex(0x7c7f93),
+    overlay1: hex(0x8c8fa1),
+    overlay0: hex(0x9ca0b0),
+    surface2: hex(0xacb0be),
+    surface1: hex(0xbcc0cc),
+    surface0: hex(0xccd0da),
+    base: hex(0xeff1f5),
+    mantle: hex(0xe6e9ef),
+    crust: hex(0xdce0e8),
+  }
+}
+
+/// Catppuccin Mocha — the original dark flavor.
+fn mocha() -> Flavor {
+  Flavor {
+    rosewater: hex(0xf5e0dc),
+    mauve: hex(0xcba6f7),
+    red: hex(0xf38ba8),
+    maroon: hex(0xeba0ac),
+    peach: hex(0xfab387),
+    yellow: hex(0xf9e2af),
+    green: hex(0xa6e3a1),
+    teal: hex(0x94e2d5),
+    sky: hex(0x89dceb),
+    sapphire: hex(0x74c7ec),
+    blue: hex(0x89b4fa),
+    lavender: hex(0xb4befe),
+    pink: hex(0xf5c2e7),
+    text: hex(0xcdd6f4),
+    subtext1: hex(0xbac2de),
+    subtext0: hex(0xa6adc8),
+    overlay2: hex(0x9399b2),
+    overlay1: hex(0x7f849c),
+    overlay0: hex(0x6c7086),
+    surface2: hex(0x585b70),
+    surface1: hex(0x45475a),
+    surface0: hex(0x313244),
+    base: hex(0x1e1e2e),
+    mantle: hex(0x181825),
+    crust: hex(0x11111b),
+  }
+}
+
+fn flavor(dark: bool) -> Flavor {
+  if dark { mocha() } else { latte() }
+}
+
+/// Text on a saturated accent: crust on Mocha pastels, base on Latte inks.
+fn on_accent(dark: bool, p: Flavor) -> Hsla {
+  if dark { p.crust } else { p.base }
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Appearance {
@@ -55,29 +154,30 @@ pub fn glass(cx: &App) -> Glass {
 }
 
 fn glass_for(dark: bool) -> Glass {
+  let p = flavor(dark);
   if dark {
     Glass {
-      fill: hsla(H_VIOLET, 0.30, 0.16, 0.70),
-      fill_top: hsla(H_CYAN, 0.36, 0.52, 0.50),
-      fill_hover: hsla(H_CYAN, 0.34, 0.48, 0.56),
-      panel: hsla(H_VIOLET, 0.40, 0.12, 0.90),
-      panel_top: hsla(H_CYAN, 0.32, 0.42, 0.48),
-      border: hsla(H_CYAN, 0.42, 0.78, 0.42),
-      highlight: hsla(0.0, 0.0, 1.0, 0.22),
-      glow: hsla(H_SAPPHIRE, 0.78, 0.48, 0.14),
-      shadow: hsla(0.70, 0.48, 0.03, 0.48),
+      fill: p.surface0.opacity(0.72),
+      fill_top: p.overlay0.opacity(0.38),
+      fill_hover: p.surface1.opacity(0.78),
+      panel: p.mantle.opacity(0.92),
+      panel_top: p.surface0.opacity(0.55),
+      border: p.overlay0.opacity(0.42),
+      highlight: p.text.opacity(0.16),
+      glow: p.mauve.opacity(0.14),
+      shadow: p.crust.opacity(0.55),
     }
   } else {
     Glass {
-      fill: hsla(H_SAPPHIRE, 0.14, 0.99, 0.86),
-      fill_top: hsla(0.0, 0.0, 1.0, 0.94),
-      fill_hover: hsla(H_SAPPHIRE, 0.18, 0.98, 0.94),
-      panel: hsla(H_SAPPHIRE, 0.16, 0.99, 0.94),
-      panel_top: hsla(0.0, 0.0, 1.0, 0.96),
-      border: hsla(H_SAPPHIRE, 0.32, 0.50, 0.32),
-      highlight: hsla(0.0, 0.0, 1.0, 0.55),
-      glow: hsla(H_SAPPHIRE, 0.48, 0.52, 0.08),
-      shadow: hsla(H_SAPPHIRE, 0.32, 0.22, 0.14),
+      fill: p.base.opacity(0.88),
+      fill_top: hex(0xffffff).opacity(0.92),
+      fill_hover: p.mantle.opacity(0.94),
+      panel: p.mantle.opacity(0.96),
+      panel_top: hex(0xffffff).opacity(0.94),
+      border: p.overlay0.opacity(0.48),
+      highlight: hex(0xffffff).opacity(0.55),
+      glow: p.lavender.opacity(0.10),
+      shadow: p.overlay1.opacity(0.22),
     }
   }
 }
@@ -110,6 +210,15 @@ pub fn glass_panel_fill(cx: &App) -> Background {
   )
 }
 
+pub fn raspberry_pi(cx: &App) -> Hsla {
+  let color: Hsla = rgb(RASPBERRY).into();
+  if cx.theme().is_dark() {
+    color.lighten(0.22)
+  } else {
+    color
+  }
+}
+
 pub fn apply_appearance(appearance: Appearance, window: Option<&mut Window>, cx: &mut App) {
   match appearance {
     Appearance::System => Theme::sync_system_appearance(window, cx),
@@ -119,13 +228,18 @@ pub fn apply_appearance(appearance: Appearance, window: Option<&mut Window>, cx:
   paint_primary(cx);
 }
 
-/// Re-apply brand color and liquid-glass materials after a theme mode switch.
+/// Re-apply Catppuccin colors and glass materials after a theme mode switch.
 pub fn paint_primary(cx: &mut App) {
-  let primary: Hsla = rgb(PRIMARY).into();
-  let cyan = hsla(H_CYAN, 0.82, 0.64, 1.0);
-  let hover = primary.lighten(0.12);
-  let active = primary.darken(0.10);
-  let fg: Hsla = hsla(H_SAPPHIRE, 0.10, 0.98, 1.0);
+  let dark = Theme::global(cx).is_dark();
+  let p = flavor(dark);
+  let primary = p.blue;
+  let hover = if dark { p.sapphire } else { p.lavender };
+  let active = if dark {
+    p.lavender
+  } else {
+    p.blue.darken(0.10)
+  };
+  let fg = on_accent(dark, p);
   {
     let theme = Theme::global_mut(cx);
     theme.font_size = px(15.);
@@ -138,123 +252,176 @@ pub fn paint_primary(cx: &mut App) {
     theme.button_primary_hover = hover;
     theme.button_primary_active = active;
     theme.button_primary_foreground = fg;
-    theme.progress_bar = cyan;
+    theme.progress_bar = p.sapphire;
     theme.slider_bar = primary;
     theme.sidebar_primary = primary;
     theme.sidebar_primary_foreground = fg;
-    paint_glass(theme);
+    paint_glass(theme, p);
     theme.tokens = ThemeTokens::from(&theme.colors);
-    paint_gradients(theme, primary, hover, active, cyan);
+    paint_gradients(theme, p, primary, hover, active);
   }
   Theme::sync_base(cx);
 }
 
-fn paint_glass(theme: &mut Theme) {
+fn paint_glass(theme: &mut Theme, p: Flavor) {
   let dark = theme.is_dark();
-  let primary = theme.primary;
-  let mint = hsla(H_MINT, 0.72, if dark { 0.58 } else { 0.42 }, 1.0);
-  let coral = hsla(H_CORAL, 0.80, if dark { 0.62 } else { 0.42 }, 1.0);
+  let on = on_accent(dark, p);
 
-  theme.radius = px(14.);
-  theme.radius_lg = px(22.);
+  theme.radius = px(8.);
+  theme.radius_lg = px(12.);
   theme.shadow = true;
 
+  theme.foreground = p.text;
+  theme.muted_foreground = p.subtext1;
+  theme.accent = p.mauve;
+  theme.accent_foreground = on;
+  theme.link = p.blue;
+  theme.link_hover = p.sapphire;
+  theme.link_active = p.lavender;
+  theme.caret = p.rosewater;
+  theme.ring = p.lavender;
+  theme.background = p.base;
+  theme.popover = if dark { p.mantle } else { p.base };
+  theme.popover_foreground = p.text;
+  theme.border = p.surface0;
+  theme.window_border = p.surface1;
+
+  theme.red = p.red;
+  theme.red_light = p.maroon;
+  theme.green = p.green;
+  theme.green_light = p.teal;
+  theme.blue = p.blue;
+  theme.blue_light = p.sapphire;
+  theme.yellow = p.yellow;
+  theme.yellow_light = p.peach;
+  theme.magenta = p.mauve;
+  theme.magenta_light = p.pink;
+  theme.cyan = p.sapphire;
+  theme.cyan_light = p.sky;
+
+  theme.chart_1 = p.blue;
+  theme.chart_2 = p.mauve;
+  theme.chart_3 = p.green;
+  theme.chart_4 = p.peach;
+  theme.chart_5 = p.pink;
+  theme.chart_bullish = p.green;
+  theme.chart_bearish = p.red;
+
   if dark {
-    let ink = hsla(H_SAPPHIRE, 0.52, 0.09, 0.92);
-    let cyan = hsla(H_CYAN, 0.82, 0.64, 1.0);
-    theme.foreground = hsla(H_SAPPHIRE, 0.18, 0.97, 1.0);
-    theme.muted_foreground = hsla(H_SAPPHIRE, 0.28, 0.76, 1.0);
-    theme.accent = cyan;
-    theme.accent_foreground = hsla(H_SAPPHIRE, 0.40, 0.10, 1.0);
-    theme.link = cyan;
-    theme.link_hover = cyan.lighten(0.08);
-    theme.link_active = cyan.darken(0.08);
-    theme.caret = cyan;
-    theme.ring = cyan;
-    theme.background = ink;
-    theme.title_bar = hsla(H_SAPPHIRE, 0.48, 0.11, 0.42);
-    theme.title_bar_border = hsla(H_CYAN, 0.32, 0.70, 0.12);
-    theme.status_bar = hsla(H_VIOLET, 0.38, 0.08, 0.55);
-    theme.status_bar_border = hsla(H_CYAN, 0.32, 0.70, 0.10);
-    theme.popover = hsla(H_SAPPHIRE, 0.40, 0.16, 0.98);
-    theme.popover_foreground = theme.foreground;
-    theme.border = hsla(H_CYAN, 0.42, 0.72, 0.38);
-    theme.input = hsla(H_CYAN, 0.30, 0.70, 0.16);
-    theme.secondary = hsla(H_SAPPHIRE, 0.35, 0.55, 0.16);
-    theme.secondary_hover = hsla(H_CYAN, 0.40, 0.62, 0.22);
-    theme.secondary_active = hsla(H_CYAN, 0.42, 0.62, 0.28);
-    theme.secondary_foreground = theme.foreground;
-    theme.muted = hsla(H_VIOLET, 0.30, 0.40, 0.16);
-    theme.colors.list = hsla(H_SAPPHIRE, 0.35, 0.50, 0.10);
-    theme.list_hover = hsla(H_CYAN, 0.40, 0.60, 0.16);
-    theme.list_active = Hsla { a: 0.28, ..primary };
-    theme.list_active_border = hsla(H_CYAN, 0.70, 0.68, 0.55);
-    theme.list_even = hsla(H_VIOLET, 0.30, 0.40, 0.08);
-    theme.overlay = hsla(H_SAPPHIRE, 0.40, 0.04, 0.52);
-    theme.drop_target = hsla(H_CYAN, 0.62, 0.58, 0.16);
-    theme.button = hsla(H_SAPPHIRE, 0.40, 0.60, 0.18);
-    theme.button_hover = hsla(H_CYAN, 0.45, 0.62, 0.26);
-    theme.button_active = hsla(H_CYAN, 0.50, 0.58, 0.32);
-    theme.button_foreground = theme.foreground;
-    theme.button_secondary = theme.secondary;
-    theme.button_secondary_hover = theme.secondary_hover;
-    theme.button_secondary_active = theme.secondary_active;
-    theme.button_secondary_foreground = theme.foreground;
+    theme.title_bar = p.mantle.opacity(0.72);
+    theme.title_bar_border = p.surface0.opacity(0.55);
+    theme.status_bar = p.crust.opacity(0.70);
+    theme.status_bar_border = p.surface0.opacity(0.45);
+    theme.input = p.surface0.opacity(0.70);
+    theme.secondary = p.surface0.opacity(0.70);
+    theme.secondary_hover = p.surface1.opacity(0.80);
+    theme.secondary_active = p.surface2.opacity(0.85);
+    theme.secondary_foreground = p.text;
+    theme.muted = p.surface0.opacity(0.55);
+    theme.colors.list = p.surface0.opacity(0.35);
+    theme.list_hover = p.surface1.opacity(0.55);
+    theme.list_active = p.lavender.opacity(0.18);
+    theme.list_active_border = p.lavender.opacity(0.55);
+    theme.list_even = p.mantle.opacity(0.55);
+    theme.list_head = p.mantle;
+    theme.overlay = p.crust.opacity(0.58);
+    theme.drop_target = p.blue.opacity(0.16);
+    theme.button = p.surface0.opacity(0.70);
+    theme.button_hover = p.surface1.opacity(0.85);
+    theme.button_active = p.surface2.opacity(0.90);
+    theme.button_foreground = p.text;
+    theme.sidebar = p.mantle;
+    theme.sidebar_foreground = p.text;
+    theme.sidebar_border = p.surface0;
+    theme.sidebar_accent = p.surface0;
+    theme.sidebar_accent_foreground = p.text;
+    theme.tab_bar = p.crust;
+    theme.tab = p.crust.opacity(0.0);
+    theme.tab_foreground = p.subtext0;
+    theme.tab_active = p.base;
+    theme.tab_active_foreground = p.text;
+    theme.scrollbar = p.base.opacity(0.0);
+    theme.scrollbar_thumb = p.overlay0;
+    theme.scrollbar_thumb_hover = p.overlay1;
+    theme.selection = p.overlay2.opacity(0.28);
+    theme.switch = p.surface1;
+    theme.skeleton = p.surface0;
+    theme.tiles = p.mantle;
+    theme.table = p.base;
+    theme.table_even = p.mantle;
+    theme.table_hover = p.surface0.opacity(0.55);
+    theme.table_head = p.mantle;
+    theme.table_head_foreground = p.subtext0;
+    theme.table_row_border = p.surface0.opacity(0.70);
   } else {
-    let pearl = hsla(H_SAPPHIRE, 0.22, 0.98, 0.96);
-    let ink_accent = hsla(H_SAPPHIRE, 0.84, 0.32, 1.0);
-    theme.foreground = hsla(H_SAPPHIRE, 0.62, 0.08, 1.0);
-    theme.muted_foreground = hsla(H_SAPPHIRE, 0.42, 0.26, 1.0);
-    theme.accent = ink_accent;
-    theme.accent_foreground = hsla(0.0, 0.0, 1.0, 1.0);
-    theme.link = ink_accent;
-    theme.link_hover = ink_accent.darken(0.08);
-    theme.link_active = ink_accent.darken(0.14);
-    theme.caret = theme.primary;
-    theme.ring = theme.primary;
-    theme.background = pearl;
-    theme.title_bar = hsla(H_SAPPHIRE, 0.22, 0.98, 0.88);
-    theme.title_bar_border = hsla(H_SAPPHIRE, 0.28, 0.55, 0.18);
-    theme.status_bar = hsla(H_SAPPHIRE, 0.16, 0.97, 0.92);
-    theme.status_bar_border = hsla(H_SAPPHIRE, 0.30, 0.70, 0.14);
-    theme.popover = hsla(0.0, 0.0, 1.0, 1.0);
-    theme.popover_foreground = theme.foreground;
-    theme.border = hsla(H_SAPPHIRE, 0.32, 0.55, 0.34);
-    theme.input = hsla(H_SAPPHIRE, 0.25, 0.98, 0.70);
-    theme.secondary = hsla(H_SAPPHIRE, 0.35, 0.96, 0.55);
-    theme.secondary_hover = hsla(H_CYAN, 0.30, 0.96, 0.70);
-    theme.secondary_active = hsla(H_CYAN, 0.32, 0.94, 0.82);
-    theme.secondary_foreground = theme.foreground;
-    theme.muted = hsla(H_VIOLET, 0.18, 0.95, 0.55);
-    theme.colors.list = hsla(H_SAPPHIRE, 0.28, 0.97, 0.40);
-    theme.list_hover = hsla(H_CYAN, 0.28, 0.96, 0.55);
-    theme.list_active = Hsla { a: 0.14, ..primary };
-    theme.list_active_border = hsla(H_SAPPHIRE, 0.65, 0.52, 0.40);
-    theme.list_even = hsla(H_VIOLET, 0.18, 0.97, 0.28);
-    theme.overlay = hsla(H_SAPPHIRE, 0.30, 0.20, 0.28);
-    theme.drop_target = hsla(H_CYAN, 0.42, 0.72, 0.14);
-    theme.button = hsla(H_SAPPHIRE, 0.28, 0.97, 0.70);
-    theme.button_hover = hsla(H_CYAN, 0.28, 0.96, 0.84);
-    theme.button_active = hsla(H_CYAN, 0.30, 0.94, 0.92);
-    theme.button_foreground = theme.foreground;
-    theme.button_secondary = theme.secondary;
-    theme.button_secondary_hover = theme.secondary_hover;
-    theme.button_secondary_active = theme.secondary_active;
-    theme.button_secondary_foreground = theme.foreground;
+    theme.title_bar = p.mantle.opacity(0.88);
+    theme.title_bar_border = p.surface1.opacity(0.70);
+    theme.status_bar = p.crust.opacity(0.92);
+    theme.status_bar_border = p.surface1.opacity(0.55);
+    theme.input = p.crust.opacity(0.80);
+    theme.secondary = p.crust;
+    theme.secondary_hover = p.surface0;
+    theme.secondary_active = p.surface1;
+    theme.secondary_foreground = p.text;
+    theme.muted = p.crust;
+    theme.colors.list = p.crust.opacity(0.55);
+    theme.list_hover = p.surface0.opacity(0.70);
+    theme.list_active = p.lavender.opacity(0.14);
+    theme.list_active_border = p.lavender.opacity(0.45);
+    theme.list_even = p.base.opacity(0.70);
+    theme.list_head = p.crust;
+    theme.overlay = p.text.opacity(0.22);
+    theme.drop_target = p.blue.opacity(0.12);
+    theme.button = p.crust.opacity(0.85);
+    theme.button_hover = p.surface0;
+    theme.button_active = p.surface1;
+    theme.button_foreground = p.text;
+    theme.sidebar = p.mantle;
+    theme.sidebar_foreground = p.text;
+    theme.sidebar_border = p.surface0;
+    theme.sidebar_accent = p.surface0;
+    theme.sidebar_accent_foreground = p.text;
+    theme.tab_bar = p.crust;
+    theme.tab = p.crust.opacity(0.0);
+    theme.tab_foreground = p.overlay0;
+    theme.tab_active = p.base;
+    theme.tab_active_foreground = p.text;
+    theme.scrollbar = p.base.opacity(0.0);
+    theme.scrollbar_thumb = p.overlay0;
+    theme.scrollbar_thumb_hover = p.overlay1;
+    theme.selection = p.overlay2.opacity(0.32);
+    theme.switch = p.surface1;
+    theme.skeleton = p.surface0;
+    theme.tiles = p.mantle;
+    theme.table = p.base;
+    theme.table_even = p.mantle;
+    theme.table_hover = p.surface0.opacity(0.70);
+    theme.table_head = p.crust;
+    theme.table_head_foreground = p.subtext0;
+    theme.table_row_border = p.surface0;
   }
 
-  theme.success = mint;
-  theme.success_hover = mint.lighten(0.08);
-  theme.success_active = mint.darken(0.08);
-  theme.success_foreground = if dark {
-    hsla(H_SAPPHIRE, 0.40, 0.08, 1.0)
-  } else {
-    hsla(0.0, 0.0, 1.0, 1.0)
-  };
-  theme.danger = coral;
-  theme.danger_hover = coral.lighten(0.08);
-  theme.danger_active = coral.darken(0.08);
-  theme.danger_foreground = hsla(0.0, 0.0, 1.0, 1.0);
+  theme.button_secondary = theme.secondary;
+  theme.button_secondary_hover = theme.secondary_hover;
+  theme.button_secondary_active = theme.secondary_active;
+  theme.button_secondary_foreground = theme.foreground;
+
+  theme.success = p.green;
+  theme.success_hover = p.green.lighten(0.08);
+  theme.success_active = p.green.darken(0.08);
+  theme.success_foreground = on;
+  theme.danger = p.red;
+  theme.danger_hover = p.maroon;
+  theme.danger_active = p.red.darken(0.08);
+  theme.danger_foreground = on;
+  theme.warning = p.yellow;
+  theme.warning_hover = p.peach;
+  theme.warning_active = p.yellow.darken(0.08);
+  theme.warning_foreground = on;
+  theme.info = p.sky;
+  theme.info_hover = p.sapphire;
+  theme.info_active = p.sky.darken(0.08);
+  theme.info_foreground = on;
   theme.button_success = theme.success;
   theme.button_success_hover = theme.success_hover;
   theme.button_success_active = theme.success_active;
@@ -263,26 +430,34 @@ fn paint_glass(theme: &mut Theme) {
   theme.button_danger_hover = theme.danger_hover;
   theme.button_danger_active = theme.danger_active;
   theme.button_danger_foreground = theme.danger_foreground;
+  theme.button_warning = theme.warning;
+  theme.button_warning_hover = theme.warning_hover;
+  theme.button_warning_active = theme.warning_active;
+  theme.button_warning_foreground = theme.warning_foreground;
+  theme.button_info = theme.info;
+  theme.button_info_hover = theme.info_hover;
+  theme.button_info_active = theme.info_active;
+  theme.button_info_foreground = theme.info_foreground;
   theme.accordion = theme.secondary;
   theme.group_box = theme.secondary;
   theme.group_box_foreground = theme.foreground;
 }
 
-fn paint_gradients(theme: &mut Theme, primary: Hsla, hover: Hsla, active: Hsla, cyan: Hsla) {
+fn paint_gradients(theme: &mut Theme, p: Flavor, primary: Hsla, hover: Hsla, active: Hsla) {
   let dark = theme.is_dark();
   theme.tokens.background = ThemeToken::new(
     theme.background,
     if dark {
       linear_gradient(
         148.,
-        linear_color_stop(hsla(H_SAPPHIRE, 0.55, 0.16, 0.94), 0.),
-        linear_color_stop(hsla(H_VIOLET, 0.48, 0.07, 0.96), 1.),
+        linear_color_stop(p.mantle, 0.),
+        linear_color_stop(p.crust, 1.),
       )
     } else {
       linear_gradient(
         148.,
-        linear_color_stop(hsla(H_SAPPHIRE, 0.18, 0.98, 0.97), 0.),
-        linear_color_stop(hsla(H_VIOLET, 0.12, 0.97, 0.97), 1.),
+        linear_color_stop(p.base, 0.),
+        linear_color_stop(p.crust, 1.),
       )
     },
   );
@@ -291,7 +466,7 @@ fn paint_gradients(theme: &mut Theme, primary: Hsla, hover: Hsla, active: Hsla, 
     linear_gradient(
       128.,
       linear_color_stop(primary, 0.),
-      linear_color_stop(cyan, 1.),
+      linear_color_stop(p.sapphire, 1.),
     ),
   );
   theme.tokens.button_primary_hover = ThemeToken::new(
@@ -299,7 +474,7 @@ fn paint_gradients(theme: &mut Theme, primary: Hsla, hover: Hsla, active: Hsla, 
     linear_gradient(
       128.,
       linear_color_stop(hover, 0.),
-      linear_color_stop(cyan.lighten(0.10), 1.),
+      linear_color_stop(p.sky, 1.),
     ),
   );
   theme.tokens.button_primary_active = ThemeToken::new(
@@ -307,15 +482,15 @@ fn paint_gradients(theme: &mut Theme, primary: Hsla, hover: Hsla, active: Hsla, 
     linear_gradient(
       128.,
       linear_color_stop(active, 0.),
-      linear_color_stop(cyan.darken(0.06), 1.),
+      linear_color_stop(p.sapphire.darken(0.06), 1.),
     ),
   );
   theme.tokens.progress_bar = ThemeToken::new(
-    cyan,
+    p.sapphire,
     linear_gradient(
       90.,
       linear_color_stop(primary, 0.),
-      linear_color_stop(cyan, 1.),
+      linear_color_stop(p.sapphire, 1.),
     ),
   );
   let g = glass_for(dark);

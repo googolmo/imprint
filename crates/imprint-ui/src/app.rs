@@ -6,7 +6,7 @@ use std::time::Duration;
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use gpui::{
   App, ClickEvent, Context, Entity, ExternalPaths, FocusHandle, InteractiveElement, IntoElement,
-  ParentElement, PathPromptOptions, Render, Styled, Subscription, Window, div,
+  ParentElement, PathPromptOptions, Render, Styled, Subscription, Window, div, px,
 };
 use gpui_component::{
   ActiveTheme as _, Colorize as _, Root, WindowExt as _, notification::Notification, v_flex,
@@ -20,8 +20,10 @@ use imprint_flash::flash;
 use imprint_image::inspect;
 
 use crate::actions::{
-  About, CheckForUpdates, OpenImage, Quit, SelectTarget, StartFlash, ToggleSettings,
+  About, CheckForUpdates, OpenImage, OpenRaspberryPi, Quit, SelectTarget, StartFlash,
+  ToggleSettings,
 };
+use crate::rpi::{AppMode, RpiEvent, RpiState};
 use crate::theme::Appearance;
 use crate::updater;
 use crate::views;
@@ -62,6 +64,8 @@ pub struct ImprintApp {
   focus: FocusHandle,
   pub(crate) settings: Settings,
   pub(crate) appearance: Appearance,
+  pub(crate) mode: AppMode,
+  pub(crate) rpi: RpiState,
   pub(crate) image: Option<ImageRef>,
   pub(crate) disks: Vec<TargetDisk>,
   pub(crate) selected: Vec<usize>,
@@ -72,6 +76,8 @@ pub struct ImprintApp {
   pub(crate) cancel: Arc<AtomicBool>,
   events: Option<Receiver<ProgressEvent>>,
   _pump: Option<gpui::Task<()>>,
+  pub(crate) rpi_events: Option<Receiver<RpiEvent>>,
+  pub(crate) _rpi_pump: Option<gpui::Task<()>>,
   pub(crate) update: UpdateStatus,
   update_interactive: bool,
   update_dismissed: bool,
@@ -97,10 +103,13 @@ impl ImprintApp {
       });
     });
 
+    let rpi = RpiState::new(window, cx);
     let mut this = Self {
       focus,
       settings: Settings::default(),
       appearance: Appearance::System,
+      mode: AppMode::Flash,
+      rpi,
       image: None,
       disks,
       selected: Vec::new(),
@@ -111,6 +120,8 @@ impl ImprintApp {
       cancel: Arc::new(AtomicBool::new(false)),
       events: None,
       _pump: None,
+      rpi_events: None,
+      _rpi_pump: None,
       update: UpdateStatus::Idle,
       update_interactive: false,
       update_dismissed: false,
@@ -162,7 +173,7 @@ impl ImprintApp {
     cx.notify();
   }
 
-  fn load_image(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+  pub(crate) fn load_image(&mut self, path: PathBuf, cx: &mut Context<Self>) {
     match inspect(&path) {
       Ok(image) => {
         self.image = Some(image);
@@ -227,6 +238,10 @@ impl ImprintApp {
     self.open_about(window, cx);
   }
 
+  fn on_open_raspberry_pi(&mut self, _: &OpenRaspberryPi, _: &mut Window, cx: &mut Context<Self>) {
+    self.open_raspberry_pi(cx);
+  }
+
   fn on_check_for_updates(
     &mut self,
     _: &CheckForUpdates,
@@ -252,7 +267,7 @@ impl ImprintApp {
     self.begin_flash(cx);
   }
 
-  fn begin_flash(&mut self, cx: &mut Context<Self>) {
+  pub(crate) fn begin_flash(&mut self, cx: &mut Context<Self>) {
     if !self.can_flash() {
       return;
     }
@@ -263,11 +278,17 @@ impl ImprintApp {
     if targets.is_empty() {
       return;
     }
+    let boot = if self.mode == AppMode::RaspberryPi {
+      self.rpi.pending_boot.clone()
+    } else {
+      None
+    };
     let request = FlashRequest {
       image,
       targets,
       verify: self.settings.verify,
       unmount: self.settings.unmount_on_success,
+      boot,
     };
     self.flashing = true;
     self.error = None;
@@ -609,6 +630,12 @@ fn bind_app_menu_actions(view: gpui::WeakEntity<ImprintApp>, cx: &mut App) {
       });
     }
   });
+  App::on_action(cx, {
+    let view = view.clone();
+    move |_: &OpenRaspberryPi, cx| {
+      dispatch_on_app(&view, cx, |this, _, cx| this.open_raspberry_pi(cx));
+    }
+  });
 }
 
 fn dispatch_on_app(
@@ -664,6 +691,7 @@ impl Render for ImprintApp {
       .on_action(cx.listener(Self::on_toggle_settings))
       .on_action(cx.listener(Self::on_about))
       .on_action(cx.listener(Self::on_check_for_updates))
+      .on_action(cx.listener(Self::on_open_raspberry_pi))
       .on_action(|_: &Quit, _, cx| cx.quit())
       .on_drop(cx.listener(Self::on_drop_paths))
       .drag_over::<ExternalPaths>(|style, _, _, cx| {
@@ -678,18 +706,38 @@ impl Render for ImprintApp {
       .child(atmosphere(cx))
       .child(views::chrome::header(self, cx))
       .child(
-        v_flex().flex_1().px_6().py_6().child(if done {
-          views::done::panel(self, cx).into_any_element()
-        } else if self.flashing
-          || self
-            .progress
-            .as_ref()
-            .is_some_and(|p| p.phase == FlashPhase::Failed)
-        {
-          views::progress::panel(self, cx).into_any_element()
-        } else {
-          views::write::form(self, cx).into_any_element()
-        }),
+        v_flex()
+          .flex_1()
+          .min_h_0()
+          .overflow_hidden()
+          .px_6()
+          .py(
+            if self.mode == AppMode::RaspberryPi
+              && !self.rpi.downloading()
+              && !self.flashing
+              && !done
+            {
+              px(12.)
+            } else {
+              px(24.)
+            },
+          )
+          .child(if done {
+            views::done::panel(self, cx).into_any_element()
+          } else if self.rpi.downloading() {
+            views::rpi::download_panel(self, cx).into_any_element()
+          } else if self.flashing
+            || self
+              .progress
+              .as_ref()
+              .is_some_and(|p| p.phase == FlashPhase::Failed)
+          {
+            views::progress::panel(self, cx).into_any_element()
+          } else if self.mode == AppMode::RaspberryPi {
+            views::rpi::page(self, cx).into_any_element()
+          } else {
+            views::write::form(self, cx).into_any_element()
+          }),
       )
       .child(views::chrome::status_bar(self, cx))
   }

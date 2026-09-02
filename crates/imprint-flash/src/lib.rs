@@ -2,6 +2,7 @@
 
 #[cfg(target_os = "macos")]
 mod authopen;
+mod boot;
 mod elevate;
 mod helper;
 mod privilege;

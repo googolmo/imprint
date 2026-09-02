@@ -68,10 +68,8 @@ fn drive_list(app: &ImprintApp, view: Entity<ImprintApp>, cx: &App) -> impl Into
       let mut rows = Vec::new();
       for (ix, disk) in app.disks.iter().enumerate() {
         let selected = app.selected.contains(&ix);
-        let too_small = app
-          .image
-          .as_ref()
-          .is_some_and(|img| img.write_size() > 0 && disk.size < img.write_size());
+        let need = app.needed_write_size();
+        let too_small = need > 0 && disk.size < need;
         rows.push(drive_row(
           ix,
           disk.label(),

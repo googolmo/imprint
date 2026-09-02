@@ -13,7 +13,8 @@ Cargo.toml                 workspace versions only
 crates/imprint-core/       types + errors (no IO, no GPUI)
 crates/imprint-image/      inspect + payload reader
 crates/imprint-device/     list / unmount / eject (OS-specific under src/platform/)
-crates/imprint-flash/      write + verify pipeline
+crates/imprint-rpi/        Raspberry Pi catalog, download, first-boot config
+crates/imprint-flash/      write + verify pipeline (+ FAT boot overlay)
 crates/imprint-ui/         GPUI views (theme, cards, overlays)
 crates/imprint-app/        binary: gpui_platform::application()
 crates/imprint-cli/        binary: clap
@@ -25,7 +26,7 @@ Dependency graph:
 ```
 core
   ↑
-image, device
+image, device, rpi
   ↑
 flash
   ↑

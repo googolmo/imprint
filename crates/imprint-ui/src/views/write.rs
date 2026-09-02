@@ -1,5 +1,5 @@
 use gpui::{
-  App, ClickEvent, Context, FontWeight, InteractiveElement, IntoElement, ParentElement,
+  App, ClickEvent, Context, Entity, FontWeight, InteractiveElement, IntoElement, ParentElement,
   StatefulInteractiveElement, Styled, Window, div, prelude::*, px,
 };
 use gpui_component::{
@@ -11,7 +11,7 @@ use imprint_core::format_bytes;
 use imprint_core::i18n::{t, tr};
 
 use crate::app::ImprintApp;
-use crate::theme::glass;
+use crate::theme::{glass, raspberry_pi};
 use crate::widgets::{
   glass_primary_shadows, glass_ready_shadows, glass_surface, hover_fill, icon_badge, muted,
   stage_connector, stage_kicker,
@@ -19,62 +19,112 @@ use crate::widgets::{
 
 pub(crate) fn form(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {
   let view = cx.entity();
-  v_flex().size_full().items_center().justify_center().child(
-    h_flex()
-      .w_full()
-      .h(px(348.))
-      .items_stretch()
-      .gap_3()
-      .child(stage_card(
-        cx,
-        "image",
-        "01",
-        t("image.title"),
-        IconName::FolderOpen,
-        app
-          .image
-          .as_ref()
-          .map(|i| i.display_name.clone())
-          .unwrap_or_else(|| t("image.none")),
-        image_subtitle(app),
-        app.image.is_some(),
-        t("image.select"),
-        {
-          let view = view.clone();
-          move |_, window, cx| {
-            view.update(cx, |this, cx| {
-              if !this.flashing {
-                this.pick_image(window, cx);
-              }
-            });
-          }
-        },
-      ))
-      .child(stage_connector(cx))
-      .child(stage_card(
-        cx,
-        "target",
-        "02",
-        t("target.title"),
-        IconName::HardDrive,
-        target_title(app),
-        target_subtitle(app),
-        !app.selected.is_empty(),
-        t("target.select"),
-        {
-          let view = view.clone();
-          move |_, window, cx| {
-            view.update(cx, |this, cx| {
-              if !this.flashing {
-                this.open_drives(window, cx);
-              }
-            });
-          }
-        },
-      ))
-      .child(stage_connector(cx))
-      .child(write_stage(app, cx)),
-  )
+  v_flex()
+    .size_full()
+    .items_center()
+    .justify_center()
+    .gap_4()
+    .child(
+      h_flex()
+        .w_full()
+        .h(px(348.))
+        .items_stretch()
+        .gap_3()
+        .child(stage_card(
+          cx,
+          "image",
+          "01",
+          t("image.title"),
+          IconName::FolderOpen,
+          app
+            .image
+            .as_ref()
+            .map(|i| i.display_name.clone())
+            .unwrap_or_else(|| t("image.none")),
+          image_subtitle(app),
+          app.image.is_some(),
+          t("image.select"),
+          {
+            let view = view.clone();
+            move |_, window, cx| {
+              view.update(cx, |this, cx| {
+                if !this.flashing {
+                  this.pick_image(window, cx);
+                }
+              });
+            }
+          },
+        ))
+        .child(stage_connector(cx))
+        .child(stage_card(
+          cx,
+          "target",
+          "02",
+          t("target.title"),
+          IconName::HardDrive,
+          target_title(app),
+          target_subtitle(app),
+          !app.selected.is_empty(),
+          t("target.select"),
+          {
+            let view = view.clone();
+            move |_, window, cx| {
+              view.update(cx, |this, cx| {
+                if !this.flashing {
+                  this.open_drives(window, cx);
+                }
+              });
+            }
+          },
+        ))
+        .child(stage_connector(cx))
+        .child(write_stage(app, cx)),
+    )
+    .child(raspberry_pi_entry(view, cx))
+}
+
+fn raspberry_pi_entry(view: Entity<ImprintApp>, cx: &App) -> impl IntoElement {
+  let raspberry = raspberry_pi(cx);
+  let dark = cx.theme().is_dark();
+  let hover = raspberry.divide(if dark { 0.34 } else { 0.14 });
+  glass_surface(h_flex().w_full().items_center().gap_3().px_4().py_2(), cx)
+    .id("open-raspberry-pi")
+    .w_full()
+    .border_color(raspberry.divide(if dark { 0.70 } else { 0.48 }))
+    .bg(raspberry.divide(if dark { 0.22 } else { 0.08 }))
+    .cursor_pointer()
+    .hover(move |s| s.bg(hover))
+    .on_click(move |_, _, cx| {
+      view.update(cx, |this, cx| this.open_raspberry_pi(cx));
+    })
+    .child(
+      div()
+        .flex()
+        .items_center()
+        .justify_center()
+        .size(px(28.))
+        .rounded_full()
+        .bg(raspberry.divide(if dark { 0.42 } else { 0.16 }))
+        .child(Icon::new(IconName::Cpu).text_color(raspberry)),
+    )
+    .child(
+      div()
+        .text_sm()
+        .font_weight(FontWeight::SEMIBOLD)
+        .text_color(raspberry)
+        .child(t("rpi.title")),
+    )
+    .child(
+      div()
+        .flex_1()
+        .min_w_0()
+        .text_sm()
+        .font_weight(FontWeight::MEDIUM)
+        .text_color(cx.theme().muted_foreground)
+        .truncate()
+        .child(t("rpi.subtitle")),
+    )
+    .child(Icon::new(IconName::ChevronRight).text_color(raspberry))
 }
 
 fn image_subtitle(app: &ImprintApp) -> String {

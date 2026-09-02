@@ -7,10 +7,13 @@
     "check_updates": "Nach Updates suchen…",
     "settings": "Einstellungen…",
     "open_image": "Image öffnen…",
+    "raspberry_pi": "Raspberry Pi…",
     "quit": "Beenden"
   },
   "header": {
-    "settings_tooltip": "Einstellungen"
+    "settings_tooltip": "Einstellungen",
+    "raspberry_pi": "Raspberry Pi",
+    "raspberry_pi_tooltip": "Raspberry Pi beschreiben"
   },
   "image": {
     "title": "Image",
@@ -61,7 +64,73 @@
   "status": {
     "drives": "{n} Laufwerk(e)",
     "writing": "Schreiben",
-    "ready": "Bereit"
+    "ready": "Bereit",
+    "downloading": "Download",
+    "raspberry_pi": "Raspberry Pi"
+  },
+  "rpi": {
+    "title": "Raspberry Pi",
+    "subtitle": "Offizielles Image laden und Ersteinstellungen setzen.",
+    "back": "Zurück zum Schreiben",
+    "prev": "Zurück",
+    "next": "Weiter",
+    "write": "Schreiben",
+    "downloading": "Image wird heruntergeladen",
+    "step": {
+      "device": "Gerät",
+      "os": "OS",
+      "config": "Optionen",
+      "storage": "Speicher"
+    },
+    "device": {
+      "hint": "Raspberry-Pi-Modell wählen, um passende Images zu filtern.",
+      "none": "Kein Gerät gewählt"
+    },
+    "os": {
+      "hint": "Images stammen aus dem offiziellen Raspberry-Pi-Katalog oder einer lokalen Datei.",
+      "none": "Kein OS gewählt",
+      "loading": "Katalog wird geladen…",
+      "failed": "Katalog konnte nicht geladen werden.",
+      "retry": "Erneut",
+      "empty": "Keine Images für dieses Gerät.",
+      "back": "Zurück",
+      "size": "{size} unkomprimiert",
+      "cached": "Im Cache",
+      "custom": "Eigenes Image",
+      "custom_hint": "Lokales .img, .iso oder komprimiertes Image schreiben.",
+      "custom_pick": "Raspberry-Pi-Image wählen"
+    },
+    "config": {
+      "hint": "Nur eingeschaltete Abschnitte werden nach dem Schreiben übernommen.",
+      "hostname": "Hostname setzen",
+      "hostname_hint": "Name dieses Pi im Netzwerk.",
+      "user": "Benutzername und Passwort setzen",
+      "user_hint": "Legt das erste Benutzerkonto an.",
+      "username": "Benutzername",
+      "password": "Passwort",
+      "wifi": "WLAN einrichten",
+      "wifi_hint": "Verbindet beim ersten Start.",
+      "ssid": "Netzwerkname",
+      "wifi_password": "WLAN-Passwort",
+      "wifi_country": "Ländercode",
+      "ssh": "SSH aktivieren",
+      "ssh_hint": "Erlaubt Remote-Anmeldung. Öffentlicher Schlüssel optional.",
+      "ssh_key": "SSH-Public-Key",
+      "timezone": "Zeitzone",
+      "keyboard": "Tastaturlayout",
+      "locale": "Zeitzone und Tastatur setzen",
+      "locale_hint": "Wird beim ersten Start angewendet.",
+      "init": "Ersteinrichtung",
+      "init_hint": "Wie dieses Image Hostname, WLAN und SSH anwendet.",
+      "init_none": "Überspringen",
+      "init_systemd": "systemd (älteres Raspberry Pi OS)",
+      "init_cloudinit": "cloud-init",
+      "init_cloudinit_rpi": "Raspberry Pi OS (cloud-init)",
+      "none_available": "Dieses Image unterstützt keine Ersteinrichtung."
+    },
+    "storage": {
+      "hint": "Schreiben löscht das gewählte Laufwerk."
+    }
   },
   "drives": {
     "title": "Laufwerk auswählen",
@@ -131,6 +200,10 @@
     "elevation_cancelled": "Administrator-Freigabe wurde abgebrochen",
     "elevation_failed": "Administratorrechte konnten nicht eingeholt werden: {reason}",
     "cancelled": "Schreiben abgebrochen",
-    "verify_mismatch": "Prüfung fehlgeschlagen bei Offset {offset}: geschrieben {expected}, gelesen {actual}"
+    "verify_mismatch": "Prüfung fehlgeschlagen bei Offset {offset}: geschrieben {expected}, gelesen {actual}",
+    "catalog": "Raspberry-Pi-Katalog konnte nicht geladen werden: {error}",
+    "download": "Download fehlgeschlagen: {error}",
+    "checksum": "Prüfsumme des heruntergeladenen Images stimmt nicht",
+    "boot_config": "Ersteinstellung konnte nicht angewendet werden: {error}"
   }
 }

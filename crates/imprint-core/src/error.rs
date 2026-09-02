@@ -43,6 +43,18 @@ pub enum Error {
     actual: u8,
   },
 
+  #[error("could not load Raspberry Pi catalog: {0}")]
+  Catalog(String),
+
+  #[error("download failed: {0}")]
+  Download(String),
+
+  #[error("download checksum mismatch")]
+  ChecksumMismatch,
+
+  #[error("could not apply boot configuration: {0}")]
+  BootConfig(String),
+
   #[error(transparent)]
   Io(#[from] std::io::Error),
 }
@@ -94,6 +106,10 @@ impl Error {
           ],
         )
       }
+      Self::Catalog(reason) => tr("error.catalog", &[("error", reason)]),
+      Self::Download(reason) => tr("error.download", &[("error", reason)]),
+      Self::ChecksumMismatch => t("error.checksum"),
+      Self::BootConfig(reason) => tr("error.boot_config", &[("error", reason)]),
       Self::Io(err) => err.to_string(),
     }
   }

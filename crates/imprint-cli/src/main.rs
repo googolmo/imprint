@@ -106,6 +106,7 @@ fn main() -> anyhow::Result<()> {
         targets: vec![target],
         verify: !no_verify,
         unmount: !no_eject,
+        boot: None,
       };
       validate_request(&request)?;
 

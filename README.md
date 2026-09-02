@@ -7,6 +7,7 @@ Native desktop UI built with **[GPUI](https://gpui.rs)** (Zed’s GPU UI), plus 
 ## Features
 
 - Flash `.iso`, `.img`, `.dmg`, and compressed variants (`.gz`, `.bz2`, `.xz`, `.zst`, `.zip`)
+- Raspberry Pi mode: download official images and set hostname, user, Wi-Fi, and SSH
 - Auto-detect removable USB / SD targets; **system disks stay hidden**
 - Write + optional byte-for-byte validation
 - Drag-and-drop an image onto the window
@@ -54,6 +55,7 @@ On Linux you typically write to `/dev/sdX` or `/dev/nvmeXn1`. On macOS prefer `/
 | `imprint-core` | Shared types (`ImageRef`, `TargetDisk`, `FlashProgress`, errors) |
 | `imprint-image` | Sniff / decompress / stream the payload |
 | `imprint-device` | Enumerate disks, hide system drives, unmount / eject |
+| `imprint-rpi` | Raspberry Pi catalog, download, first-boot config |
 | `imprint-flash` | Block write + verify |
 | `imprint-ui` | GPUI views and theme |
 | `imprint-app` | Desktop binary (`imprint`) |

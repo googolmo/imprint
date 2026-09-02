@@ -98,6 +98,23 @@ pub(crate) fn flash_in_process(
       dest.seek(SeekFrom::Start(0))?;
       verify_target(&image, disk, &mut dest, written, cancel, &mut on_progress)?;
     }
+
+    if let Some(boot) = request.boot.as_ref().filter(|b| !b.is_empty()) {
+      emit(
+        &mut on_progress,
+        FlashPhase::Finishing,
+        written,
+        written.max(1),
+        0,
+        disk,
+        "Applying first-boot configuration".into(),
+      );
+      dest.seek(SeekFrom::Start(0))?;
+      let sector = crate::raw::sector_size(&dest);
+      crate::boot::apply_on(&mut dest, boot, sector)?;
+      dest.flush()?;
+      crate::raw::sync_device(&mut dest)?;
+    }
     drop(dest);
 
     if request.unmount {

@@ -1,0 +1,221 @@
+{
+  "app": {
+    "name": "Imprint"
+  },
+  "menu": {
+    "about": "Sobre o Imprint",
+    "check_updates": "Buscar atualizações…",
+    "settings": "Ajustes…",
+    "file": "Arquivo",
+    "edit": "Editar",
+    "view": "Visualizar",
+    "open_image": "Abrir imagem…",
+    "raspberry_pi": "Raspberry Pi…",
+    "select_drive": "Selecionar unidade…",
+    "undo": "Desfazer",
+    "redo": "Refazer",
+    "cut": "Cortar",
+    "copy": "Copiar",
+    "paste": "Colar",
+    "select_all": "Selecionar tudo",
+    "refresh_drives": "Atualizar unidades",
+    "services": "Serviços",
+    "quit": "Sair"
+  },
+  "header": {
+    "settings_tooltip": "Ajustes",
+    "raspberry_pi": "Raspberry Pi",
+    "raspberry_pi_tooltip": "Gravar um Raspberry Pi"
+  },
+  "image": {
+    "title": "Imagem",
+    "none": "Nenhuma imagem selecionada",
+    "hint": "ISO, IMG, DMG ou um arquivo compactado",
+    "select": "Selecionar",
+    "pick_prompt": "Selecionar uma imagem de disco"
+  },
+  "target": {
+    "title": "Destino",
+    "none": "Nenhuma unidade selecionada",
+    "hint": "USB removível ou cartão SD",
+    "select": "Selecionar",
+    "count": "{n} unidades"
+  },
+  "write": {
+    "erase_warning": "Isso apagará a unidade selecionada.",
+    "choose_hint": "Escolha uma imagem e uma unidade para continuar.",
+    "action": "Gravar"
+  },
+  "progress": {
+    "working": "Em andamento",
+    "starting": "Iniciando…",
+    "unmounting": "Desmontando {disk}",
+    "writing": "Gravando {image} → {disk}",
+    "written": "{bytes} gravados",
+    "validating": "Validando os bytes gravados",
+    "checked": "{bytes} verificados",
+    "syncing": "Sincronizando",
+    "complete": "Gravação concluída",
+    "cancel": "Cancelar",
+    "back": "Voltar",
+    "phase": {
+      "preparing": "Preparando",
+      "writing": "Gravando",
+      "verifying": "Validando",
+      "finishing": "Finalizando",
+      "done": "Concluído",
+      "failed": "Falhou"
+    }
+  },
+  "done": {
+    "title": "Gravação concluída",
+    "ready": "{name} está pronto para iniciar.",
+    "another": "Gravar outra",
+    "keep": "Manter imagem"
+  },
+  "status": {
+    "drives": "{n} unidade(s)",
+    "writing": "Gravando",
+    "ready": "Pronto",
+    "downloading": "Baixando",
+    "raspberry_pi": "Raspberry Pi"
+  },
+  "rpi": {
+    "title": "Raspberry Pi",
+    "subtitle": "Baixe uma imagem oficial e defina as opções da primeira inicialização.",
+    "back": "Voltar à gravação",
+    "prev": "Voltar",
+    "next": "Avançar",
+    "write": "Gravar",
+    "downloading": "Baixando imagem",
+    "step": {
+      "device": "Dispositivo",
+      "os": "OS",
+      "config": "Opções",
+      "storage": "Armazenamento"
+    },
+    "device": {
+      "hint": "Escolha um modelo de Raspberry Pi para filtrar as imagens compatíveis.",
+      "none": "Nenhum dispositivo selecionado"
+    },
+    "os": {
+      "hint": "As imagens vêm do catálogo oficial do Raspberry Pi, ou de um arquivo local.",
+      "none": "Nenhum OS selecionado",
+      "loading": "Carregando catálogo…",
+      "failed": "Não foi possível carregar o catálogo.",
+      "retry": "Tentar de novo",
+      "empty": "Nenhuma imagem para este dispositivo.",
+      "back": "Voltar",
+      "size": "{size} descompactado",
+      "cached": "Em cache",
+      "custom": "Imagem personalizada",
+      "custom_hint": "Grave um arquivo .img, .iso ou uma imagem compactada local.",
+      "custom_pick": "Selecionar uma imagem do Raspberry Pi"
+    },
+    "config": {
+      "hint": "Ative uma seção para aplicá-la depois da gravação.",
+      "hostname": "Definir nome do host",
+      "hostname_hint": "O nome deste Pi na rede.",
+      "user": "Definir usuário e senha",
+      "user_hint": "Cria a primeira conta de usuário.",
+      "username": "Nome de usuário",
+      "password": "Senha",
+      "wifi": "Configurar Wi-Fi",
+      "wifi_hint": "Conecta na primeira inicialização.",
+      "ssid": "Nome da rede",
+      "wifi_password": "Senha do Wi-Fi",
+      "wifi_country": "Código do país",
+      "ssh": "Ativar SSH",
+      "ssh_hint": "Permite login remoto. Chave pública opcional.",
+      "ssh_key": "Chave pública SSH",
+      "timezone": "Fuso horário",
+      "keyboard": "Layout do teclado",
+      "locale": "Definir fuso horário e teclado",
+      "locale_hint": "Aplicado na primeira inicialização.",
+      "init": "Personalização da primeira inicialização",
+      "init_hint": "Como esta imagem aplica o nome do host, o Wi-Fi e o SSH.",
+      "init_none": "Pular",
+      "init_systemd": "systemd (Raspberry Pi OS antigo)",
+      "init_cloudinit": "cloud-init",
+      "init_cloudinit_rpi": "Raspberry Pi OS (cloud-init)",
+      "none_available": "Esta imagem não oferece personalização da primeira inicialização."
+    },
+    "storage": {
+      "hint": "A gravação apaga a unidade selecionada."
+    }
+  },
+  "drives": {
+    "title": "Selecionar uma unidade",
+    "hint": "Discos internos ficam ocultos. A gravação apaga a unidade.",
+    "refresh": "Atualizar",
+    "done": "Concluído",
+    "empty": "Nenhuma unidade removível encontrada.",
+    "too_small": "Muito pequena"
+  },
+  "settings": {
+    "title": "Ajustes",
+    "appearance": "Aparência",
+    "appearance_system": "Sistema",
+    "appearance_light": "Claro",
+    "appearance_dark": "Escuro",
+    "appearance_hint": "Sistema segue o ajuste claro ou escuro do sistema operacional.",
+    "language": "Idioma",
+    "language_hint": "Por padrão, usa o idioma do sistema quando houver tradução; senão, inglês.",
+    "writing": "Gravação",
+    "verify": "Validar a gravação",
+    "verify_hint": "Lê o disco de novo e compara cada byte.",
+    "eject": "Ejetar ao concluir",
+    "eject_hint": "Desmonta a unidade quando a gravação termina.",
+    "hide_system": "Ocultar unidades do sistema",
+    "hide_system_hint": "Nunca listar discos internos."
+  },
+  "about": {
+    "title": "Sobre o Imprint",
+    "tagline": "Grave imagens de sistema em unidades USB e cartões SD.",
+    "version": "Versão {version}",
+    "check_updates": "Buscar atualizações…",
+    "ok": "OK"
+  },
+  "update": {
+    "title": "Atualização de software",
+    "checking": "Buscando atualizações…",
+    "checking_chip": "Buscando atualizações…",
+    "up_to_date": "O Imprint está atualizado.",
+    "available": "A versão {version} está disponível.",
+    "available_chip": "Atualização disponível",
+    "install": "Instalar",
+    "later": "Mais tarde",
+    "downloading": "Baixando atualização…",
+    "downloading_chip": "Baixando atualização…",
+    "progress": "{received} de {total}",
+    "installed": "A atualização foi instalada.",
+    "restart": "Reiniciar",
+    "restart_chip": "Reiniciar para atualizar",
+    "restart_hint": "Reinicie o Imprint para concluir a atualização.",
+    "ok": "OK",
+    "unpackaged": "Instalar atualizações exige uma versão empacotada (.app, AppImage ou instalador).",
+    "failed": "Não foi possível atualizar: {error}",
+    "failed_chip": "Falha ao atualizar",
+    "dismiss": "Fechar",
+    "version_tooltip": "Atualizar para a versão: {version}",
+    "progress_tooltip": "Atualizar para a versão: {version} ({percent}% baixado)",
+    "updated_to": "Atualizado para o Imprint {version}"
+  },
+  "error": {
+    "image_not_found": "Imagem não encontrada: {path}",
+    "unsupported_image": "Imagem não suportada: {path}",
+    "no_target": "Nenhum destino removível selecionado",
+    "system_disk": "Recusando gravar no disco do sistema {disk}",
+    "target_too_small": "O destino {disk} é pequeno demais ({have}); a imagem precisa de {need}",
+    "privileges": "São necessários privilégios de administrador / root para gravar em {path}",
+    "privileges_prompt": "O Imprint precisa de acesso de administrador para gravar no disco.",
+    "elevation_cancelled": "A autorização de administrador foi cancelada",
+    "elevation_failed": "Não foi possível obter privilégios de administrador: {reason}",
+    "cancelled": "Gravação cancelada",
+    "verify_mismatch": "A verificação falhou no deslocamento {offset}: gravado {expected}, lido {actual}",
+    "catalog": "Não foi possível carregar o catálogo do Raspberry Pi: {error}",
+    "download": "O download falhou: {error}",
+    "checksum": "A imagem baixada não passou na verificação da soma de verificação",
+    "boot_config": "Não foi possível aplicar a configuração da primeira inicialização: {error}"
+  }
+}

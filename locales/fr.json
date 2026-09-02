@@ -1,0 +1,221 @@
+{
+  "app": {
+    "name": "Imprint"
+  },
+  "menu": {
+    "about": "À propos d'Imprint",
+    "check_updates": "Rechercher les mises à jour…",
+    "settings": "Réglages…",
+    "file": "Fichier",
+    "edit": "Édition",
+    "view": "Présentation",
+    "open_image": "Ouvrir une image…",
+    "raspberry_pi": "Raspberry Pi…",
+    "select_drive": "Sélectionner un lecteur…",
+    "undo": "Annuler",
+    "redo": "Rétablir",
+    "cut": "Couper",
+    "copy": "Copier",
+    "paste": "Coller",
+    "select_all": "Tout sélectionner",
+    "refresh_drives": "Actualiser les lecteurs",
+    "services": "Services",
+    "quit": "Quitter"
+  },
+  "header": {
+    "settings_tooltip": "Réglages",
+    "raspberry_pi": "Raspberry Pi",
+    "raspberry_pi_tooltip": "Graver un Raspberry Pi"
+  },
+  "image": {
+    "title": "Image",
+    "none": "Aucune image sélectionnée",
+    "hint": "ISO, IMG, DMG ou une archive compressée",
+    "select": "Sélectionner",
+    "pick_prompt": "Sélectionner une image disque"
+  },
+  "target": {
+    "title": "Cible",
+    "none": "Aucun lecteur sélectionné",
+    "hint": "USB amovible ou carte SD",
+    "select": "Sélectionner",
+    "count": "{n} lecteurs"
+  },
+  "write": {
+    "erase_warning": "Le lecteur sélectionné sera effacé.",
+    "choose_hint": "Choisissez une image et un lecteur pour continuer.",
+    "action": "Écrire"
+  },
+  "progress": {
+    "working": "En cours",
+    "starting": "Démarrage…",
+    "unmounting": "Démontage de {disk}",
+    "writing": "Écriture de {image} → {disk}",
+    "written": "{bytes} écrits",
+    "validating": "Vérification des octets écrits",
+    "checked": "{bytes} vérifiés",
+    "syncing": "Synchronisation",
+    "complete": "Écriture terminée",
+    "cancel": "Annuler",
+    "back": "Retour",
+    "phase": {
+      "preparing": "Préparation",
+      "writing": "Écriture",
+      "verifying": "Vérification",
+      "finishing": "Finalisation",
+      "done": "Terminé",
+      "failed": "Échec"
+    }
+  },
+  "done": {
+    "title": "Écriture terminée",
+    "ready": "{name} est prêt à démarrer.",
+    "another": "Écrire une autre",
+    "keep": "Conserver l'image"
+  },
+  "status": {
+    "drives": "{n} lecteur(s)",
+    "writing": "Écriture",
+    "ready": "Prêt",
+    "downloading": "Téléchargement",
+    "raspberry_pi": "Raspberry Pi"
+  },
+  "rpi": {
+    "title": "Raspberry Pi",
+    "subtitle": "Télécharger une image officielle et définir les options de premier démarrage.",
+    "back": "Retour à l'écriture",
+    "prev": "Retour",
+    "next": "Suivant",
+    "write": "Écrire",
+    "downloading": "Téléchargement de l'image",
+    "step": {
+      "device": "Appareil",
+      "os": "OS",
+      "config": "Options",
+      "storage": "Stockage"
+    },
+    "device": {
+      "hint": "Choisissez un modèle de Raspberry Pi pour filtrer les images compatibles.",
+      "none": "Aucun appareil sélectionné"
+    },
+    "os": {
+      "hint": "Les images proviennent du catalogue officiel Raspberry Pi, ou d'un fichier local.",
+      "none": "Aucun OS sélectionné",
+      "loading": "Chargement du catalogue…",
+      "failed": "Impossible de charger le catalogue.",
+      "retry": "Réessayer",
+      "empty": "Aucune image pour cet appareil.",
+      "back": "Retour",
+      "size": "{size} non compressé",
+      "cached": "En cache",
+      "custom": "Image personnalisée",
+      "custom_hint": "Écrire un fichier .img, .iso ou une image compressée locale.",
+      "custom_pick": "Sélectionner une image Raspberry Pi"
+    },
+    "config": {
+      "hint": "Activez une section pour l'appliquer après l'écriture.",
+      "hostname": "Définir le nom d'hôte",
+      "hostname_hint": "Le nom de ce Pi sur le réseau.",
+      "user": "Définir le nom d'utilisateur et le mot de passe",
+      "user_hint": "Crée le premier compte utilisateur.",
+      "username": "Nom d'utilisateur",
+      "password": "Mot de passe",
+      "wifi": "Configurer le Wi-Fi",
+      "wifi_hint": "Connexion au premier démarrage.",
+      "ssid": "Nom du réseau",
+      "wifi_password": "Mot de passe Wi-Fi",
+      "wifi_country": "Code pays",
+      "ssh": "Activer SSH",
+      "ssh_hint": "Autorise la connexion à distance. Clé publique facultative.",
+      "ssh_key": "Clé publique SSH",
+      "timezone": "Fuseau horaire",
+      "keyboard": "Disposition du clavier",
+      "locale": "Définir le fuseau horaire et le clavier",
+      "locale_hint": "Appliqué au premier démarrage.",
+      "init": "Personnalisation du premier démarrage",
+      "init_hint": "Comment cette image applique le nom d'hôte, le Wi-Fi et SSH.",
+      "init_none": "Ignorer",
+      "init_systemd": "systemd (ancien Raspberry Pi OS)",
+      "init_cloudinit": "cloud-init",
+      "init_cloudinit_rpi": "Raspberry Pi OS (cloud-init)",
+      "none_available": "Cette image ne prend pas en charge la personnalisation du premier démarrage."
+    },
+    "storage": {
+      "hint": "L'écriture efface le lecteur sélectionné."
+    }
+  },
+  "drives": {
+    "title": "Sélectionner un lecteur",
+    "hint": "Les disques internes sont masqués. L'écriture efface le lecteur.",
+    "refresh": "Actualiser",
+    "done": "Terminé",
+    "empty": "Aucun lecteur amovible trouvé.",
+    "too_small": "Trop petit"
+  },
+  "settings": {
+    "title": "Réglages",
+    "appearance": "Apparence",
+    "appearance_system": "Système",
+    "appearance_light": "Clair",
+    "appearance_dark": "Sombre",
+    "appearance_hint": "Système suit le réglage clair ou sombre du système d'exploitation.",
+    "language": "Langue",
+    "language_hint": "Par défaut, la langue du système est utilisée si une traduction existe, sinon l'anglais.",
+    "writing": "Écriture",
+    "verify": "Valider l'écriture",
+    "verify_hint": "Relire le disque et comparer chaque octet.",
+    "eject": "Éjecter en cas de succès",
+    "eject_hint": "Démonter le lecteur une fois l'écriture terminée.",
+    "hide_system": "Masquer les disques système",
+    "hide_system_hint": "Ne jamais lister les disques internes."
+  },
+  "about": {
+    "title": "À propos d'Imprint",
+    "tagline": "Graver des images OS sur des clés USB et des cartes SD.",
+    "version": "Version {version}",
+    "check_updates": "Rechercher les mises à jour…",
+    "ok": "OK"
+  },
+  "update": {
+    "title": "Mise à jour logicielle",
+    "checking": "Recherche de mises à jour…",
+    "checking_chip": "Recherche de mises à jour…",
+    "up_to_date": "Imprint est à jour.",
+    "available": "La version {version} est disponible.",
+    "available_chip": "Mise à jour disponible",
+    "install": "Installer",
+    "later": "Plus tard",
+    "downloading": "Téléchargement de la mise à jour…",
+    "downloading_chip": "Téléchargement de la mise à jour…",
+    "progress": "{received} sur {total}",
+    "installed": "La mise à jour a été installée.",
+    "restart": "Redémarrer",
+    "restart_chip": "Redémarrer pour mettre à jour",
+    "restart_hint": "Redémarrez Imprint pour terminer la mise à jour.",
+    "ok": "OK",
+    "unpackaged": "L'installation des mises à jour nécessite une version empaquetée (.app, AppImage ou installateur).",
+    "failed": "La mise à jour a échoué : {error}",
+    "failed_chip": "Échec de la mise à jour",
+    "dismiss": "Fermer",
+    "version_tooltip": "Mettre à jour vers la version : {version}",
+    "progress_tooltip": "Mettre à jour vers la version : {version} ({percent} % téléchargés)",
+    "updated_to": "Mis à jour vers Imprint {version}"
+  },
+  "error": {
+    "image_not_found": "Image introuvable : {path}",
+    "unsupported_image": "Image non prise en charge : {path}",
+    "no_target": "Aucune cible amovible sélectionnée",
+    "system_disk": "Écriture refusée sur le disque système {disk}",
+    "target_too_small": "La cible {disk} est trop petite ({have}) ; l'image nécessite {need}",
+    "privileges": "Des privilèges administrateur / root sont nécessaires pour écrire sur {path}",
+    "privileges_prompt": "Imprint a besoin d'un accès administrateur pour écrire sur le disque.",
+    "elevation_cancelled": "L'autorisation administrateur a été annulée",
+    "elevation_failed": "Impossible d'obtenir les privilèges administrateur : {reason}",
+    "cancelled": "Écriture annulée",
+    "verify_mismatch": "La vérification a échoué à l'offset {offset} : écrit {expected}, lu {actual}",
+    "catalog": "Impossible de charger le catalogue Raspberry Pi : {error}",
+    "download": "Le téléchargement a échoué : {error}",
+    "checksum": "L'image téléchargée n'a pas passé la vérification de la somme de contrôle",
+    "boot_config": "Impossible d'appliquer la configuration de premier démarrage : {error}"
+  }
+}

@@ -1,6 +1,8 @@
+use std::sync::{Arc, OnceLock};
+
 use gpui::{
-  App, BoxShadow, Div, FontWeight, Hsla, Pixels, Styled, div, hsla, linear_color_stop,
-  linear_gradient, prelude::*, px,
+  App, BoxShadow, Div, FontWeight, Image, ImageFormat, Pixels, Styled, div, hsla, img,
+  linear_color_stop, linear_gradient, prelude::*, px,
 };
 use gpui_component::{
   ActiveTheme as _, Colorize as _, Icon, IconName, Sizable as _, box_shadow, h_flex,
@@ -180,33 +182,25 @@ pub fn icon_badge(cx: &App, icon: IconName, ready: bool, size: Pixels) -> impl g
     )
 }
 
-pub fn brand_mark(cx: &App, size: Pixels) -> impl gpui::IntoElement {
-  let fg: Hsla = cx.theme().primary_foreground;
-  let primary = cx.theme().primary;
-  let sapphire = cx.theme().cyan;
-  div()
-    .flex()
-    .items_center()
-    .justify_center()
-    .size(size)
-    .rounded(size * 0.30)
-    .bg(linear_gradient(
-      128.,
-      linear_color_stop(primary, 0.),
-      linear_color_stop(sapphire, 1.),
-    ))
-    .shadow(vec![box_shadow(
-      px(0.),
-      px(2.),
-      px(10.),
-      px(0.),
-      primary.divide(0.40),
-    )])
-    .child(
-      Icon::new(IconName::HardDrive)
-        .when(size >= px(40.), |i| i.large())
-        .text_color(fg),
-    )
+fn app_icon_image(dark: bool) -> Arc<Image> {
+  static LIGHT: OnceLock<Arc<Image>> = OnceLock::new();
+  static DARK: OnceLock<Arc<Image>> = OnceLock::new();
+  const LIGHT_PNG: &[u8] = include_bytes!("../../../assets/icon/AppIcon-macos.png");
+  const DARK_PNG: &[u8] = include_bytes!("../../../assets/icon/AppIcon-macos-dark.png");
+  if dark {
+    DARK
+      .get_or_init(|| Arc::new(Image::from_bytes(ImageFormat::Png, DARK_PNG.to_vec())))
+      .clone()
+  } else {
+    LIGHT
+      .get_or_init(|| Arc::new(Image::from_bytes(ImageFormat::Png, LIGHT_PNG.to_vec())))
+      .clone()
+  }
+}
+
+/// Squircle app icon used in About. Light/dark artwork follows the theme.
+pub fn app_icon(cx: &App, size: Pixels) -> impl gpui::IntoElement {
+  img(app_icon_image(cx.theme().is_dark())).size(size)
 }
 
 pub fn stage_connector(cx: &App) -> impl gpui::IntoElement {

@@ -5,8 +5,9 @@ use std::time::Duration;
 
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use gpui::{
-  App, ClickEvent, Context, Entity, ExternalPaths, FocusHandle, InteractiveElement, IntoElement,
-  ParentElement, PathPromptOptions, Render, Styled, Subscription, Window, div, px,
+  AnyWindowHandle, App, ClickEvent, Context, Entity, ExternalPaths, FocusHandle,
+  InteractiveElement, IntoElement, ParentElement, PathPromptOptions, Render, Styled, Subscription,
+  Window, div, px,
 };
 use gpui_component::{
   ActiveTheme as _, Colorize as _, Root, WindowExt as _, notification::Notification, v_flex,
@@ -20,8 +21,8 @@ use imprint_flash::flash;
 use imprint_image::inspect;
 
 use crate::actions::{
-  About, CheckForUpdates, OpenImage, OpenRaspberryPi, Quit, SelectTarget, StartFlash,
-  ToggleSettings,
+  About, AppearanceDark, AppearanceLight, AppearanceSystem, CheckForUpdates, OpenImage,
+  OpenRaspberryPi, Quit, RefreshDrives, SelectTarget, StartFlash, ToggleSettings,
 };
 use crate::rpi::{AppMode, RpiEvent, RpiState};
 use crate::theme::Appearance;
@@ -84,6 +85,8 @@ pub struct ImprintApp {
   update_events: Option<Receiver<UpdateEvent>>,
   _update_pump: Option<gpui::Task<()>>,
   _appearance: Option<Subscription>,
+  pub(crate) main_window: AnyWindowHandle,
+  pub(crate) about_window: Option<AnyWindowHandle>,
 }
 
 impl ImprintApp {
@@ -128,6 +131,8 @@ impl ImprintApp {
       update_events: None,
       _update_pump: None,
       _appearance: Some(appearance_sub),
+      main_window: window.window_handle(),
+      about_window: None,
     };
     if let Some(version) = updater::take_update_notice() {
       if version == env!("CARGO_PKG_VERSION") {
@@ -152,13 +157,14 @@ impl ImprintApp {
   ) {
     self.appearance = appearance;
     crate::theme::apply_appearance(appearance, Some(window), cx);
+    crate::install_menus_with(appearance, cx);
     cx.notify();
   }
 
   pub(crate) fn set_locale(&mut self, locale: LocalePref, cx: &mut Context<Self>) {
     self.settings.locale = locale;
     i18n::set_pref(locale);
-    crate::install_menus(cx);
+    crate::install_menus_with(self.appearance, cx);
     cx.notify();
   }
 
@@ -240,6 +246,37 @@ impl ImprintApp {
 
   fn on_open_raspberry_pi(&mut self, _: &OpenRaspberryPi, _: &mut Window, cx: &mut Context<Self>) {
     self.open_raspberry_pi(cx);
+  }
+
+  fn on_refresh_drives(&mut self, _: &RefreshDrives, _: &mut Window, cx: &mut Context<Self>) {
+    self.refresh_disks(cx);
+  }
+
+  fn on_appearance_system(
+    &mut self,
+    _: &AppearanceSystem,
+    window: &mut Window,
+    cx: &mut Context<Self>,
+  ) {
+    self.set_appearance(Appearance::System, window, cx);
+  }
+
+  fn on_appearance_light(
+    &mut self,
+    _: &AppearanceLight,
+    window: &mut Window,
+    cx: &mut Context<Self>,
+  ) {
+    self.set_appearance(Appearance::Light, window, cx);
+  }
+
+  fn on_appearance_dark(
+    &mut self,
+    _: &AppearanceDark,
+    window: &mut Window,
+    cx: &mut Context<Self>,
+  ) {
+    self.set_appearance(Appearance::Dark, window, cx);
   }
 
   fn on_check_for_updates(
@@ -393,6 +430,15 @@ impl ImprintApp {
   }
 
   pub(crate) fn open_about(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    if let Some(handle) = self.about_window {
+      if handle
+        .update(cx, |_, window, _| window.activate_window())
+        .is_ok()
+      {
+        return;
+      }
+      self.about_window = None;
+    }
     views::about::open(cx.entity(), window, cx);
   }
 
@@ -636,6 +682,52 @@ fn bind_app_menu_actions(view: gpui::WeakEntity<ImprintApp>, cx: &mut App) {
       dispatch_on_app(&view, cx, |this, _, cx| this.open_raspberry_pi(cx));
     }
   });
+  App::on_action(cx, {
+    let view = view.clone();
+    move |_: &OpenImage, cx| {
+      dispatch_on_app(&view, cx, |this, window, cx| this.pick_image(window, cx));
+    }
+  });
+  App::on_action(cx, {
+    let view = view.clone();
+    move |_: &SelectTarget, cx| {
+      dispatch_on_app(&view, cx, |this, window, cx| {
+        if !this.flashing {
+          this.open_drives(window, cx);
+        }
+      });
+    }
+  });
+  App::on_action(cx, {
+    let view = view.clone();
+    move |_: &RefreshDrives, cx| {
+      dispatch_on_app(&view, cx, |this, _, cx| this.refresh_disks(cx));
+    }
+  });
+  App::on_action(cx, {
+    let view = view.clone();
+    move |_: &AppearanceSystem, cx| {
+      dispatch_on_app(&view, cx, |this, window, cx| {
+        this.set_appearance(Appearance::System, window, cx);
+      });
+    }
+  });
+  App::on_action(cx, {
+    let view = view.clone();
+    move |_: &AppearanceLight, cx| {
+      dispatch_on_app(&view, cx, |this, window, cx| {
+        this.set_appearance(Appearance::Light, window, cx);
+      });
+    }
+  });
+  App::on_action(cx, {
+    let view = view.clone();
+    move |_: &AppearanceDark, cx| {
+      dispatch_on_app(&view, cx, |this, window, cx| {
+        this.set_appearance(Appearance::Dark, window, cx);
+      });
+    }
+  });
 }
 
 fn dispatch_on_app(
@@ -643,9 +735,10 @@ fn dispatch_on_app(
   cx: &mut App,
   f: impl FnOnce(&mut ImprintApp, &mut Window, &mut Context<ImprintApp>),
 ) {
-  let Some(handle) = cx.active_window() else {
+  let Some(entity) = view.upgrade() else {
     return;
   };
+  let handle = entity.read(cx).main_window;
   let view = view.clone();
   let _ = handle.update(cx, |_, window, cx| {
     let _ = view.update(cx, |this, cx| f(this, window, cx));
@@ -692,6 +785,10 @@ impl Render for ImprintApp {
       .on_action(cx.listener(Self::on_about))
       .on_action(cx.listener(Self::on_check_for_updates))
       .on_action(cx.listener(Self::on_open_raspberry_pi))
+      .on_action(cx.listener(Self::on_refresh_drives))
+      .on_action(cx.listener(Self::on_appearance_system))
+      .on_action(cx.listener(Self::on_appearance_light))
+      .on_action(cx.listener(Self::on_appearance_dark))
       .on_action(|_: &Quit, _, cx| cx.quit())
       .on_drop(cx.listener(Self::on_drop_paths))
       .drag_over::<ExternalPaths>(|style, _, _, cx| {

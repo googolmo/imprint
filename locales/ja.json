@@ -7,10 +7,13 @@
     "check_updates": "アップデートを確認…",
     "settings": "設定…",
     "open_image": "イメージを開く…",
+    "raspberry_pi": "Raspberry Pi…",
     "quit": "終了"
   },
   "header": {
-    "settings_tooltip": "設定"
+    "settings_tooltip": "設定",
+    "raspberry_pi": "Raspberry Pi",
+    "raspberry_pi_tooltip": "Raspberry Pi を書き込む"
   },
   "image": {
     "title": "イメージ",
@@ -61,7 +64,73 @@
   "status": {
     "drives": "ドライブ {n} 台",
     "writing": "書き込み中",
-    "ready": "準備完了"
+    "ready": "準備完了",
+    "downloading": "ダウンロード中",
+    "raspberry_pi": "Raspberry Pi"
+  },
+  "rpi": {
+    "title": "Raspberry Pi",
+    "subtitle": "公式イメージをダウンロードし、初回起動時の設定を行います。",
+    "back": "書き込みに戻る",
+    "prev": "戻る",
+    "next": "次へ",
+    "write": "書き込む",
+    "downloading": "イメージをダウンロード中",
+    "step": {
+      "device": "デバイス",
+      "os": "OS",
+      "config": "オプション",
+      "storage": "ストレージ"
+    },
+    "device": {
+      "hint": "Raspberry Pi のモデルを選んで、対応イメージを絞り込みます。",
+      "none": "デバイス未選択"
+    },
+    "os": {
+      "hint": "イメージは公式 Raspberry Pi カタログから取得するか、ローカルファイルを選べます。",
+      "none": "OS 未選択",
+      "loading": "カタログを読み込み中…",
+      "failed": "カタログを読み込めませんでした。",
+      "retry": "再試行",
+      "empty": "このデバイス向けのイメージはありません。",
+      "back": "戻る",
+      "size": "展開後 {size}",
+      "cached": "キャッシュ済み",
+      "custom": "カスタムを使用",
+      "custom_hint": "ローカルの .img、.iso、または圧縮イメージを書き込みます。",
+      "custom_pick": "Raspberry Pi イメージを選択"
+    },
+    "config": {
+      "hint": "オンにした項目だけが書き込み後に適用されます。",
+      "hostname": "ホスト名を設定",
+      "hostname_hint": "ネットワーク上で使う名前です。",
+      "user": "ユーザー名とパスワードを設定",
+      "user_hint": "最初のユーザーアカウントを作成します。",
+      "username": "ユーザー名",
+      "password": "パスワード",
+      "wifi": "Wi-Fi を設定",
+      "wifi_hint": "初回起動時に接続します。",
+      "ssid": "ネットワーク名",
+      "wifi_password": "Wi-Fi パスワード",
+      "wifi_country": "国コード",
+      "ssh": "SSH を有効化",
+      "ssh_hint": "リモートログインを許可します。公開鍵は任意です。",
+      "ssh_key": "SSH 公開鍵",
+      "timezone": "タイムゾーン",
+      "keyboard": "キーボード配列",
+      "locale": "タイムゾーンとキーボードを設定",
+      "locale_hint": "初回起動時に適用します。",
+      "init": "初回起動時のカスタマイズ",
+      "init_hint": "このイメージがホスト名、Wi-Fi、SSH をどう適用するか。",
+      "init_none": "スキップ",
+      "init_systemd": "systemd（旧 Raspberry Pi OS）",
+      "init_cloudinit": "cloud-init",
+      "init_cloudinit_rpi": "Raspberry Pi OS（cloud-init）",
+      "none_available": "このイメージは初回起動時のカスタマイズに対応していません。"
+    },
+    "storage": {
+      "hint": "書き込むと選択したドライブの内容は消去されます。"
+    }
   },
   "drives": {
     "title": "ドライブを選択",
@@ -131,6 +200,10 @@
     "elevation_cancelled": "管理者承認がキャンセルされました",
     "elevation_failed": "管理者権限を取得できませんでした: {reason}",
     "cancelled": "書き込みはキャンセルされました",
-    "verify_mismatch": "オフセット {offset} で検証に失敗しました: 書き込み {expected}、読み取り {actual}"
+    "verify_mismatch": "オフセット {offset} で検証に失敗しました: 書き込み {expected}、読み取り {actual}",
+    "catalog": "Raspberry Pi カタログを読み込めませんでした: {error}",
+    "download": "ダウンロードに失敗しました: {error}",
+    "checksum": "ダウンロードしたイメージのチェックサムが一致しません",
+    "boot_config": "初回起動設定を適用できませんでした: {error}"
   }
 }

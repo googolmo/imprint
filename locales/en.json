@@ -7,10 +7,13 @@
     "check_updates": "Check for Updates…",
     "settings": "Settings…",
     "open_image": "Open Image…",
+    "raspberry_pi": "Raspberry Pi…",
     "quit": "Quit"
   },
   "header": {
-    "settings_tooltip": "Settings"
+    "settings_tooltip": "Settings",
+    "raspberry_pi": "Raspberry Pi",
+    "raspberry_pi_tooltip": "Flash a Raspberry Pi"
   },
   "image": {
     "title": "Image",
@@ -61,7 +64,73 @@
   "status": {
     "drives": "{n} drive(s)",
     "writing": "Writing",
-    "ready": "Ready"
+    "ready": "Ready",
+    "downloading": "Downloading",
+    "raspberry_pi": "Raspberry Pi"
+  },
+  "rpi": {
+    "title": "Raspberry Pi",
+    "subtitle": "Download an official image and set first-boot options.",
+    "back": "Back to Flash",
+    "prev": "Back",
+    "next": "Next",
+    "write": "Write",
+    "downloading": "Downloading image",
+    "step": {
+      "device": "Device",
+      "os": "OS",
+      "config": "Options",
+      "storage": "Storage"
+    },
+    "device": {
+      "hint": "Choose a Raspberry Pi model to filter compatible images.",
+      "none": "No device selected"
+    },
+    "os": {
+      "hint": "Images come from the official Raspberry Pi catalog, or pick a local file.",
+      "none": "No OS selected",
+      "loading": "Loading catalog…",
+      "failed": "Could not load the catalog.",
+      "retry": "Retry",
+      "empty": "No images for this device.",
+      "back": "Back",
+      "size": "{size} uncompressed",
+      "cached": "Cached",
+      "custom": "Use custom",
+      "custom_hint": "Flash a local .img, .iso, or compressed image.",
+      "custom_pick": "Select a Raspberry Pi image"
+    },
+    "config": {
+      "hint": "Turn on a section to apply it after writing.",
+      "hostname": "Set hostname",
+      "hostname_hint": "The name this Pi uses on the network.",
+      "user": "Set username and password",
+      "user_hint": "Creates the first user account.",
+      "username": "Username",
+      "password": "Password",
+      "wifi": "Configure Wi-Fi",
+      "wifi_hint": "Connects on first boot.",
+      "ssid": "Network name",
+      "wifi_password": "Wi-Fi password",
+      "wifi_country": "Country code",
+      "ssh": "Enable SSH",
+      "ssh_hint": "Allows remote login. Optional public key.",
+      "ssh_key": "SSH public key",
+      "timezone": "Timezone",
+      "keyboard": "Keyboard layout",
+      "locale": "Set timezone and keyboard",
+      "locale_hint": "Applied on first boot.",
+      "init": "First-boot customisation",
+      "init_hint": "How this image applies hostname, Wi-Fi, and SSH.",
+      "init_none": "Skip",
+      "init_systemd": "systemd (legacy Raspberry Pi OS)",
+      "init_cloudinit": "cloud-init",
+      "init_cloudinit_rpi": "Raspberry Pi OS (cloud-init)",
+      "none_available": "This image does not support first-boot customisation."
+    },
+    "storage": {
+      "hint": "Writing erases the selected drive."
+    }
   },
   "drives": {
     "title": "Select a drive",
@@ -131,6 +200,10 @@
     "elevation_cancelled": "Administrator authorization was cancelled",
     "elevation_failed": "Could not obtain administrator privileges: {reason}",
     "cancelled": "Flash cancelled",
-    "verify_mismatch": "Verification failed at offset {offset}: wrote {expected}, read {actual}"
+    "verify_mismatch": "Verification failed at offset {offset}: wrote {expected}, read {actual}",
+    "catalog": "Could not load Raspberry Pi catalog: {error}",
+    "download": "Download failed: {error}",
+    "checksum": "Downloaded image failed checksum verification",
+    "boot_config": "Could not apply first-boot configuration: {error}"
   }
 }

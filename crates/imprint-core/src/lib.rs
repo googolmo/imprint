@@ -11,7 +11,7 @@ mod settings;
 mod target;
 
 pub use error::{Error, Result};
-pub use flash::{FlashPhase, FlashProgress, FlashRequest};
+pub use flash::{BootCustomization, BootFile, FlashPhase, FlashProgress, FlashRequest};
 pub use i18n::{Language, LocalePref};
 pub use image::{Compression, ImageKind, ImageRef};
 pub use settings::Settings;

@@ -2,6 +2,7 @@
 
 mod actions;
 mod app;
+mod rpi;
 mod theme;
 mod updater;
 mod views;
@@ -20,7 +21,8 @@ actions!(
     StartFlash,
     ToggleSettings,
     About,
-    CheckForUpdates
+    CheckForUpdates,
+    OpenRaspberryPi
   ]
 );
 
@@ -45,6 +47,7 @@ pub fn install_menus(cx: &mut App) {
     MenuItem::action(t("menu.settings"), ToggleSettings),
     MenuItem::separator(),
     MenuItem::action(t("menu.open_image"), OpenImage),
+    MenuItem::action(t("menu.raspberry_pi"), OpenRaspberryPi),
     MenuItem::separator(),
     MenuItem::action(t("menu.quit"), Quit),
   ])]);

@@ -7,10 +7,13 @@
     "check_updates": "检查更新…",
     "settings": "设置…",
     "open_image": "打开镜像…",
+    "raspberry_pi": "Raspberry Pi…",
     "quit": "退出"
   },
   "header": {
-    "settings_tooltip": "设置"
+    "settings_tooltip": "设置",
+    "raspberry_pi": "树莓派",
+    "raspberry_pi_tooltip": "烧录 Raspberry Pi"
   },
   "image": {
     "title": "镜像",
@@ -61,7 +64,73 @@
   "status": {
     "drives": "{n} 个磁盘",
     "writing": "正在写入",
-    "ready": "就绪"
+    "ready": "就绪",
+    "downloading": "正在下载",
+    "raspberry_pi": "Raspberry Pi"
+  },
+  "rpi": {
+    "title": "Raspberry Pi",
+    "subtitle": "下载官方镜像并设置首次启动选项。",
+    "back": "返回写入",
+    "prev": "上一步",
+    "next": "下一步",
+    "write": "写入",
+    "downloading": "正在下载镜像",
+    "step": {
+      "device": "设备",
+      "os": "系统",
+      "config": "选项",
+      "storage": "存储"
+    },
+    "device": {
+      "hint": "选择 Raspberry Pi 型号以筛选兼容镜像。",
+      "none": "未选择设备"
+    },
+    "os": {
+      "hint": "镜像来自官方 Raspberry Pi 目录，也可以选择本地文件。",
+      "none": "未选择系统",
+      "loading": "正在加载目录…",
+      "failed": "无法加载目录。",
+      "retry": "重试",
+      "empty": "没有适用于此设备的镜像。",
+      "back": "返回",
+      "size": "解压后 {size}",
+      "cached": "已缓存",
+      "custom": "使用自定义镜像",
+      "custom_hint": "写入本地 .img、.iso 或压缩镜像。",
+      "custom_pick": "选择 Raspberry Pi 镜像"
+    },
+    "config": {
+      "hint": "打开开关后才会在写入后应用该项。",
+      "hostname": "设置主机名",
+      "hostname_hint": "此 Pi 在网络上使用的名称。",
+      "user": "设置用户名和密码",
+      "user_hint": "创建第一个用户账户。",
+      "username": "用户名",
+      "password": "密码",
+      "wifi": "配置 Wi-Fi",
+      "wifi_hint": "首次启动时连接。",
+      "ssid": "网络名称",
+      "wifi_password": "Wi-Fi 密码",
+      "wifi_country": "国家代码",
+      "ssh": "启用 SSH",
+      "ssh_hint": "允许远程登录。公钥可选。",
+      "ssh_key": "SSH 公钥",
+      "timezone": "时区",
+      "keyboard": "键盘布局",
+      "locale": "设置时区和键盘",
+      "locale_hint": "首次启动时应用。",
+      "init": "首次启动自定义",
+      "init_hint": "此镜像如何应用主机名、Wi-Fi 和 SSH。",
+      "init_none": "跳过",
+      "init_systemd": "systemd（旧版 Raspberry Pi OS）",
+      "init_cloudinit": "cloud-init",
+      "init_cloudinit_rpi": "Raspberry Pi OS（cloud-init）",
+      "none_available": "此镜像不支持首次启动自定义。"
+    },
+    "storage": {
+      "hint": "写入会清除所选磁盘。"
+    }
   },
   "drives": {
     "title": "选择磁盘",
@@ -131,6 +200,10 @@
     "elevation_cancelled": "已取消管理员授权",
     "elevation_failed": "无法获取管理员权限：{reason}",
     "cancelled": "写入已取消",
-    "verify_mismatch": "校验失败，偏移 {offset}：写入 {expected}，读到 {actual}"
+    "verify_mismatch": "校验失败，偏移 {offset}：写入 {expected}，读到 {actual}",
+    "catalog": "无法加载 Raspberry Pi 目录：{error}",
+    "download": "下载失败：{error}",
+    "checksum": "下载的镜像校验和不匹配",
+    "boot_config": "无法应用首次启动配置：{error}"
   }
 }

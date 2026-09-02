@@ -8,6 +8,30 @@ pub struct FlashRequest {
   pub targets: Vec<TargetDisk>,
   pub verify: bool,
   pub unmount: bool,
+  /// Files written to the first FAT partition after the image (Raspberry Pi boot).
+  #[serde(default)]
+  pub boot: Option<BootCustomization>,
+}
+
+/// Text files dropped onto the imaged FAT boot partition, plus an optional
+/// `cmdline.txt` append used by Raspberry Pi `systemd` first-boot scripts.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct BootCustomization {
+  pub files: Vec<BootFile>,
+  #[serde(default)]
+  pub cmdline_append: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BootFile {
+  pub name: String,
+  pub contents: String,
+}
+
+impl BootCustomization {
+  pub fn is_empty(&self) -> bool {
+    self.files.is_empty() && self.cmdline_append.is_none()
+  }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

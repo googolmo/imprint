@@ -160,7 +160,7 @@ pub fn icon_badge(cx: &App, icon: IconName, ready: bool, size: Pixels) -> impl g
     .items_center()
     .justify_center()
     .size(size)
-    .rounded(if large { cx.theme().radius } else { px(12.) })
+    .rounded(cx.theme().radius)
     .bg(wash)
     .border_1()
     .border_color(if ready {
@@ -183,7 +183,7 @@ pub fn icon_badge(cx: &App, icon: IconName, ready: bool, size: Pixels) -> impl g
 pub fn brand_mark(cx: &App, size: Pixels) -> impl gpui::IntoElement {
   let fg: Hsla = cx.theme().primary_foreground;
   let primary = cx.theme().primary;
-  let cyan = hsla(0.515, 0.82, 0.64, 1.0);
+  let sapphire = cx.theme().cyan;
   div()
     .flex()
     .items_center()
@@ -193,7 +193,7 @@ pub fn brand_mark(cx: &App, size: Pixels) -> impl gpui::IntoElement {
     .bg(linear_gradient(
       128.,
       linear_color_stop(primary, 0.),
-      linear_color_stop(cyan, 1.),
+      linear_color_stop(sapphire, 1.),
     ))
     .shadow(vec![box_shadow(
       px(0.),
@@ -234,13 +234,8 @@ pub fn hover_fill(cx: &App) -> gpui::Background {
 pub fn atmosphere(cx: &App) -> impl gpui::IntoElement {
   let dark = cx.theme().is_dark();
   let sapphire = cx.theme().primary;
-  let cyan = hsla(0.515, 0.82, 0.64, 1.0);
-  let violet = hsla(
-    0.76,
-    0.58,
-    if dark { 0.38 } else { 0.78 },
-    if dark { 0.16 } else { 0.05 },
-  );
+  let cyan = cx.theme().cyan;
+  let mauve = cx.theme().accent.divide(if dark { 0.16 } else { 0.05 });
   let sapphire_glow = sapphire.divide(if dark { 0.16 } else { 0.045 });
   let cyan_glow = cyan.divide(if dark { 0.10 } else { 0.03 });
   let sheen = hsla(0.0, 0.0, 1.0, if dark { 0.05 } else { 0.38 });
@@ -252,7 +247,7 @@ pub fn atmosphere(cx: &App) -> impl gpui::IntoElement {
     .child(div().absolute().size_full().bg(linear_gradient(
       148.,
       linear_color_stop(sapphire.divide(if dark { 0.12 } else { 0.025 }), 0.),
-      linear_color_stop(violet, 1.),
+      linear_color_stop(mauve, 1.),
     )))
     .child(
       div()
@@ -292,8 +287,8 @@ pub fn atmosphere(cx: &App) -> impl gpui::IntoElement {
         .w(px(380.))
         .h(px(380.))
         .rounded_full()
-        .bg(violet)
-        .shadow(vec![box_shadow(px(0.), px(0.), px(140.), px(48.), violet)]),
+        .bg(mauve)
+        .shadow(vec![box_shadow(px(0.), px(0.), px(140.), px(48.), mauve)]),
     )
     .child(
       div()

@@ -243,8 +243,12 @@ pub(crate) fn status_bar(app: &ImprintApp, cx: &App) -> impl IntoElement {
     .left(tr("status.drives", &[("n", &app.disks.len().to_string())]))
     .right(if let Some(err) = app.error.clone() {
       err
+    } else if app.rpi.downloading() {
+      t("status.downloading")
     } else if app.flashing {
       t("status.writing")
+    } else if app.mode == crate::rpi::AppMode::RaspberryPi {
+      t("status.raspberry_pi")
     } else if ready {
       t("status.ready")
     } else {

@@ -7,10 +7,13 @@
     "check_updates": "檢查更新…",
     "settings": "設定…",
     "open_image": "打開映像檔…",
+    "raspberry_pi": "Raspberry Pi…",
     "quit": "結束"
   },
   "header": {
-    "settings_tooltip": "設定"
+    "settings_tooltip": "設定",
+    "raspberry_pi": "樹莓派",
+    "raspberry_pi_tooltip": "燒錄 Raspberry Pi"
   },
   "image": {
     "title": "映像檔",
@@ -61,7 +64,73 @@
   "status": {
     "drives": "{n} 個磁碟",
     "writing": "正在寫入",
-    "ready": "就緒"
+    "ready": "就緒",
+    "downloading": "正在下載",
+    "raspberry_pi": "Raspberry Pi"
+  },
+  "rpi": {
+    "title": "Raspberry Pi",
+    "subtitle": "下載官方映像檔並設定首次開機選項。",
+    "back": "返回寫入",
+    "prev": "上一步",
+    "next": "下一步",
+    "write": "寫入",
+    "downloading": "正在下載映像檔",
+    "step": {
+      "device": "裝置",
+      "os": "系統",
+      "config": "選項",
+      "storage": "儲存"
+    },
+    "device": {
+      "hint": "選擇 Raspberry Pi 型號以篩選相容映像檔。",
+      "none": "未選擇裝置"
+    },
+    "os": {
+      "hint": "映像檔來自官方 Raspberry Pi 目錄，也可以選擇本機檔案。",
+      "none": "未選擇系統",
+      "loading": "正在載入目錄…",
+      "failed": "無法載入目錄。",
+      "retry": "重試",
+      "empty": "沒有適用於此裝置的映像檔。",
+      "back": "返回",
+      "size": "解壓後 {size}",
+      "cached": "已快取",
+      "custom": "使用自訂映像檔",
+      "custom_hint": "寫入本機 .img、.iso 或壓縮映像檔。",
+      "custom_pick": "選擇 Raspberry Pi 映像檔"
+    },
+    "config": {
+      "hint": "開啟開關後才會在寫入後套用該項。",
+      "hostname": "設定主機名稱",
+      "hostname_hint": "此 Pi 在網路上使用的名稱。",
+      "user": "設定使用者名稱和密碼",
+      "user_hint": "建立第一個使用者帳戶。",
+      "username": "使用者名稱",
+      "password": "密碼",
+      "wifi": "設定 Wi-Fi",
+      "wifi_hint": "首次開機時連線。",
+      "ssid": "網路名稱",
+      "wifi_password": "Wi-Fi 密碼",
+      "wifi_country": "國家代碼",
+      "ssh": "啟用 SSH",
+      "ssh_hint": "允許遠端登入。公開金鑰可選。",
+      "ssh_key": "SSH 公開金鑰",
+      "timezone": "時區",
+      "keyboard": "鍵盤配置",
+      "locale": "設定時區和鍵盤",
+      "locale_hint": "首次開機時套用。",
+      "init": "首次開機自訂",
+      "init_hint": "此映像檔如何套用主機名稱、Wi-Fi 和 SSH。",
+      "init_none": "跳過",
+      "init_systemd": "systemd（舊版 Raspberry Pi OS）",
+      "init_cloudinit": "cloud-init",
+      "init_cloudinit_rpi": "Raspberry Pi OS（cloud-init）",
+      "none_available": "此映像檔不支援首次開機自訂。"
+    },
+    "storage": {
+      "hint": "寫入會清除所選磁碟。"
+    }
   },
   "drives": {
     "title": "選擇磁碟",
@@ -131,6 +200,10 @@
     "elevation_cancelled": "已取消系統管理員授權",
     "elevation_failed": "無法取得系統管理員權限：{reason}",
     "cancelled": "寫入已取消",
-    "verify_mismatch": "驗證失敗，偏移 {offset}：寫入 {expected}，讀到 {actual}"
+    "verify_mismatch": "驗證失敗，偏移 {offset}：寫入 {expected}，讀到 {actual}",
+    "catalog": "無法載入 Raspberry Pi 目錄：{error}",
+    "download": "下載失敗：{error}",
+    "checksum": "下載的映像檔校驗和不符",
+    "boot_config": "無法套用首次開機設定：{error}"
   }
 }

@@ -7,10 +7,13 @@
     "check_updates": "업데이트 확인…",
     "settings": "설정…",
     "open_image": "이미지 열기…",
+    "raspberry_pi": "Raspberry Pi…",
     "quit": "종료"
   },
   "header": {
-    "settings_tooltip": "설정"
+    "settings_tooltip": "설정",
+    "raspberry_pi": "Raspberry Pi",
+    "raspberry_pi_tooltip": "Raspberry Pi 쓰기"
   },
   "image": {
     "title": "이미지",
@@ -61,7 +64,73 @@
   "status": {
     "drives": "드라이브 {n}개",
     "writing": "쓰는 중",
-    "ready": "준비됨"
+    "ready": "준비됨",
+    "downloading": "다운로드 중",
+    "raspberry_pi": "Raspberry Pi"
+  },
+  "rpi": {
+    "title": "Raspberry Pi",
+    "subtitle": "공식 이미지를 다운로드하고 최초 부팅 옵션을 설정합니다.",
+    "back": "쓰기로 돌아가기",
+    "prev": "이전",
+    "next": "다음",
+    "write": "쓰기",
+    "downloading": "이미지 다운로드 중",
+    "step": {
+      "device": "기기",
+      "os": "OS",
+      "config": "옵션",
+      "storage": "저장소"
+    },
+    "device": {
+      "hint": "Raspberry Pi 모델을 선택해 호환 이미지를 걸러 냅니다.",
+      "none": "기기가 선택되지 않음"
+    },
+    "os": {
+      "hint": "이미지는 공식 Raspberry Pi 목록에서 가져오거나 로컬 파일을 고를 수 있습니다.",
+      "none": "OS가 선택되지 않음",
+      "loading": "목록을 불러오는 중…",
+      "failed": "목록을 불러올 수 없습니다.",
+      "retry": "다시 시도",
+      "empty": "이 기기에 맞는 이미지가 없습니다.",
+      "back": "뒤로",
+      "size": "압축 해제 {size}",
+      "cached": "캐시됨",
+      "custom": "사용자 지정 사용",
+      "custom_hint": "로컬 .img, .iso 또는 압축 이미지를 씁니다.",
+      "custom_pick": "Raspberry Pi 이미지 선택"
+    },
+    "config": {
+      "hint": "켠 항목만 쓰기 후 적용됩니다.",
+      "hostname": "호스트 이름 설정",
+      "hostname_hint": "네트워크에서 이 Pi가 사용할 이름입니다.",
+      "user": "사용자 이름과 비밀번호 설정",
+      "user_hint": "첫 사용자 계정을 만듭니다.",
+      "username": "사용자 이름",
+      "password": "비밀번호",
+      "wifi": "Wi-Fi 구성",
+      "wifi_hint": "최초 부팅 시 연결합니다.",
+      "ssid": "네트워크 이름",
+      "wifi_password": "Wi-Fi 비밀번호",
+      "wifi_country": "국가 코드",
+      "ssh": "SSH 사용",
+      "ssh_hint": "원격 로그인을 허용합니다. 공개 키는 선택 사항입니다.",
+      "ssh_key": "SSH 공개 키",
+      "timezone": "시간대",
+      "keyboard": "키보드 레이아웃",
+      "locale": "시간대와 키보드 설정",
+      "locale_hint": "최초 부팅 시 적용됩니다.",
+      "init": "최초 부팅 사용자 지정",
+      "init_hint": "이 이미지가 호스트 이름, Wi-Fi, SSH를 적용하는 방식입니다.",
+      "init_none": "건너뛰기",
+      "init_systemd": "systemd (이전 Raspberry Pi OS)",
+      "init_cloudinit": "cloud-init",
+      "init_cloudinit_rpi": "Raspberry Pi OS (cloud-init)",
+      "none_available": "이 이미지는 최초 부팅 사용자 지정을 지원하지 않습니다."
+    },
+    "storage": {
+      "hint": "쓰면 선택한 드라이브가 지워집니다."
+    }
   },
   "drives": {
     "title": "드라이브 선택",
@@ -131,6 +200,10 @@
     "elevation_cancelled": "관리자 권한이 취소되었습니다",
     "elevation_failed": "관리자 권한을 얻을 수 없습니다: {reason}",
     "cancelled": "쓰기가 취소되었습니다",
-    "verify_mismatch": "오프셋 {offset}에서 검증 실패: 씀 {expected}, 읽음 {actual}"
+    "verify_mismatch": "오프셋 {offset}에서 검증 실패: 씀 {expected}, 읽음 {actual}",
+    "catalog": "Raspberry Pi 목록을 불러올 수 없습니다: {error}",
+    "download": "다운로드 실패: {error}",
+    "checksum": "다운로드한 이미지의 체크섬이 일치하지 않습니다",
+    "boot_config": "최초 부팅 구성을 적용할 수 없습니다: {error}"
   }
 }

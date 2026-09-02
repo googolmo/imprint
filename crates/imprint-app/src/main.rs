@@ -4,7 +4,7 @@ use gpui::{
   App, AppContext as _, Bounds, QuitMode, WindowBackgroundAppearance, WindowBounds, px, size,
 };
 use gpui_component::{Root, TitleBar};
-use imprint_ui::{ImprintApp, ImprintShell, OpenImage, Quit, ToggleSettings};
+use imprint_ui::{ImprintApp, ImprintShell, OpenImage, OpenRaspberryPi, Quit, ToggleSettings};
 use tracing_subscriber::EnvFilter;
 
 fn main() {
@@ -27,6 +27,8 @@ fn main() {
       cx.bind_keys([
         gpui::KeyBinding::new("cmd-o", OpenImage, None),
         gpui::KeyBinding::new("ctrl-o", OpenImage, None),
+        gpui::KeyBinding::new("cmd-shift-r", OpenRaspberryPi, None),
+        gpui::KeyBinding::new("ctrl-shift-r", OpenRaspberryPi, None),
         gpui::KeyBinding::new("cmd-,", ToggleSettings, None),
         gpui::KeyBinding::new("ctrl-,", ToggleSettings, None),
         gpui::KeyBinding::new("cmd-q", Quit, None),

@@ -1,0 +1,18 @@
+[package]
+name = "imprint-rpi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Raspberry Pi OS catalog, image download, and first-boot config"
+
+[dependencies]
+imprint-core = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+sha2 = { workspace = true }
+ureq = { workspace = true }
+sha-crypt = { workspace = true }
+dirs = { workspace = true }

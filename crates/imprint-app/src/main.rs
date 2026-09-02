@@ -3,8 +3,11 @@ mod icon;
 use gpui::{
   App, AppContext as _, Bounds, QuitMode, WindowBackgroundAppearance, WindowBounds, px, size,
 };
+use gpui_component::input::{Copy, Cut, Paste, Redo, SelectAll, Undo};
 use gpui_component::{Root, TitleBar};
-use imprint_ui::{ImprintApp, ImprintShell, OpenImage, OpenRaspberryPi, Quit, ToggleSettings};
+use imprint_ui::{
+  ImprintApp, ImprintShell, OpenImage, OpenRaspberryPi, Quit, RefreshDrives, ToggleSettings,
+};
 use tracing_subscriber::EnvFilter;
 
 fn main() {
@@ -29,6 +32,20 @@ fn main() {
         gpui::KeyBinding::new("ctrl-o", OpenImage, None),
         gpui::KeyBinding::new("cmd-shift-r", OpenRaspberryPi, None),
         gpui::KeyBinding::new("ctrl-shift-r", OpenRaspberryPi, None),
+        gpui::KeyBinding::new("cmd-r", RefreshDrives, None),
+        gpui::KeyBinding::new("ctrl-r", RefreshDrives, None),
+        gpui::KeyBinding::new("cmd-z", Undo, None),
+        gpui::KeyBinding::new("ctrl-z", Undo, None),
+        gpui::KeyBinding::new("cmd-shift-z", Redo, None),
+        gpui::KeyBinding::new("ctrl-shift-z", Redo, None),
+        gpui::KeyBinding::new("cmd-x", Cut, None),
+        gpui::KeyBinding::new("ctrl-x", Cut, None),
+        gpui::KeyBinding::new("cmd-c", Copy, None),
+        gpui::KeyBinding::new("ctrl-c", Copy, None),
+        gpui::KeyBinding::new("cmd-v", Paste, None),
+        gpui::KeyBinding::new("ctrl-v", Paste, None),
+        gpui::KeyBinding::new("cmd-a", SelectAll, None),
+        gpui::KeyBinding::new("ctrl-a", SelectAll, None),
         gpui::KeyBinding::new("cmd-,", ToggleSettings, None),
         gpui::KeyBinding::new("ctrl-,", ToggleSettings, None),
         gpui::KeyBinding::new("cmd-q", Quit, None),

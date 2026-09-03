@@ -1,7 +1,9 @@
 use std::path::Path;
 use std::process::Command;
 
-use imprint_core::{Error, Result, TargetDisk};
+#[cfg(target_os = "macos")]
+use imprint_core::Error;
+use imprint_core::{Result, TargetDisk};
 
 /// Unmount every filesystem on `disk` so the raw device can be opened.
 pub fn unmount(disk: &TargetDisk) -> Result<()> {

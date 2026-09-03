@@ -4,16 +4,20 @@ use imprint_core::TargetDisk;
 
 /// Paths that must never be flashed (root volume, ESP, recovery).
 pub fn system_roots() -> Vec<PathBuf> {
-  let roots = vec![PathBuf::from("/")];
+  #[cfg(not(windows))]
+  {
+    vec![PathBuf::from("/")]
+  }
   #[cfg(windows)]
   {
+    let mut roots = vec![PathBuf::from("/")];
     if let Ok(win) = std::env::var("SystemDrive") {
       roots.push(PathBuf::from(win));
     } else {
       roots.push(PathBuf::from("C:\\"));
     }
+    roots
   }
-  roots
 }
 
 pub fn is_system_disk(disk: &TargetDisk) -> bool {

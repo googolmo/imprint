@@ -1,0 +1,50 @@
+Imprint
+Copyright 2026 Imprint Contributors
+
+This product includes software developed by Imprint Contributors.
+Imprint source in this repository is licensed under the Apache License,
+Version 2.0. See LICENSE.
+
+Source vs binaries
+==================
+
+CLI (`imprint-cli`) does not depend on GPUI. Distributing that binary is
+covered by Apache-2.0 plus the licenses of its crates.io dependencies
+(MIT, Apache-2.0, BSD, ISC, Unicode-3.0, MPL-2.0 at file level, and
+similar permissive terms).
+
+The desktop app (`imprint`, crate `imprint-app`) statically links GPUI
+from the official Zed git tree. The `gpui` crate is Apache-2.0, but the
+default dependency graph currently includes these crates from the same
+tree, licensed GPL-3.0-or-later:
+
+  ztracing
+  zlog
+  ztracing_macro
+
+  https://github.com/zed-industries/zed
+
+Until those crates are removed from GPUI's default graph (see
+https://github.com/zed-industries/zed/issues/55470), distributing the
+desktop binary is a combined work that must also comply with GPL-3.0.
+
+Third-party notices
+===================
+
+This product includes GPUI, the GPU UI framework from Zed.
+
+  GPUI
+  Copyright Zed Industries, Inc.
+  https://github.com/zed-industries/zed
+  License: Apache-2.0 (`gpui` and related GPUI crates as marked)
+
+This product includes GPUI Component.
+
+  gpui-component
+  Copyright Longbridge
+  https://github.com/longbridge/gpui-component
+  License: Apache-2.0
+
+Other crates pulled in by Cargo are listed in Cargo.lock, under MIT,
+Apache-2.0, BSD, ISC, Unicode-3.0, MPL-2.0, CC0-1.0, Zlib, 0BSD, and
+similar terms as declared by each crate.

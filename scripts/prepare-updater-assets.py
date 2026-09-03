@@ -45,12 +45,17 @@ def packager_version() -> str:
     raise SystemExit("could not read version from Packager.toml")
 
 
+SUPPORTED_ARCHES = ("aarch64", "x86_64")
+
+
 def normalize_arch(machine: str) -> str:
     if machine in {"arm64", "aarch64"}:
         return "aarch64"
     if machine in {"x86_64", "amd64", "AMD64"}:
         return "x86_64"
-    return machine
+    raise SystemExit(
+        f"unsupported arch {machine!r}; imprint packages aarch64 and x86_64 only (no 32-bit x86)"
+    )
 
 
 def repo_from_text(text: str) -> str | None:
@@ -157,7 +162,6 @@ def first_match(pattern: str) -> Path | None:
 WINDOWS_PACKAGER_ARCH = {
     "x86_64": "x64",
     "aarch64": "arm64",
-    "x86": "x86",
 }
 
 
@@ -257,7 +261,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--arch",
         help="CPU architecture written into latest-<os>-<arch>.json "
-        "(aarch64 or x86_64). Default: this machine.",
+        "(aarch64 or x86_64; 32-bit x86 is not supported). Default: this machine.",
     )
     return parser.parse_args(argv)
 

@@ -55,8 +55,12 @@ normalize_arch() {
   case "$1" in
     x86_64 | amd64) printf 'x86_64\n' ;;
     aarch64 | arm64) printf 'aarch64\n' ;;
+    x86 | i386 | i686)
+      printf 'unsupported arch: %s (32-bit x86 is not packaged)\n' "$1" >&2
+      exit 1
+      ;;
     *)
-      printf 'unsupported arch: %s\n' "$1" >&2
+      printf 'unsupported arch: %s (only aarch64 and x86_64)\n' "$1" >&2
       exit 1
       ;;
   esac

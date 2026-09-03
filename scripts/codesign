@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# Drop-in codesign: sign other Mach-O files in Contents/MacOS before the main
+# executable. cargo-packager only orders by path depth, so imprint and
+# imprint-cli (same folder) can be signed in the wrong order:
+#   imprint: code object is not signed at all
+#   In subcomponent: .../Contents/MacOS/imprint-cli
+#
+# bash 3.2 (macOS /bin/bash). Invoked as `codesign` from PATH.
+
+set -euo pipefail
+
+real=/usr/bin/codesign
+if [[ ! -x "$real" ]]; then
+  printf 'codesign wrapper: %s not found\n' "$real" >&2
+  exit 127
+fi
+
+orig_args=("$@")
+
+target=""
+if [[ $# -gt 0 ]]; then
+  eval "target=\${$#}"
+fi
+
+sign_macos_sidecars_first() {
+  local main="$1"
+  local dir base sidecar a
+  local -a sidecar_args
+  dir="$(dirname "$main")"
+  base="$(basename "$main")"
+  case "$dir" in
+    */Contents/MacOS) ;;
+    *) return 0 ;;
+  esac
+  case "$base" in
+    *.app) return 0 ;;
+  esac
+
+  for sidecar in "$dir"/*; do
+    [[ -f "$sidecar" ]] || continue
+    [[ -x "$sidecar" ]] || continue
+    [[ "$(basename "$sidecar")" == "$base" ]] && continue
+    if "$real" --verify "$sidecar" >/dev/null 2>&1; then
+      continue
+    fi
+    sidecar_args=()
+    for a in "${orig_args[@]}"; do
+      if [[ "$a" == "$main" ]]; then
+        sidecar_args+=("$sidecar")
+      else
+        sidecar_args+=("$a")
+      fi
+    done
+    "$real" "${sidecar_args[@]}"
+  done
+}
+
+if [[ -n "$target" && -e "$target" ]]; then
+  sign_macos_sidecars_first "$target"
+fi
+
+exec "$real" "${orig_args[@]}"

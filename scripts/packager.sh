@@ -146,17 +146,30 @@ CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD="$(read_secret_file "$sign_private_key_
 
 packager_toml="$root/Packager.toml"
 packager_backup=""
-restore_packager_toml() {
+codesign_wrap=""
+cleanup_packager() {
   if [[ -n "$packager_backup" && -f "$packager_backup" ]]; then
     mv "$packager_backup" "$packager_toml"
     packager_backup=""
   fi
+  if [[ -n "$codesign_wrap" && -d "$codesign_wrap" ]]; then
+    rm -rf "$codesign_wrap"
+    codesign_wrap=""
+  fi
 }
-trap restore_packager_toml EXIT
+trap cleanup_packager EXIT
 
 packager_backup="$(mktemp)"
 cp "$packager_toml" "$packager_backup"
 python3 "$root/scripts/inject-packager-signing.py" "$packager_toml"
+
+# cargo-packager signs Contents/MacOS binaries by path depth only, so a
+# sidecar (imprint-cli) can be signed after the main exe. Prepend our
+# codesign wrapper (same as CI).
+codesign_wrap="$(mktemp -d "${TMPDIR:-/tmp}/imprint-codesign.XXXXXX")"
+cp "$root/scripts/codesign" "$codesign_wrap/codesign"
+chmod +x "$codesign_wrap/codesign"
+export PATH="$codesign_wrap:$PATH"
 
 # Packager.toml lives at the workspace root (name = "imprint").
 # cargo-packager --packages matches that name, not a crate path, so we

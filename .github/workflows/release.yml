@@ -379,6 +379,20 @@ jobs:
         shell: bash
         run: python3 scripts/inject-packager-signing.py
 
+      # cargo-packager signs MacOS/* by path depth only; imprint-cli is a
+      # sibling of the main exe and must be signed first. Prepend a codesign
+      # wrapper that does that (scripts/codesign).
+      - name: Wrap codesign for nested MacOS binaries
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          wrap="${RUNNER_TEMP}/imprint-codesign"
+          mkdir -p "$wrap"
+          cp scripts/codesign "$wrap/codesign"
+          chmod +x "$wrap/codesign"
+          echo "$wrap" >> "$GITHUB_PATH"
+
       - name: Import Windows code-signing certificate
         if: runner.os == 'Windows'
         shell: pwsh

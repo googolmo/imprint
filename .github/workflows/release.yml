@@ -82,9 +82,10 @@
 #       Raw .p8 body. This workflow writes AuthKey_<id>.p8 and sets
 #       APPLE_API_KEY_PATH for cargo-packager / notarytool.
 #
-# Windows Authenticode (WiX MSI)
-#   cargo-packager signs via Packager.toml [windows].certificate-thumbprint
-#   after this workflow imports the PFX into the runner cert store.
+# Windows Authenticode (WiX MSI / NSIS)
+#   Import the PFX, locate signtool.exe (scripts/locate-signtool.ps1), then
+#   write Packager.toml [windows] (thumbprint + sign-command). cargo-packager's
+#   built-in SignTool lookup misses ARM and some SDK 10.0.26100 layouts.
 #   WINDOWS_CERTIFICATE
 #       Base64 of the Authenticode .pfx / .p12
 #   WINDOWS_CERTIFICATE_PASSWORD
@@ -396,6 +397,11 @@ jobs:
             exit 0
           }
           echo "WINDOWS_CERTIFICATE_THUMBPRINT=$thumb" >> $env:GITHUB_ENV
+
+      - name: Locate SignTool
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/locate-signtool.ps1
 
       - name: Inject Windows Authenticode config
         if: runner.os == 'Windows'

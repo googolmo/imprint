@@ -8,6 +8,9 @@ Windows:
   WINDOWS_CERTIFICATE_THUMBPRINT -> [windows].certificate-thumbprint
   WINDOWS_TIMESTAMP_URL          -> [windows].timestamp-url
                                     (default http://timestamp.digicert.com)
+  SIGNTOOL_PATH                  -> [windows].sign-command
+                                    (cargo-packager's built-in lookup fails on
+                                    ARM and some SDK 10.0.26100 layouts)
 """
 
 from __future__ import annotations
@@ -46,7 +49,7 @@ def inject_macos(text: str) -> str:
 
 
 def inject_windows(text: str) -> str:
-    thumb = os.environ.get("WINDOWS_CERTIFICATE_THUMBPRINT", "").strip()
+    thumb = os.environ.get("WINDOWS_CERTIFICATE_THUMBPRINT", "").strip().replace(" ", "")
     if not thumb:
         return text
     ts = (
@@ -57,7 +60,25 @@ def inject_windows(text: str) -> str:
         'digest-algorithm = "sha256"\n'
         f"certificate-thumbprint = {toml_string(thumb)}\n"
         f"timestamp-url = {toml_string(ts)}\n"
+        "tsp = true\n"
     )
+    # cargo-packager splits sign-command on spaces, so the binary path must
+    # not contain any. CI copies signtool to RUNNER_TEMP (see locate-signtool.ps1).
+    sign_bin = os.environ.get("SIGNTOOL_PATH", "").strip().replace("\\", "/")
+    if sign_bin:
+        if " " in sign_bin:
+            print(
+                f"SIGNTOOL_PATH contains a space ({sign_bin}); "
+                "cargo-packager cannot parse it — unsigned MSI",
+                file=sys.stderr,
+            )
+        else:
+            # /tr+/td = RFC 3161; %1 is the file cargo-packager substitutes.
+            cmd = (
+                f"{sign_bin} sign /fd sha256 /sha1 {thumb} "
+                f"/tr {ts} /td sha256 %1"
+            )
+            body += f"sign-command = {toml_string(cmd)}\n"
     updated = append_table(text, "windows", body)
     if updated != text:
         print("wrote [windows] Authenticode config")

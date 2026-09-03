@@ -136,9 +136,19 @@ case "$arch" in
     ;;
 esac
 
-work="$(mktemp -d "${TMPDIR:-/tmp}/imprint-arch.XXXXXX")"
+# Bind-mount under the repo so Docker Desktop always shares it (`/tmp` can be
+# a separate VM dir). mktemp -d is 0700; if the container leaves it owned by
+# another uid the host cannot list, copy, or delete it.
+mkdir -p "$root/dist"
+work="$(mktemp -d "$root/dist/.arch-pkg.XXXXXX")"
 cleanup() {
-  rm -rf "$work"
+  if [[ ! -e "$work" ]]; then
+    return 0
+  fi
+  rm -rf "$work" 2>/dev/null && return 0
+  docker run --rm --user 0 --volume "$work:/pkg" "$image" \
+    bash -lc 'chmod -R a+rwX /pkg' 2>/dev/null || true
+  rm -rf "$work" 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -169,9 +179,13 @@ EOF
 printf 'building Arch package in %s (%s)\n' "$image" "$arch"
 
 docker pull "$image"
+# makepkg refuses root. Use the host uid so the bind mount stays readable
+# after the container exits, then chown back in case useradd could not match.
 docker run --rm \
   --volume "$work:/pkg" \
   --workdir /pkg \
+  --env HOST_UID="$(id -u)" \
+  --env HOST_GID="$(id -g)" \
   "$image" \
   bash -lc '
 set -euo pipefail
@@ -184,13 +198,27 @@ if ! command -v makepkg >/dev/null 2>&1; then
   pacman -Sy --noconfirm --needed base-devel
 fi
 if [[ "$(id -u)" -eq 0 ]]; then
-  if ! id builder >/dev/null 2>&1; then
-    useradd -m -U builder
+  if [[ "${HOST_UID}" -ne 0 ]]; then
+    if ! getent group "${HOST_GID}" >/dev/null 2>&1; then
+      groupadd --gid "${HOST_GID}" builder
+    fi
+    if ! getent passwd "${HOST_UID}" >/dev/null 2>&1; then
+      useradd --create-home --uid "${HOST_UID}" --gid "${HOST_GID}" \
+        --shell /bin/bash builder
+    fi
+    run_as="$(getent passwd "${HOST_UID}" | cut -d: -f1)"
+  else
+    if ! id builder >/dev/null 2>&1; then
+      useradd --create-home --user-group --shell /bin/bash builder
+    fi
+    run_as=builder
   fi
-  chown -R builder:builder /pkg
-  su -s /bin/bash builder -c "cd /pkg && makepkg -f --nodeps --noconfirm"
+  chown -R "${run_as}" /pkg
+  su -s /bin/bash "${run_as}" -c \
+    "cd /pkg && PKGDEST=/pkg makepkg -f --nodeps --noconfirm"
+  chown -R "${HOST_UID}:${HOST_GID}" /pkg
 else
-  makepkg -f --nodeps --noconfirm
+  PKGDEST=/pkg makepkg -f --nodeps --noconfirm
 fi
 '
 

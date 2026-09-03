@@ -4,6 +4,17 @@
 Requires a packaged dist/ from `cargo packager --release`.
 Sign with CARGO_PACKAGER_SIGN_PRIVATE_KEY (and optional password).
 
+cargo-packager-updater looks up platforms.{os}-{arch} where os is linux|macos|windows
+and arch is the rustc target_arch (x86_64 or aarch64). The `format` field must be
+one of app / appimage / nsis / wix — that is the file the running app downloads.
+
+  macos-aarch64 / macos-x86_64   → Imprint_<arch>.app.tar.gz     format=app
+  linux-aarch64 / linux-x86_64   → imprint_<ver>_<arch>.AppImage format=appimage
+  windows-x86_64                 → imprint_<ver>_x64_*.msi       format=wix
+  windows-aarch64                → imprint_<ver>_arm64-setup.exe format=nsis
+
+Deb / pacman installs are not in-app-updatable (updater only replaces AppImage).
+
 Usage:
   scripts/prepare-updater-assets.py [version] [notes]
   scripts/prepare-updater-assets.py --arch aarch64 [version] [notes]
@@ -136,8 +147,18 @@ def tar_macos_app(app: Path, dest: Path) -> None:
 
 
 def first_match(pattern: str) -> Path | None:
-    matches = sorted(DIST.glob(pattern))
+    matches = sorted(
+        path for path in DIST.glob(pattern) if path.is_file() and path.suffix != ".sig"
+    )
     return matches[0] if matches else None
+
+
+# cargo-packager Windows filenames use x64/arm64, not rustc's x86_64/aarch64.
+WINDOWS_PACKAGER_ARCH = {
+    "x86_64": "x64",
+    "aarch64": "arm64",
+    "x86": "x86",
+}
 
 
 def prepare_macos(
@@ -163,7 +184,11 @@ def prepare_macos(
 def prepare_linux(
     arch: str, version: str, notes: str, pub_date: str, github_base: str
 ) -> None:
-    asset = first_match("*.AppImage")
+    asset = (
+        first_match(f"imprint_{version}_{arch}.AppImage")
+        or first_match(f"*_{arch}.AppImage")
+        or first_match("*.AppImage")
+    )
     if asset is None:
         raise SystemExit(f"missing AppImage in {DIST}; run cargo packager --release first")
     sign(asset)
@@ -181,9 +206,22 @@ def prepare_linux(
 def prepare_windows(
     arch: str, version: str, notes: str, pub_date: str, github_base: str
 ) -> None:
-    msi = first_match("*.msi")
-    nsis = first_match("*setup.exe") or first_match("*.exe")
-    if msi is not None:
+    win_arch = WINDOWS_PACKAGER_ARCH.get(arch, arch)
+    msi = (
+        first_match(f"*_{win_arch}_*.msi")
+        or first_match(f"*_{win_arch}.msi")
+        or first_match("*.msi")
+    )
+    nsis = first_match(f"*_{win_arch}-setup.exe") or first_match("*-setup.exe")
+    # Prefer the installer that matches this job: WiX on x86_64, NSIS on arm64.
+    if arch == "aarch64":
+        if nsis is not None:
+            asset, fmt = nsis, "nsis"
+        elif msi is not None:
+            asset, fmt = msi, "wix"
+        else:
+            raise SystemExit(f"missing NSIS/WiX installer in {DIST}")
+    elif msi is not None:
         asset, fmt = msi, "wix"
     elif nsis is not None:
         asset, fmt = nsis, "nsis"

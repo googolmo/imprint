@@ -1,9 +1,11 @@
 //! Write an image stream to one or more block devices, then optionally verify.
 
+mod aligned;
 #[cfg(target_os = "macos")]
 mod authopen;
 mod boot;
 mod elevate;
+mod expand;
 mod helper;
 mod privilege;
 mod raw;

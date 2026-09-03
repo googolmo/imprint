@@ -325,6 +325,7 @@ impl ImprintApp {
       verify: self.settings.verify,
       unmount: self.settings.unmount_on_success,
       boot,
+      expand: self.settings.expand_to_fill,
     };
     self.flashing = true;
     self.error = None;

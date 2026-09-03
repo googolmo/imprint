@@ -37,6 +37,9 @@ enum Command {
     /// Skip eject after success
     #[arg(long)]
     no_eject: bool,
+    /// Keep the image partition layout (do not fill unused space)
+    #[arg(long)]
+    no_expand: bool,
     /// Really write (required)
     #[arg(long)]
     yes: bool,
@@ -80,6 +83,7 @@ fn main() -> anyhow::Result<()> {
       device,
       no_verify,
       no_eject,
+      no_expand,
       yes,
     } => {
       if !yes {
@@ -107,6 +111,7 @@ fn main() -> anyhow::Result<()> {
         verify: !no_verify,
         unmount: !no_eject,
         boot: None,
+        expand: !no_expand,
       };
       validate_request(&request)?;
 

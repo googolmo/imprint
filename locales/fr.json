@@ -55,6 +55,8 @@
     "validating": "Vérification des octets écrits",
     "checked": "{bytes} vérifiés",
     "syncing": "Synchronisation",
+    "expanding": "Agrandissement de la partition à la taille du disque",
+    "boot_config": "Application de la configuration de premier démarrage",
     "complete": "Écriture terminée",
     "cancel": "Annuler",
     "back": "Retour",
@@ -164,6 +166,8 @@
     "writing": "Écriture",
     "verify": "Valider l'écriture",
     "verify_hint": "Relire le disque et comparer chaque octet.",
+    "expand": "Utiliser l'espace libre",
+    "expand_hint": "Agrandit la dernière partition à la taille du disque. Le système de fichiers s'étend généralement au premier démarrage.",
     "eject": "Éjecter en cas de succès",
     "eject_hint": "Démonter le lecteur une fois l'écriture terminée.",
     "hide_system": "Masquer les disques système",
@@ -216,6 +220,7 @@
     "catalog": "Impossible de charger le catalogue Raspberry Pi : {error}",
     "download": "Le téléchargement a échoué : {error}",
     "checksum": "L'image téléchargée n'a pas passé la vérification de la somme de contrôle",
-    "boot_config": "Impossible d'appliquer la configuration de premier démarrage : {error}"
+    "boot_config": "Impossible d'appliquer la configuration de premier démarrage : {error}",
+    "expand": "Impossible d'agrandir la partition : {error}"
   }
 }

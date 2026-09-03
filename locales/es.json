@@ -55,6 +55,8 @@
     "validating": "Comprobando los bytes escritos",
     "checked": "{bytes} comprobados",
     "syncing": "Sincronizando",
+    "expanding": "Ampliando la partición al tamaño del disco",
+    "boot_config": "Aplicando la configuración del primer arranque",
     "complete": "Escritura completada",
     "cancel": "Cancelar",
     "back": "Atrás",
@@ -164,6 +166,8 @@
     "writing": "Escritura",
     "verify": "Validar la escritura",
     "verify_hint": "Vuelve a leer el disco y compara cada byte.",
+    "expand": "Usar el espacio libre",
+    "expand_hint": "Amplía la última partición al tamaño del disco. El sistema de archivos suele expandirse en el primer arranque.",
     "eject": "Expulsar al completar",
     "eject_hint": "Desmonta la unidad cuando termina la escritura.",
     "hide_system": "Ocultar unidades del sistema",
@@ -216,6 +220,7 @@
     "catalog": "No se pudo cargar el catálogo de Raspberry Pi: {error}",
     "download": "La descarga falló: {error}",
     "checksum": "La imagen descargada no superó la verificación de la suma de comprobación",
-    "boot_config": "No se pudo aplicar la configuración del primer arranque: {error}"
+    "boot_config": "No se pudo aplicar la configuración del primer arranque: {error}",
+    "expand": "No se pudo ampliar la partición: {error}"
   }
 }

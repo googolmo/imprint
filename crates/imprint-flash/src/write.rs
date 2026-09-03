@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
 use imprint_core::{
-  Error, FlashPhase, FlashProgress, FlashRequest, Result, TargetDisk, format_bytes,
+  Error, FlashPhase, FlashProgress, FlashRequest, ImageKind, Result, TargetDisk, format_bytes,
 };
 use imprint_device::{eject, unmount};
 use imprint_image::open_payload;
@@ -115,6 +115,31 @@ pub(crate) fn flash_in_process(
       dest.flush()?;
       crate::raw::sync_device(&mut dest)?;
     }
+
+    if request.expand && request.image.kind != ImageKind::Iso {
+      emit(
+        &mut on_progress,
+        FlashPhase::Finishing,
+        written,
+        written.max(1),
+        0,
+        disk,
+        "Expanding partition to fill the drive".into(),
+      );
+      let device_bytes = device_len(&mut dest, disk.size);
+      dest.seek(SeekFrom::Start(0))?;
+      let sector = crate::raw::sector_size(&dest);
+      let added = crate::expand::apply_on(&mut dest, device_bytes, sector)?;
+      if added > 0 {
+        info!(
+          "expanded last partition on {} by {}",
+          disk.path.display(),
+          format_bytes(added)
+        );
+      }
+      dest.flush()?;
+      crate::raw::sync_device(&dest)?;
+    }
     drop(dest);
 
     if request.unmount {
@@ -217,6 +242,15 @@ fn write_payload(
     }
   }
   Ok(written)
+}
+
+fn device_len(dest: &mut File, fallback: u64) -> u64 {
+  dest
+    .seek(SeekFrom::End(0))
+    .ok()
+    .filter(|&n| n > 0)
+    .unwrap_or(0)
+    .max(fallback)
 }
 
 fn open_device(path: &std::path::Path) -> Result<File> {

@@ -395,6 +395,7 @@ mod tests {
       verify: true,
       unmount: true,
       boot: None,
+      expand: true,
     };
     session.write_request(&request).unwrap();
     let loaded = session.read_request().unwrap();

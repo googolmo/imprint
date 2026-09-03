@@ -55,6 +55,8 @@
     "validating": "正在驗證寫入的資料",
     "checked": "已驗證 {bytes}",
     "syncing": "正在同步",
+    "expanding": "正在擴充分割區以占滿磁碟",
+    "boot_config": "正在套用首次開機設定",
     "complete": "寫入完成",
     "cancel": "取消",
     "back": "返回",
@@ -164,6 +166,8 @@
     "writing": "寫入",
     "verify": "驗證寫入",
     "verify_hint": "回讀磁碟並逐位元組比對。",
+    "expand": "填滿剩餘空間",
+    "expand_hint": "將最後一個分割區擴大到占滿整張卡。系統通常會在首次開機時擴充檔案系統。",
     "eject": "完成後退出",
     "eject_hint": "寫入結束後卸載磁碟。",
     "hide_system": "隱藏系統磁碟",
@@ -216,6 +220,7 @@
     "catalog": "無法載入 Raspberry Pi 目錄：{error}",
     "download": "下載失敗：{error}",
     "checksum": "下載的映像檔校驗和不符",
-    "boot_config": "無法套用首次開機設定：{error}"
+    "boot_config": "無法套用首次開機設定：{error}",
+    "expand": "無法擴充分割區：{error}"
   }
 }

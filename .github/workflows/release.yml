@@ -466,6 +466,7 @@ jobs:
           # (same imprint_<ver>_amd64.deb name). Insert the distro tag.
           if [[ -n "${DEB_TAG:-}" ]]; then
             for f in dist/*.deb; do
+              [[ -f "$f" ]] || continue
               name="$(basename "$f" .deb)"
               arch="${name##*_}"
               prefix="${name%_*}"
@@ -477,20 +478,29 @@ jobs:
               echo "renamed $(basename "$f") -> $(basename "$dest")"
             done
           fi
-          files=(
-            dist/*.dmg
-            dist/*.msi
-            dist/*.exe
-            dist/*.deb
-            dist/*.AppImage
-            dist/*.tar.gz
-            dist/*.pkg.tar.zst
-            dist/*.pkg.tar.xz
-            dist/*.sig
+          # gh release upload glob-expands each arg and errors on zero matches
+          # (`no matches found for dist/PKGBUILD`). Only pass real files.
+          files=()
+          for f in \
+            dist/*.dmg \
+            dist/*.msi \
+            dist/*.exe \
+            dist/*.deb \
+            dist/*.AppImage \
+            dist/*.tar.gz \
+            dist/*.pkg.tar.zst \
+            dist/*.pkg.tar.xz \
+            dist/*.sig \
+            dist/PKGBUILD \
             dist/PKGBUILD.*
-          )
+          do
+            if [[ -f "$f" ]]; then
+              files+=("$f")
+            fi
+          done
           if [[ ${#files[@]} -eq 0 ]]; then
             echo "no package files in dist/" >&2
+            ls -la dist/ >&2 || true
             exit 1
           fi
           gh release upload "$TAG" "${files[@]}" --clobber

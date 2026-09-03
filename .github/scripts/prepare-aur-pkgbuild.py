@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """Write an Arch Linux AUR PKGBUILD (imprint-bin) for both x86_64 and aarch64.
 
-Expects cargo-packager pacman archives in dist/:
-  imprint_<version>_x86_64.tar.gz
-  imprint_<version>_aarch64.tar.gz
+Expects pacman usr/ tarballs in dist/ (after .github/scripts/tag-release-assets.py):
+  imprint_<version>_archlinux_x86_64.tar.gz
+  imprint_<version>_archlinux_arm64.tar.gz
+
+PKGBUILD `arch=` / `source_aarch64=` keep Arch's aarch64 name.
 
 `--upload TAG` also uploads PKGBUILD and .SRCINFO to that GitHub Release.
 
 Usage:
-  scripts/prepare-aur-pkgbuild.py
-  scripts/prepare-aur-pkgbuild.py --version 0.1.1 --upload v0.1.1
+  .github/scripts/prepare-aur-pkgbuild.py
+  .github/scripts/prepare-aur-pkgbuild.py --version 0.1.1 --upload v0.1.1
 """
 
 from __future__ import annotations
@@ -22,7 +24,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 DIST = ROOT / "dist"
 GITHUB_REMOTE = re.compile(r"github\.com[:/](?P<repo>[^/]+/[^/.]+)(?:\.git)?$")
 
@@ -94,19 +96,48 @@ def sha512_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def file_cpu(arch: str) -> str:
+    if arch in {"aarch64", "arm64"}:
+        return "arm64"
+    return arch
+
+
+def archive_candidates(version: str, arch: str) -> tuple[str, ...]:
+    cpu = file_cpu(arch)
+    names = [
+        f"imprint_{version}_archlinux_{cpu}.tar.gz",
+        f"imprint_{version}_{cpu}.tar.gz",
+        f"imprint_{version}_archlinux_{arch}.tar.gz",
+        f"imprint_{version}_{arch}.tar.gz",
+    ]
+    seen: list[str] = []
+    for name in names:
+        if name not in seen:
+            seen.append(name)
+    return tuple(seen)
+
+
 def archive_name(version: str, arch: str) -> str:
-    return f"imprint_{version}_{arch}.tar.gz"
+    return archive_candidates(version, arch)[0]
+
+
+def find_archive(version: str, arch: str) -> Path | None:
+    for name in archive_candidates(version, arch):
+        path = DIST / name
+        if path.is_file():
+            return path
+    return None
 
 
 def require_archives(version: str) -> dict[str, Path]:
     found: dict[str, Path] = {}
     missing: list[str] = []
     for arch in ARCHES:
-        path = DIST / archive_name(version, arch)
-        if path.is_file():
+        path = find_archive(version, arch)
+        if path is not None:
             found[arch] = path
         else:
-            missing.append(path.name)
+            missing.append(archive_name(version, arch))
     if missing:
         raise SystemExit(
             "missing pacman archives in dist/: " + ", ".join(missing)

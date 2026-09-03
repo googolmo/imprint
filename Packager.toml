@@ -20,21 +20,25 @@ icons = [
   "assets/icon/AppIcon.ico",
   "assets/icon/AppIcon.png",
 ]
-# Release packaging: `.github/workflows/release.yml` (native runners, both arches).
-#   macOS   aarch64 / x86_64  → .app + .dmg
-#   Windows x86_64            → .msi (WiX)
-#   Windows aarch64           → NSIS .exe
-#   Linux   aarch64 / x86_64  → .deb (Ubuntu 22.04 / Debian 12) + AppImage
-#                               + Arch .pkg.tar.zst (Docker makepkg)
-#   Linux   Ubuntu 24.04      → extra .deb per arch (imprint_*_ubuntu24.04_*.deb)
-#   AUR: `scripts/prepare-aur-pkgbuild.py` uploads imprint-bin PKGBUILD + .SRCINFO
+# Release packaging: `.github/workflows/release.yml` (native runners, both CPUs).
+# Assets are renamed to imprint_{version}_{system}_{cpu}.* (cpu = x86_64|arm64):
+#   macOS   arm64 / x86_64    → imprint_*_macos_{cpu}.dmg (+ .app.tar.gz updater)
+#   Windows x86_64            → imprint_*_windows_x86_64.msi (WiX)
+#   Windows arm64             → imprint_*_windows_arm64-setup.exe (NSIS)
+#   Linux   arm64 / x86_64    → imprint_*_ubuntu22.04_{cpu}.deb
+#                               + imprint_*_ubuntu22.04_{cpu}.AppImage
+#                               + imprint_*_archlinux_{cpu}.pkg.tar.zst (Docker makepkg)
+#   Linux   Ubuntu 24.04      → extra .deb per CPU (imprint_*_ubuntu24.04_{cpu}.deb)
+#   AUR: `.github/scripts/prepare-aur-pkgbuild.py` uploads imprint-bin PKGBUILD + .SRCINFO
 #        (cargo-packager's per-arch PKGBUILD is not a release asset)
-# Updater manifest: `scripts/update-latest-json.py --upload <tag>` merges into the release.
+#   Homebrew: `.github/scripts/prepare-homebrew-cask.py` writes Casks/imprint.rb
+#             (tap: brew tap googolmo/imprint https://github.com/googolmo/imprint)
+# Updater manifest: `.github/scripts/update-latest-json.py --upload <tag>` merges into the release.
 # Env vars used at build/package time (full list is in that workflow's header):
 #   CARGO_PACKAGER_UPDATER_PUBKEY / CARGO_PACKAGER_UPDATER_ENDPOINT (comma-separated URLs ok)
 #   CARGO_PACKAGER_SIGN_PRIVATE_KEY / CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD
 #   APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD / APPLE_SIGNING_IDENTITY
-#   (CI prepends scripts/codesign so imprint-cli is signed before imprint)
+#   (CI prepends .github/scripts/codesign so imprint-cli is signed before imprint)
 #   APPLE_API_KEY / APPLE_API_ISSUER / APPLE_API_KEY_CONTENT
 #   WINDOWS_CERTIFICATE / WINDOWS_CERTIFICATE_PASSWORD
 #   WINDOWS_CERTIFICATE_THUMBPRINT / WINDOWS_TIMESTAMP_URL
@@ -42,7 +46,7 @@ icons = [
 formats = ["app", "dmg", "wix", "nsis", "deb", "appimage", "pacman"]
 
 # Depends work on Ubuntu 22.04+ and Debian 12+ (`libasound2t64` is Ubuntu 24.04).
-# Release.yml also uploads a Ubuntu 24.04-built .deb (newer glibc) per arch.
+# Release.yml also uploads a Ubuntu 24.04-built .deb (newer glibc) per CPU.
 [deb]
 package-name = "imprint"
 section = "utils"

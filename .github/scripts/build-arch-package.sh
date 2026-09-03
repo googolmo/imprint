@@ -7,14 +7,14 @@
 # image on aarch64 — the official image is amd64-only).
 #
 # Usage:
-#   scripts/build-arch-package.sh [--version 0.1.1] [--arch x86_64|aarch64]
+#   .github/scripts/build-arch-package.sh [--version 0.1.1] [--arch x86_64|aarch64]
 #
 # Expects dist/imprint_<version>_<arch>.tar.gz from `cargo packager --formats pacman`.
 # Writes dist/imprint-<version>-1-<arch>.pkg.tar.zst
 
 set -euo pipefail
 
-root="$(cd "$(dirname "$0")/.." && pwd)"
+root="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$root"
 
 version=""

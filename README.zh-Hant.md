@@ -54,6 +54,23 @@ imprint-cli flash ubuntu.iso --device /dev/rdisk4 --yes
 
 裝置路徑：macOS 為 `/dev/rdiskN`，Linux 為 `/dev/sdX` 或 `/dev/nvmeXn1`，Windows 為 `\\.\PhysicalDriveN`。
 
+## 安裝
+
+### macOS（Homebrew）
+
+```bash
+brew tap googolmo/imprint https://github.com/googolmo/imprint
+brew install --cask imprint
+```
+
+會將 **Imprint** 安裝到 `/Applications`，並把 `imprint-cli` 放到 `PATH` 中。必須加上此倉庫 URL，因為 cask 放在本倉庫，不在 `homebrew/cask`。
+
+也可以從 [GitHub Releases](https://github.com/googolmo/imprint/releases) 下載 `.dmg`。
+
+### Linux 與 Windows
+
+套件版本附於 [GitHub Releases](https://github.com/googolmo/imprint/releases)：Windows x86-64（`.msi`）與 arm64（NSIS）；Linux x86-64 與 arm64（Ubuntu 22.04/Debian 與 Ubuntu 24.04 的 `.deb`、AppImage、Arch `.pkg.tar.zst`、以及 AUR `PKGBUILD`）。
+
 ## 快速開始（從原始碼）
 
 ```bash
@@ -83,8 +100,6 @@ sudo apt-get install -y --no-install-recommends \
   libvulkan-dev \
   libgl1-mesa-dev
 ```
-
-套件版本附於 [GitHub Releases](https://github.com/googolmo/imprint/releases)：macOS arm64 與 x86-64（`.dmg`）、Windows x86-64（`.msi`）與 arm64（NSIS）、Linux x86-64 與 arm64（Ubuntu 22.04/Debian 與 Ubuntu 24.04 的 `.deb`、AppImage、Arch `.pkg.tar.zst`、以及 AUR `PKGBUILD`）。
 
 ## 權限
 

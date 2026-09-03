@@ -33,6 +33,18 @@ env:
   RUST_BACKTRACE: "1"
 
 jobs:
+  packaging-scripts:
+    name: packaging scripts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Self-test
+        run: |
+          python3 .github/scripts/tag-release-assets.py --self-test
+          python3 .github/scripts/prepare-homebrew-cask.py --self-test
+
   fmt:
     name: rustfmt
     runs-on: ubuntu-latest

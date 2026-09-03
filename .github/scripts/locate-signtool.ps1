@@ -6,7 +6,7 @@
 # then uses this copy (CI sets SIGNTOOL_PATH).
 #
 # Usage (GitHub Actions pwsh):
-#   scripts/locate-signtool.ps1
+#   .github/scripts/locate-signtool.ps1
 #
 # Requires WINDOWS_CERTIFICATE or WINDOWS_CERTIFICATE_THUMBPRINT; otherwise
 # exits 0 (unsigned MSI). Writes SIGNTOOL_PATH to GITHUB_ENV and the copy

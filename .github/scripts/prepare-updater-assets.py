@@ -8,16 +8,16 @@ cargo-packager-updater looks up platforms.{os}-{arch} where os is linux|macos|wi
 and arch is the rustc target_arch (x86_64 or aarch64). The `format` field must be
 one of app / appimage / nsis / wix — that is the file the running app downloads.
 
-  macos-aarch64 / macos-x86_64   → Imprint_<arch>.app.tar.gz     format=app
-  linux-aarch64 / linux-x86_64   → imprint_<ver>_<arch>.AppImage format=appimage
-  windows-x86_64                 → imprint_<ver>_x64_*.msi       format=wix
-  windows-aarch64                → imprint_<ver>_arm64-setup.exe format=nsis
+  macos-aarch64 / macos-x86_64   → imprint_<ver>_macos_{x86_64|arm64}.app.tar.gz  format=app
+  linux-aarch64 / linux-x86_64   → imprint_<ver>_ubuntu22.04_{x86_64|arm64}.AppImage format=appimage
+  windows-x86_64                 → imprint_<ver>_windows_x86_64.msi       format=wix
+  windows-aarch64                → imprint_<ver>_windows_arm64-setup.exe format=nsis
 
 Deb / pacman installs are not in-app-updatable (updater only replaces AppImage).
 
 Usage:
-  scripts/prepare-updater-assets.py [version] [notes]
-  scripts/prepare-updater-assets.py --arch aarch64 [version] [notes]
+  .github/scripts/prepare-updater-assets.py [version] [notes]
+  .github/scripts/prepare-updater-assets.py --arch aarch64 [version] [notes]
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ import tarfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 DIST = ROOT / "dist"
 GITHUB_REMOTE = re.compile(r"github\.com[:/](?P<repo>[^/]+/[^/.]+)(?:\.git)?$")
 
@@ -164,6 +164,13 @@ WINDOWS_PACKAGER_ARCH = {
     "aarch64": "arm64",
 }
 
+# Release asset CPU tag (.github/scripts/tag-release-assets.py). latest.json keys stay
+# rustc's aarch64 so cargo-packager-updater can look them up.
+FILE_CPU = {
+    "x86_64": "x86_64",
+    "aarch64": "arm64",
+}
+
 
 def prepare_macos(
     arch: str, version: str, notes: str, pub_date: str, github_base: str
@@ -171,7 +178,8 @@ def prepare_macos(
     app = DIST / "Imprint.app"
     if not app.is_dir():
         raise SystemExit(f"missing {app}; run cargo packager --release first")
-    asset = DIST / f"Imprint_{arch}.app.tar.gz"
+    cpu = FILE_CPU.get(arch, arch)
+    asset = DIST / f"imprint_{version}_macos_{cpu}.app.tar.gz"
     tar_macos_app(app, asset)
     sign(asset)
     write_fragment(
@@ -188,8 +196,13 @@ def prepare_macos(
 def prepare_linux(
     arch: str, version: str, notes: str, pub_date: str, github_base: str
 ) -> None:
+    cpu = FILE_CPU.get(arch, arch)
     asset = (
-        first_match(f"imprint_{version}_{arch}.AppImage")
+        first_match(f"imprint_{version}_*_{cpu}.AppImage")
+        or first_match(f"imprint_{version}_{cpu}.AppImage")
+        or first_match(f"imprint_{version}_*_{arch}.AppImage")
+        or first_match(f"imprint_{version}_{arch}.AppImage")
+        or first_match(f"*_{cpu}.AppImage")
         or first_match(f"*_{arch}.AppImage")
         or first_match("*.AppImage")
     )
@@ -211,12 +224,20 @@ def prepare_windows(
     arch: str, version: str, notes: str, pub_date: str, github_base: str
 ) -> None:
     win_arch = WINDOWS_PACKAGER_ARCH.get(arch, arch)
+    cpu = FILE_CPU.get(arch, arch)
     msi = (
-        first_match(f"*_{win_arch}_*.msi")
+        first_match(f"imprint_{version}_windows_{cpu}.msi")
+        or first_match(f"imprint_{version}_windows_{arch}.msi")
+        or first_match(f"*_{win_arch}_*.msi")
         or first_match(f"*_{win_arch}.msi")
         or first_match("*.msi")
     )
-    nsis = first_match(f"*_{win_arch}-setup.exe") or first_match("*-setup.exe")
+    nsis = (
+        first_match(f"imprint_{version}_windows_{cpu}-setup.exe")
+        or first_match(f"imprint_{version}_windows_{arch}-setup.exe")
+        or first_match(f"*_{win_arch}-setup.exe")
+        or first_match("*-setup.exe")
+    )
     # Prefer the installer that matches this job: WiX on x86_64, NSIS on arm64.
     if arch == "aarch64":
         if nsis is not None:

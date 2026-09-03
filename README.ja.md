@@ -54,6 +54,23 @@ imprint-cli flash ubuntu.iso --device /dev/rdisk4 --yes
 
 デバイスパス：macOS は `/dev/rdiskN`、Linux は `/dev/sdX` または `/dev/nvmeXn1`、Windows は `\\.\PhysicalDriveN`。
 
+## インストール
+
+### macOS（Homebrew）
+
+```bash
+brew tap googolmo/imprint https://github.com/googolmo/imprint
+brew install --cask imprint
+```
+
+**Imprint** は `/Applications` に入り、`imprint-cli` が `PATH` に追加されます。cask はこのリポジトリ内にあるため、`homebrew/cask` ではなく URL 付きで tap してください。
+
+[GitHub Releases](https://github.com/googolmo/imprint/releases) から `.dmg` を入手することもできます。
+
+### Linux と Windows
+
+パッケージ版は [GitHub Releases](https://github.com/googolmo/imprint/releases) にあります。Windows x86-64（`.msi`）と arm64（NSIS）、Linux x86-64 と arm64（Ubuntu 22.04/Debian と Ubuntu 24.04 向け `.deb`、AppImage、Arch の `.pkg.tar.zst`、AUR の `PKGBUILD`）。
+
 ## クイックスタート（ソースから）
 
 ```bash
@@ -83,8 +100,6 @@ sudo apt-get install -y --no-install-recommends \
   libvulkan-dev \
   libgl1-mesa-dev
 ```
-
-パッケージ版は [GitHub Releases](https://github.com/googolmo/imprint/releases) にあります。macOS arm64 と x86-64（`.dmg`）、Windows x86-64（`.msi`）と arm64（NSIS）、Linux x86-64 と arm64（Ubuntu 22.04/Debian と Ubuntu 24.04 向け `.deb`、AppImage、Arch の `.pkg.tar.zst`、AUR の `PKGBUILD`）。
 
 ## 権限
 

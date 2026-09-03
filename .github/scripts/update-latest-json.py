@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Merge cargo-packager-updater fragments and optionally upload latest.json.
 
-Fragments are written by scripts/prepare-updater-assets.py as
+Fragments are written by .github/scripts/prepare-updater-assets.py as
   dist/latest-<platform>.json
 
 `--upload TAG` downloads that release's latest.json, merges the fragments
 into it, then uploads. Merge happens only at upload time.
 
 Examples:
-  scripts/update-latest-json.py --upload v0.1.0
-  scripts/update-latest-json.py -o dist/latest.json dist/latest-macos-aarch64.json
+  .github/scripts/update-latest-json.py --upload v0.1.0
+  .github/scripts/update-latest-json.py -o dist/latest.json dist/latest-macos-aarch64.json
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUTPUT = ROOT / "dist" / "latest.json"
 GITHUB_REMOTE = re.compile(r"github\.com[:/](?P<repo>[^/]+/[^/.]+)(?:\.git)?$")
 

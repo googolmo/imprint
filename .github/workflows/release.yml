@@ -5,11 +5,14 @@
 #      via ${{ github.token }}; do not substitute a personal PAT).
 #   2. Build/pack per OS+arch on native runners with cargo-binstall + cargo-packager.
 #   3. Each pack job uploads binaries, then merges that platform into latest.json
-#      and uploads it (scripts/update-latest-json.py --upload).
+#      and uploads it (.github/scripts/update-latest-json.py --upload).
 #   4. Linux pacman jobs wrap the cargo-packager usr/ tarball with makepkg
-#      inside Arch Docker (scripts/build-arch-package.sh) → .pkg.tar.zst.
+#      inside Arch Docker (.github/scripts/build-arch-package.sh) → .pkg.tar.zst.
 #   5. After every pack job succeeds, emit a combined Arch Linux AUR PKGBUILD
 #      (imprint-bin, x86_64 + aarch64) from the pacman tarballs.
+#   6. After every pack job succeeds, emit a Homebrew cask (Casks/imprint.rb)
+#      from the macOS .dmg files and upload imprint.rb. Tag pushes also commit
+#      the cask to the default branch so `brew tap googolmo/imprint` stays current.
 #
 # Triggers:
 #   - push of a tag matching v* (e.g. v0.1.0) — version must match Packager.toml
@@ -22,15 +25,21 @@
 #   Windows aarch64  windows-11-arm    → NSIS .exe (WiX 3 is unreliable on ARM)
 #   Linux   x86_64   ubuntu-22.04      → .deb + AppImage + Arch .pkg.tar.zst (Docker makepkg)
 #   Linux   aarch64  ubuntu-22.04-arm  → .deb + AppImage + Arch .pkg.tar.zst (Docker makepkg)
-#   Linux   x86_64   ubuntu-24.04      → .deb tagged ubuntu24.04 (glibc 2.39)
-#   Linux   aarch64  ubuntu-24.04-arm  → .deb tagged ubuntu24.04 (glibc 2.39)
+#   Linux   x86_64   ubuntu-24.04      → .deb (glibc 2.39)
+#   Linux   aarch64  ubuntu-24.04-arm  → .deb (glibc 2.39)
+#
+# Every uploaded binary is renamed by .github/scripts/tag-release-assets.py to
+#   imprint_{version}_{system}_{cpu}{suffix}
+# with cpu = x86_64 | arm64. system is ubuntu22.04 / ubuntu24.04 (.deb and
+# AppImage), macos, windows, or archlinux.
 #
 # Linux/Windows arm64 hosted runners are free on public repos. Private repos
 # need GitHub's arm64 larger runners (or the jobs will fail to schedule).
 #
-# Ubuntu 22.04 .deb (amd64/arm64) is the Debian-format package for Ubuntu 22.04+
-# and Debian 12+ (glibc 2.35). Ubuntu 24.04 jobs upload a second .deb per arch
-# named imprint_<ver>_ubuntu24.04_<arch>.deb (will not run on 22.04 / bookworm).
+# Ubuntu 22.04 .deb is the Debian-format package for Ubuntu 22.04+ and Debian 12+
+# (glibc 2.35): imprint_<ver>_ubuntu22.04_<cpu>.deb. Ubuntu 24.04 jobs upload a
+# second .deb per CPU named imprint_<ver>_ubuntu24.04_<cpu>.deb (newer glibc;
+# will not run on 22.04 / bookworm).
 #
 # ---------------------------------------------------------------------------
 # Secrets / env (set on the repo; empty = skip that signing layer)
@@ -54,7 +63,7 @@
 #   CARGO_PACKAGER_SIGN_PRIVATE_KEY
 #       Base64 minisign secret. Also read by the CLI as `-k` /
 #       env CARGO_PACKAGER_SIGN_PRIVATE_KEY. Used by
-#       `cargo packager` and scripts/prepare-updater-assets.py.
+#       `cargo packager` and .github/scripts/prepare-updater-assets.py.
 #   CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD
 #       Password for that key. Use empty string for an unencrypted key
 #       (CI must set it so cargo-packager does not prompt).
@@ -83,7 +92,7 @@
 #       APPLE_API_KEY_PATH for cargo-packager / notarytool.
 #
 # Windows Authenticode (WiX MSI / NSIS)
-#   Import the PFX, locate signtool.exe (scripts/locate-signtool.ps1), then
+#   Import the PFX, locate signtool.exe (.github/scripts/locate-signtool.ps1), then
 #   write Packager.toml [windows] (thumbprint + sign-command). cargo-packager's
 #   built-in SignTool lookup misses ARM and some SDK 10.0.26100 layouts.
 #   WINDOWS_CERTIFICATE
@@ -219,11 +228,13 @@ jobs:
             formats: deb,appimage,pacman
             arch: x86_64
             triple: x86_64-unknown-linux-gnu
+            deb_tag: ubuntu22.04
           - name: linux-aarch64
             os: ubuntu-22.04-arm
             formats: deb,appimage,pacman
             arch: aarch64
             triple: aarch64-unknown-linux-gnu
+            deb_tag: ubuntu22.04
           - name: linux-ubuntu24-x86_64
             os: ubuntu-24.04
             formats: deb
@@ -377,11 +388,11 @@ jobs:
       - name: Inject macOS signing identity
         if: runner.os == 'macOS'
         shell: bash
-        run: python3 scripts/inject-packager-signing.py
+        run: python3 .github/scripts/inject-packager-signing.py
 
       # cargo-packager signs MacOS/* by path depth only; imprint-cli is a
       # sibling of the main exe and must be signed first. Prepend a codesign
-      # wrapper that does that (scripts/codesign).
+      # wrapper that does that (.github/scripts/codesign).
       - name: Wrap codesign for nested MacOS binaries
         if: runner.os == 'macOS'
         shell: bash
@@ -389,7 +400,7 @@ jobs:
           set -euo pipefail
           wrap="${RUNNER_TEMP}/imprint-codesign"
           mkdir -p "$wrap"
-          cp scripts/codesign "$wrap/codesign"
+          cp .github/scripts/codesign "$wrap/codesign"
           chmod +x "$wrap/codesign"
           echo "$wrap" >> "$GITHUB_PATH"
 
@@ -415,12 +426,12 @@ jobs:
       - name: Locate SignTool
         if: runner.os == 'Windows'
         shell: pwsh
-        run: ./scripts/locate-signtool.ps1
+        run: ./.github/scripts/locate-signtool.ps1
 
       - name: Inject Windows Authenticode config
         if: runner.os == 'Windows'
         shell: bash
-        run: python3 scripts/inject-packager-signing.py
+        run: python3 .github/scripts/inject-packager-signing.py
 
       - name: cargo packager
         shell: bash
@@ -458,14 +469,32 @@ jobs:
         if: ${{ contains(matrix.formats, 'pacman') }}
         env:
           VERSION: ${{ needs.version.outputs.version }}
-        run: scripts/build-arch-package.sh --version "$VERSION" --arch "${{ matrix.arch }}"
+        run: .github/scripts/build-arch-package.sh --version "$VERSION" --arch "${{ matrix.arch }}"
+
+      # cargo-packager names mix amd64/arm64/x64; Ubuntu 22.04 and 24.04 .debs
+      # would collide. Stamp every asset imprint_{ver}_{system}_{cpu}.*
+      - name: Tag artifacts with OS and CPU
+        shell: bash
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+          DEB_TAG: ${{ matrix.deb_tag }}
+        run: |
+          set -euo pipefail
+          extra=()
+          if [[ -n "${DEB_TAG:-}" ]]; then
+            extra+=(--deb-tag "$DEB_TAG")
+          fi
+          python3 .github/scripts/tag-release-assets.py \
+            --version "$VERSION" \
+            --arch "${{ matrix.arch }}" \
+            "${extra[@]}"
 
       - name: Updater payload + latest.json fragment
         if: ${{ !matrix.skip_updater }}
         shell: bash
         run: |
           set -euo pipefail
-          python3 scripts/prepare-updater-assets.py \
+          python3 .github/scripts/prepare-updater-assets.py \
             --arch "${{ matrix.arch }}" \
             "${{ needs.version.outputs.version }}"
 
@@ -473,26 +502,9 @@ jobs:
         shell: bash
         env:
           TAG: ${{ needs.version.outputs.tag }}
-          DEB_TAG: ${{ matrix.deb_tag }}
         run: |
           set -euo pipefail
           shopt -s nullglob
-          # Ubuntu 24.04 .deb would otherwise overwrite the 22.04/Debian file
-          # (same imprint_<ver>_amd64.deb name). Insert the distro tag.
-          if [[ -n "${DEB_TAG:-}" ]]; then
-            for f in dist/*.deb; do
-              [[ -f "$f" ]] || continue
-              name="$(basename "$f" .deb)"
-              arch="${name##*_}"
-              prefix="${name%_*}"
-              dest="dist/${prefix}_${DEB_TAG}_${arch}.deb"
-              if [[ -f "${f}.sig" ]]; then
-                mv "${f}.sig" "${dest}.sig"
-              fi
-              mv "$f" "$dest"
-              echo "renamed $(basename "$f") -> $(basename "$dest")"
-            done
-          fi
           # gh release upload glob-expands each arg and errors on zero matches.
           # Only pass real files. Skip cargo-packager's per-arch PKGBUILD
           # (local source= filename, not AUR-ready). The aur job uploads
@@ -530,7 +542,7 @@ jobs:
         env:
           TAG: ${{ needs.version.outputs.tag }}
           VERSION: ${{ needs.version.outputs.version }}
-        run: python3 scripts/update-latest-json.py --version "$VERSION" --upload "$TAG"
+        run: python3 .github/scripts/update-latest-json.py --version "$VERSION" --upload "$TAG"
 
   aur:
     name: AUR PKGBUILD
@@ -547,11 +559,67 @@ jobs:
           set -euo pipefail
           mkdir -p dist
           gh release download "$TAG" --dir dist \
-            --pattern 'imprint_*_x86_64.tar.gz' \
-            --pattern 'imprint_*_aarch64.tar.gz'
+            --pattern 'imprint_*_archlinux_x86_64.tar.gz' \
+            --pattern 'imprint_*_archlinux_arm64.tar.gz'
 
       - name: Generate imprint-bin PKGBUILD
         env:
           TAG: ${{ needs.version.outputs.tag }}
           VERSION: ${{ needs.version.outputs.version }}
-        run: python3 scripts/prepare-aur-pkgbuild.py --version "$VERSION" --upload "$TAG"
+        run: python3 .github/scripts/prepare-aur-pkgbuild.py --version "$VERSION" --upload "$TAG"
+
+  homebrew:
+    name: Homebrew cask
+    needs: [version, package]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download macOS disk images
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          # Canonical names (tag-release-assets.py) plus cargo-packager fallbacks.
+          for pattern in \
+            'imprint_*_macos_arm64.dmg' \
+            'imprint_*_macos_x86_64.dmg' \
+            'Imprint_*_aarch64.dmg' \
+            'Imprint_*_x64.dmg'
+          do
+            gh release download "$TAG" --dir dist --pattern "$pattern" || true
+          done
+
+      - name: Generate Homebrew cask
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: python3 .github/scripts/prepare-homebrew-cask.py --version "$VERSION" --upload "$TAG"
+
+      - name: Commit cask to default branch
+        if: github.event_name == 'push' && github.ref_type == 'tag'
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+          BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          cask="Casks/imprint.rb"
+          test -f "$cask"
+          generated="${RUNNER_TEMP}/imprint.rb"
+          cp "$cask" "$generated"
+          git fetch origin "$BRANCH"
+          git checkout -B "$BRANCH" "origin/$BRANCH"
+          mkdir -p Casks
+          cp "$generated" "$cask"
+          if [[ -n "$(git status --porcelain -- "$cask")" ]]; then
+            git add "$cask"
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "homebrew: imprint ${VERSION}"
+            git push origin "$BRANCH"
+            echo "committed ${cask} to ${BRANCH}"
+          else
+            echo "cask already up to date on ${BRANCH}"
+          fi

@@ -8,7 +8,7 @@
 //!   `https://github.com/<owner>/<repo>/releases/latest/download/latest.json`
 //!
 //! The private key is a secret (`CARGO_PACKAGER_SIGN_PRIVATE_KEY`) used only
-//! when packaging. See `scripts/prepare-updater-assets.py`.
+//! when packaging. See `.github/scripts/prepare-updater-assets.py`.
 
 use std::env;
 use std::path::PathBuf;

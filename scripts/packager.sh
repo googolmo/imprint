@@ -161,13 +161,13 @@ trap cleanup_packager EXIT
 
 packager_backup="$(mktemp)"
 cp "$packager_toml" "$packager_backup"
-python3 "$root/scripts/inject-packager-signing.py" "$packager_toml"
+python3 "$root/.github/scripts/inject-packager-signing.py" "$packager_toml"
 
 # cargo-packager signs Contents/MacOS binaries by path depth only, so a
 # sidecar (imprint-cli) can be signed after the main exe. Prepend our
 # codesign wrapper (same as CI).
 codesign_wrap="$(mktemp -d "${TMPDIR:-/tmp}/imprint-codesign.XXXXXX")"
-cp "$root/scripts/codesign" "$codesign_wrap/codesign"
+cp "$root/.github/scripts/codesign" "$codesign_wrap/codesign"
 chmod +x "$codesign_wrap/codesign"
 export PATH="$codesign_wrap:$PATH"
 

@@ -54,6 +54,23 @@ imprint-cli flash ubuntu.iso --device /dev/rdisk4 --yes
 
 Device paths: macOS `/dev/rdiskN`, Linux `/dev/sdX` or `/dev/nvmeXn1`, Windows `\\.\PhysicalDriveN`.
 
+## Install
+
+### macOS (Homebrew)
+
+```bash
+brew tap googolmo/imprint https://github.com/googolmo/imprint
+brew install --cask imprint
+```
+
+This installs **Imprint** in `/Applications` and puts `imprint-cli` on your `PATH`. The tap URL is required because the cask lives in this repository, not `homebrew/cask`.
+
+Or download the `.dmg` from [GitHub Releases](https://github.com/googolmo/imprint/releases).
+
+### Linux and Windows
+
+Packaged builds are attached to [GitHub Releases](https://github.com/googolmo/imprint/releases): Windows x86-64 (`.msi`) and arm64 (NSIS); Linux x86-64 and arm64 (`.deb` for Ubuntu 22.04/Debian and Ubuntu 24.04, AppImage, Arch `.pkg.tar.zst`, and an AUR `PKGBUILD`).
+
 ## Quick start (from source)
 
 ```bash
@@ -83,8 +100,6 @@ sudo apt-get install -y --no-install-recommends \
   libvulkan-dev \
   libgl1-mesa-dev
 ```
-
-Packaged builds are attached to [GitHub Releases](https://github.com/googolmo/imprint/releases): macOS arm64 and x86-64 (`.dmg`), Windows x86-64 (`.msi`) and arm64 (NSIS), Linux x86-64 and arm64 (`.deb` for Ubuntu 22.04/Debian and Ubuntu 24.04, AppImage, Arch `.pkg.tar.zst`, and an AUR `PKGBUILD`).
 
 ## Privileges
 

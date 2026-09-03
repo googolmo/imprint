@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Tag the current version and/or bump Packager.toml / Cargo.toml.
 
-Release CI (`.github/workflows/release.yml`) runs on a push of `v*`. The
-tag must match Packager.toml (`v0.1.0` ↔ `version = "0.1.0"`), so the
-default path tags HEAD as it is, then writes the next version into the tree.
+The git tag is always `v` plus Packager.toml `version` (must match
+Cargo.toml `[workspace.package]`). Release CI runs on a push of `v*`.
 
 Usage:
-  scripts/tag-release.py 0.1.1              # tag v<current>, push, bump files
+  scripts/tag-release.py                    # tag v<Packager.toml>, push
+  scripts/tag-release.py 0.1.1              # tag v<current>, push, then bump files
   scripts/tag-release.py 0.1.1 --no-tag     # bump Packager.toml + Cargo.toml only
-  scripts/tag-release.py 0.1.1 --dry-run
-  scripts/tag-release.py 0.1.1 --skip-push
+  scripts/tag-release.py --dry-run
+  scripts/tag-release.py --skip-push
 """
 
 from __future__ import annotations
@@ -198,12 +198,15 @@ def write_versions(version: str) -> None:
         die("version write did not stick; files were not updated correctly")
 
 
-def print_write_plan(current: str, new_version: str, tag: str | None) -> None:
-    print(f"current version: {current}")
+def print_plan(current: str, new_version: str | None, tag: str | None) -> None:
+    print(f"Packager.toml:   {current}")
     if tag is None:
         print("git tag:         (skipped)")
     else:
-        print(f"git tag:         {tag} (HEAD)")
+        print(f"git tag:         {tag} (HEAD, from Packager.toml)")
+    if new_version is None:
+        print("new version:     (unchanged)")
+        return
     print(f"new version:     {new_version}")
     print(f"write:           {PACKAGER.relative_to(ROOT)}")
     print(f"write:           {CARGO.relative_to(ROOT)}")
@@ -221,15 +224,19 @@ def print_commit_hint(new_version: str) -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Create and push git tag v<Packager.toml version>, then set "
-            "<new-version> in Packager.toml and Cargo.toml. "
-            "Use --no-tag to only update those files."
+            "Create and push git tag v<version> read from Packager.toml. "
+            "Pass NEW_VERSION to also bump Packager.toml and Cargo.toml. "
+            "Use --no-tag to only bump those files."
         )
     )
     parser.add_argument(
         "new_version",
+        nargs="?",
         metavar="NEW_VERSION",
-        help="Version to write into Packager.toml and Cargo.toml (e.g. 0.1.1).",
+        help=(
+            "Optional next version to write into Packager.toml and Cargo.toml "
+            "(e.g. 0.1.1). Omit to tag the current Packager.toml version only."
+        ),
     )
     parser.add_argument(
         "--dry-run",
@@ -250,11 +257,20 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def parse_new_version(raw: str | None) -> str | None:
+    if raw is None:
+        return None
+    version = raw.removeprefix("v")
+    if not SEMVER.match(version):
+        die(f"not a semver version: {raw}")
+    return version
+
+
 def main() -> None:
     args = parse_args()
-    new_version = args.new_version.removeprefix("v")
-    if not SEMVER.match(new_version):
-        die(f"not a semver version: {args.new_version}")
+    new_version = parse_new_version(args.new_version)
+    if args.no_tag and new_version is None:
+        die("--no-tag requires NEW_VERSION")
 
     current = packager_version()
     cargo_current = cargo_workspace_version()
@@ -263,7 +279,9 @@ def main() -> None:
             f"version mismatch: Packager.toml={current} "
             f"Cargo.toml [workspace.package]={cargo_current}"
         )
-    if new_version == current and new_version == cargo_current:
+    if not SEMVER.match(current):
+        die(f"Packager.toml version is not semver: {current}")
+    if new_version is not None and new_version == current and new_version == cargo_current:
         die(f"new version {new_version} is the same as the current version")
 
     tag = None if args.no_tag else f"v{current}"
@@ -278,7 +296,7 @@ def main() -> None:
         require_clean_tree()
         require_tag_absent(tag)
 
-    print_write_plan(current, new_version, tag)
+    print_plan(current, new_version, tag)
 
     if args.dry_run:
         print("dry-run: no tag, push, or file writes")
@@ -293,8 +311,9 @@ def main() -> None:
             git("push", "origin", f"refs/tags/{tag}", capture=False)
             print(f"pushed {tag} to origin")
 
-    write_versions(new_version)
-    print_commit_hint(new_version)
+    if new_version is not None:
+        write_versions(new_version)
+        print_commit_hint(new_version)
 
 
 if __name__ == "__main__":

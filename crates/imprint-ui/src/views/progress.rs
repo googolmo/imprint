@@ -206,7 +206,15 @@ fn localized_progress_message(app: &ImprintApp) -> String {
     FlashPhase::Preparing => tr("progress.unmounting", &[("disk", &progress.target_label)]),
     FlashPhase::Writing => t("progress.phase.writing"),
     FlashPhase::Verifying => t("progress.validating"),
-    FlashPhase::Finishing => t("progress.syncing"),
+    FlashPhase::Finishing => {
+      if progress.message.starts_with("Expanding") {
+        t("progress.expanding")
+      } else if progress.message.starts_with("Applying") {
+        t("progress.boot_config")
+      } else {
+        t("progress.syncing")
+      }
+    }
     FlashPhase::Done => t("progress.complete"),
     FlashPhase::Failed => progress.message.clone(),
   }

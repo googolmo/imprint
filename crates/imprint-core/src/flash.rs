@@ -11,6 +11,13 @@ pub struct FlashRequest {
   /// Files written to the first FAT partition after the image (Raspberry Pi boot).
   #[serde(default)]
   pub boot: Option<BootCustomization>,
+  /// Grow the last partition so a smaller image fills unused space on the disk.
+  #[serde(default = "default_expand")]
+  pub expand: bool,
+}
+
+fn default_expand() -> bool {
+  true
 }
 
 /// Text files dropped onto the imaged FAT boot partition, plus an optional
@@ -140,5 +147,25 @@ mod tests {
   fn writing_without_a_total_is_indeterminate() {
     assert!(progress(1_200_000_000, 0).is_indeterminate());
     assert!(!progress(100, 200).is_indeterminate());
+  }
+
+  #[test]
+  fn expand_defaults_on_when_missing_from_json() {
+    let request: FlashRequest = serde_json::from_value(serde_json::json!({
+      "image": {
+        "path": "/tmp/os.img",
+        "display_name": "os.img",
+        "kind": "Img",
+        "compression": null,
+        "file_size": 1,
+        "payload_size": 1
+      },
+      "targets": [],
+      "verify": true,
+      "unmount": true
+    }))
+    .unwrap();
+    assert!(request.expand);
+    assert!(request.boot.is_none());
   }
 }

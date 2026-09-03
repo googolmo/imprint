@@ -55,6 +55,9 @@ pub enum Error {
   #[error("could not apply boot configuration: {0}")]
   BootConfig(String),
 
+  #[error("could not expand partition: {0}")]
+  Expand(String),
+
   #[error(transparent)]
   Io(#[from] std::io::Error),
 }
@@ -110,6 +113,7 @@ impl Error {
       Self::Download(reason) => tr("error.download", &[("error", reason)]),
       Self::ChecksumMismatch => t("error.checksum"),
       Self::BootConfig(reason) => tr("error.boot_config", &[("error", reason)]),
+      Self::Expand(reason) => tr("error.expand", &[("error", reason)]),
       Self::Io(err) => err.to_string(),
     }
   }

@@ -55,6 +55,8 @@
     "validating": "Geschriebene Bytes werden geprüft",
     "checked": "{bytes} geprüft",
     "syncing": "Wird synchronisiert",
+    "expanding": "Partition wird auf die Laufwerksgröße erweitert",
+    "boot_config": "Ersteinstellung wird angewendet",
     "complete": "Schreiben abgeschlossen",
     "cancel": "Abbrechen",
     "back": "Zurück",
@@ -164,6 +166,8 @@
     "writing": "Schreiben",
     "verify": "Schreiben prüfen",
     "verify_hint": "Datenträger erneut lesen und jeden Byte vergleichen.",
+    "expand": "Freien Speicher nutzen",
+    "expand_hint": "Letzte Partition auf die Laufwerksgröße erweitern. Das Dateisystem wird meist beim ersten Start vergrößert.",
     "eject": "Bei Erfolg auswerfen",
     "eject_hint": "Laufwerk nach dem Schreiben aushängen.",
     "hide_system": "Systemlaufwerke ausblenden",
@@ -216,6 +220,7 @@
     "catalog": "Raspberry-Pi-Katalog konnte nicht geladen werden: {error}",
     "download": "Download fehlgeschlagen: {error}",
     "checksum": "Prüfsumme des heruntergeladenen Images stimmt nicht",
-    "boot_config": "Ersteinstellung konnte nicht angewendet werden: {error}"
+    "boot_config": "Ersteinstellung konnte nicht angewendet werden: {error}",
+    "expand": "Partition konnte nicht erweitert werden: {error}"
   }
 }

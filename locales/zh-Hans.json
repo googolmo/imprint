@@ -55,6 +55,8 @@
     "validating": "正在校验写入的数据",
     "checked": "已校验 {bytes}",
     "syncing": "正在同步",
+    "expanding": "正在扩展分区以占满磁盘",
+    "boot_config": "正在应用首次启动配置",
     "complete": "写入完成",
     "cancel": "取消",
     "back": "返回",
@@ -164,6 +166,8 @@
     "writing": "写入",
     "verify": "校验写入",
     "verify_hint": "回读磁盘并逐字节比对。",
+    "expand": "填满剩余空间",
+    "expand_hint": "将最后一个分区扩大到占满整张卡。系统一般会在首次启动时扩展文件系统。",
     "eject": "完成后弹出",
     "eject_hint": "写入结束后卸载磁盘。",
     "hide_system": "隐藏系统磁盘",
@@ -216,6 +220,7 @@
     "catalog": "无法加载 Raspberry Pi 目录：{error}",
     "download": "下载失败：{error}",
     "checksum": "下载的镜像校验和不匹配",
-    "boot_config": "无法应用首次启动配置：{error}"
+    "boot_config": "无法应用首次启动配置：{error}",
+    "expand": "无法扩展分区：{error}"
   }
 }

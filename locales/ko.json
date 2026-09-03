@@ -55,6 +55,8 @@
     "validating": "쓴 바이트를 검증하는 중",
     "checked": "{bytes} 확인함",
     "syncing": "동기화 중",
+    "expanding": "파티션을 드라이브 크기까지 확장하는 중",
+    "boot_config": "최초 부팅 구성을 적용하는 중",
     "complete": "쓰기 완료",
     "cancel": "취소",
     "back": "뒤로",
@@ -164,6 +166,8 @@
     "writing": "쓰기",
     "verify": "쓰기 검증",
     "verify_hint": "디스크를 다시 읽어 모든 바이트를 비교합니다.",
+    "expand": "남은 공간 채우기",
+    "expand_hint": "마지막 파티션을 드라이브 크기까지 확장합니다. 파일 시스템은 보통 첫 부팅 때 확장됩니다.",
     "eject": "성공 시 꺼내기",
     "eject_hint": "쓰기가 끝나면 드라이브 마운트를 해제합니다.",
     "hide_system": "시스템 드라이브 숨기기",
@@ -216,6 +220,7 @@
     "catalog": "Raspberry Pi 목록을 불러올 수 없습니다: {error}",
     "download": "다운로드 실패: {error}",
     "checksum": "다운로드한 이미지의 체크섬이 일치하지 않습니다",
-    "boot_config": "최초 부팅 구성을 적용할 수 없습니다: {error}"
+    "boot_config": "최초 부팅 구성을 적용할 수 없습니다: {error}",
+    "expand": "파티션을 확장할 수 없습니다: {error}"
   }
 }

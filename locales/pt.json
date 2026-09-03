@@ -55,6 +55,8 @@
     "validating": "Validando os bytes gravados",
     "checked": "{bytes} verificados",
     "syncing": "Sincronizando",
+    "expanding": "Expandindo a partição para o tamanho do disco",
+    "boot_config": "Aplicando a configuração da primeira inicialização",
     "complete": "Gravação concluída",
     "cancel": "Cancelar",
     "back": "Voltar",
@@ -164,6 +166,8 @@
     "writing": "Gravação",
     "verify": "Validar a gravação",
     "verify_hint": "Lê o disco de novo e compara cada byte.",
+    "expand": "Preencher espaço livre",
+    "expand_hint": "Expande a última partição para o tamanho do disco. O sistema de arquivos costuma crescer na primeira inicialização.",
     "eject": "Ejetar ao concluir",
     "eject_hint": "Desmonta a unidade quando a gravação termina.",
     "hide_system": "Ocultar unidades do sistema",
@@ -216,6 +220,7 @@
     "catalog": "Não foi possível carregar o catálogo do Raspberry Pi: {error}",
     "download": "O download falhou: {error}",
     "checksum": "A imagem baixada não passou na verificação da soma de verificação",
-    "boot_config": "Não foi possível aplicar a configuração da primeira inicialização: {error}"
+    "boot_config": "Não foi possível aplicar a configuração da primeira inicialização: {error}",
+    "expand": "Não foi possível expandir a partição: {error}"
   }
 }

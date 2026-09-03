@@ -80,6 +80,16 @@ pub(crate) fn open(view: Entity<ImprintApp>, window: &mut Window, cx: &mut App) 
                     ))
                     .child(Separator::horizontal())
                     .child(setting_switch(
+                      "expand",
+                      t("settings.expand"),
+                      t("settings.expand_hint"),
+                      app.settings.expand_to_fill,
+                      view.clone(),
+                      |s, on| s.expand_to_fill = on,
+                      cx,
+                    ))
+                    .child(Separator::horizontal())
+                    .child(setting_switch(
                       "unmount",
                       t("settings.eject"),
                       t("settings.eject_hint"),
@@ -119,6 +129,7 @@ fn setting_switch(
   let g = glass(cx);
   gpui_component::h_flex()
     .id(id)
+    .w_full()
     .justify_between()
     .items_start()
     .gap_4()
@@ -127,20 +138,27 @@ fn setting_switch(
     .hover(|s| s.bg(g.fill_hover))
     .child(
       v_flex()
+        .flex_1()
+        .min_w_0()
         .gap_1()
-        .child(div().child(title))
-        .child(muted(cx, hint)),
+        .child(div().w_full().whitespace_normal().child(title))
+        .child(div().w_full().whitespace_normal().child(muted(cx, hint))),
     )
-    .child(Switch::new(id).checked(on).on_click(move |checked, _, cx| {
-      let on = *checked;
-      view.update(cx, |this, cx| {
-        flip(&mut this.settings, on);
-        if id == "hide-system" {
-          this.refresh_disks(cx);
-        }
-        cx.notify();
-      });
-    }))
+    .child(
+      Switch::new(id)
+        .flex_shrink_0()
+        .checked(on)
+        .on_click(move |checked, _, cx| {
+          let on = *checked;
+          view.update(cx, |this, cx| {
+            flip(&mut this.settings, on);
+            if id == "hide-system" {
+              this.refresh_disks(cx);
+            }
+            cx.notify();
+          });
+        }),
+    )
 }
 
 fn locale_dropdown(current: Language, view: Entity<ImprintApp>, cx: &App) -> impl IntoElement {

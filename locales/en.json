@@ -55,6 +55,8 @@
     "validating": "Validating written bytes",
     "checked": "Checked {bytes}",
     "syncing": "Syncing",
+    "expanding": "Expanding partition to fill the drive",
+    "boot_config": "Applying first-boot configuration",
     "complete": "Flash complete",
     "cancel": "Cancel",
     "back": "Back",
@@ -164,6 +166,8 @@
     "writing": "Writing",
     "verify": "Validate write",
     "verify_hint": "Re-read the disk and compare every byte.",
+    "expand": "Fill unused space",
+    "expand_hint": "Grow the last partition to the size of the drive. The OS usually expands the filesystem on first boot.",
     "eject": "Eject on success",
     "eject_hint": "Unmount the drive when writing finishes.",
     "hide_system": "Hide system drives",
@@ -216,6 +220,7 @@
     "catalog": "Could not load Raspberry Pi catalog: {error}",
     "download": "Download failed: {error}",
     "checksum": "Downloaded image failed checksum verification",
-    "boot_config": "Could not apply first-boot configuration: {error}"
+    "boot_config": "Could not apply first-boot configuration: {error}",
+    "expand": "Could not expand partition: {error}"
   }
 }

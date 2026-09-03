@@ -1,7 +1,7 @@
 name = "imprint"
 product-name = "Imprint"
 identifier = "imprint.cdxtheme.com"
-version = "0.1.3"
+version = "0.1.4"
 description = "Flash OS images onto USB drives and SD cards"
 long-description = "Pick an image, pick a removable disk, write, and optionally verify. Native desktop UI plus a CLI."
 homepage = "https://github.com/googolmo/imprint"

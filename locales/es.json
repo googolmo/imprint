@@ -171,7 +171,8 @@
     "eject": "Expulsar al completar",
     "eject_hint": "Desmonta la unidad cuando termina la escritura.",
     "hide_system": "Ocultar unidades del sistema",
-    "hide_system_hint": "Nunca mostrar discos internos."
+    "hide_system_hint": "Nunca mostrar discos internos.",
+    "about": "Acerca de"
   },
   "about": {
     "title": "Acerca de Imprint",

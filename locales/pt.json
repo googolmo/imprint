@@ -171,7 +171,8 @@
     "eject": "Ejetar ao concluir",
     "eject_hint": "Desmonta a unidade quando a gravação termina.",
     "hide_system": "Ocultar unidades do sistema",
-    "hide_system_hint": "Nunca listar discos internos."
+    "hide_system_hint": "Nunca listar discos internos.",
+    "about": "Sobre"
   },
   "about": {
     "title": "Sobre o Imprint",

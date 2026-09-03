@@ -171,7 +171,8 @@
     "eject": "Bei Erfolg auswerfen",
     "eject_hint": "Laufwerk nach dem Schreiben aushängen.",
     "hide_system": "Systemlaufwerke ausblenden",
-    "hide_system_hint": "Interne Datenträger nie auflisten."
+    "hide_system_hint": "Interne Datenträger nie auflisten.",
+    "about": "Info"
   },
   "about": {
     "title": "Über Imprint",

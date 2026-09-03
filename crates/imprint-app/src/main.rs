@@ -1,8 +1,6 @@
 mod icon;
 
-use gpui::{
-  App, AppContext as _, Bounds, QuitMode, WindowBackgroundAppearance, WindowBounds, px, size,
-};
+use gpui::{App, AppContext as _, Bounds, QuitMode, WindowBounds, px, size};
 use gpui_component::input::{Copy, Cut, Paste, Redo, SelectAll, Undo};
 use gpui_component::{Root, TitleBar};
 use imprint_ui::{
@@ -24,7 +22,10 @@ fn main() {
     .with_assets(gpui_component_assets::Assets)
     .run(|cx: &mut App| {
       imprint_ui::init(cx);
-      cx.set_app_identity("imprint.cdxtheme.com", "Imprint");
+      cx.set_app_identity(
+        env!("IMPRINT_APP_IDENTIFIER"),
+        env!("IMPRINT_APP_PRODUCT_NAME"),
+      );
       icon::apply_app_icon();
       cx.on_action(|_: &Quit, cx| cx.quit());
       cx.bind_keys([
@@ -62,12 +63,7 @@ fn main() {
       let mut options = TitleBar::window_options();
       options.window_bounds = Some(WindowBounds::Windowed(bounds));
       options.window_min_size = Some(size(px(720.), px(480.)));
-      options.app_id = Some("imprint.cdxtheme.com".into());
-      options.window_background = if cfg!(target_os = "windows") {
-        WindowBackgroundAppearance::MicaBackdrop
-      } else {
-        WindowBackgroundAppearance::Blurred
-      };
+      options.app_id = Some(env!("IMPRINT_APP_IDENTIFIER").into());
       #[cfg(any(target_os = "linux", target_os = "freebsd"))]
       {
         options.icon = icon::window_icon();

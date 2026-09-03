@@ -28,7 +28,6 @@ use crate::rpi::{AppMode, RpiEvent, RpiState};
 use crate::theme::Appearance;
 use crate::updater;
 use crate::views;
-use crate::widgets::atmosphere;
 
 enum ProgressEvent {
   Update(FlashProgress),
@@ -798,9 +797,8 @@ impl Render for ImprintApp {
       })
       .relative()
       .size_full()
-      .bg(cx.theme().transparent)
+      .bg(cx.theme().background)
       .text_color(cx.theme().foreground)
-      .child(atmosphere(cx))
       .child(views::chrome::header(self, cx))
       .child(
         v_flex()

@@ -12,6 +12,7 @@ path = "src/main.rs"
 
 [package.metadata.bundle]
 name = "Imprint"
+# Keep in sync with Packager.toml; runtime identity is baked from that file.
 identifier = "imprint.cdxtheme.com"
 icon = [
   "../../assets/icon/AppIcon.icns",
@@ -42,6 +43,9 @@ objc2-app-kit = { version = "0.3.2", default-features = false, features = [
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies]
 image = { version = "0.25.1", default-features = false, features = ["png"] }
+
+[build-dependencies]
+imprint-build = { workspace = true }
 
 [target.'cfg(target_os = "windows")'.build-dependencies]
 embed-resource = "3.0"

@@ -6,6 +6,9 @@ license.workspace = true
 rust-version.workspace = true
 description = "GPUI views and theme for Imprint"
 
+[build-dependencies]
+imprint-build = { workspace = true }
+
 [dependencies]
 imprint-core = { workspace = true }
 imprint-image = { workspace = true }

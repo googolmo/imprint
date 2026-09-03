@@ -1,6 +1,6 @@
 use gpui::{
   App, Context, Entity, FontWeight, InteractiveElement, IntoElement, ParentElement,
-  StatefulInteractiveElement, Styled, div, linear_color_stop, linear_gradient, prelude::*, px,
+  StatefulInteractiveElement, Styled, div, prelude::*, px,
 };
 use gpui_component::{
   ActiveTheme as _, Colorize as _, Icon, IconName, Sizable as _, TitleBar,
@@ -18,11 +18,7 @@ use crate::app::{ImprintApp, UpdateStatus};
 pub(crate) fn header(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {
   let view = cx.entity();
   TitleBar::new()
-    .bg(linear_gradient(
-      180.,
-      linear_color_stop(cx.theme().title_bar, 0.),
-      linear_color_stop(cx.theme().title_bar.divide(0.28), 1.),
-    ))
+    .bg(cx.theme().title_bar)
     .border_color(cx.theme().title_bar_border)
     .child(
       h_flex()
@@ -234,11 +230,7 @@ pub(crate) fn status_bar(app: &ImprintApp, cx: &App) -> impl IntoElement {
     .px_4()
     .py_1p5()
     .text_sm()
-    .bg(linear_gradient(
-      180.,
-      linear_color_stop(cx.theme().status_bar.divide(0.55), 0.),
-      linear_color_stop(cx.theme().status_bar, 1.),
-    ))
+    .bg(cx.theme().status_bar)
     .border_color(cx.theme().status_bar_border)
     .left(tr("status.drives", &[("n", &app.disks.len().to_string())]))
     .right(if let Some(err) = app.error.clone() {

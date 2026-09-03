@@ -1,7 +1,7 @@
 use std::sync::{Arc, OnceLock};
 
 use gpui::{
-  App, BoxShadow, Div, FontWeight, Image, ImageFormat, Pixels, Styled, div, hsla, img,
+  App, BoxShadow, Div, FontFeatures, FontWeight, Image, ImageFormat, Pixels, Styled, div, img,
   linear_color_stop, linear_gradient, prelude::*, px,
 };
 use gpui_component::{
@@ -221,84 +221,47 @@ pub fn muted(cx: &App, text: impl Into<String>) -> impl gpui::IntoElement {
     .child(text.into())
 }
 
-pub fn hover_fill(cx: &App) -> gpui::Background {
-  glass_hover_fill(cx)
+/// Wide enough for `1023.9 MiB` at `text_sm`.
+const BYTE_SLOT: Pixels = px(112.);
+
+/// `done / total` with fixed-width slots so the slash does not drift as digits change.
+pub fn bytes_progress(
+  cx: &App,
+  done: impl Into<String>,
+  total: impl Into<String>,
+) -> impl gpui::IntoElement {
+  let tnum = FontFeatures(Arc::new(vec![("tnum".into(), 1)]));
+  h_flex()
+    .w_full()
+    .h(px(20.))
+    .flex_shrink_0()
+    .items_center()
+    .justify_center()
+    .font_features(tnum)
+    .text_sm()
+    .font_weight(FontWeight::MEDIUM)
+    .text_color(cx.theme().muted_foreground)
+    .child(
+      div()
+        .w(BYTE_SLOT)
+        .flex_shrink_0()
+        .flex()
+        .justify_end()
+        .whitespace_nowrap()
+        .child(done.into()),
+    )
+    .child(div().px_1().flex_shrink_0().child("/"))
+    .child(
+      div()
+        .w(BYTE_SLOT)
+        .flex_shrink_0()
+        .flex()
+        .justify_start()
+        .whitespace_nowrap()
+        .child(total.into()),
+    )
 }
 
-pub fn atmosphere(cx: &App) -> impl gpui::IntoElement {
-  let dark = cx.theme().is_dark();
-  let sapphire = cx.theme().primary;
-  let cyan = cx.theme().cyan;
-  let mauve = cx.theme().accent.divide(if dark { 0.16 } else { 0.05 });
-  let sapphire_glow = sapphire.divide(if dark { 0.16 } else { 0.045 });
-  let cyan_glow = cyan.divide(if dark { 0.10 } else { 0.03 });
-  let sheen = hsla(0.0, 0.0, 1.0, if dark { 0.05 } else { 0.38 });
-
-  div()
-    .absolute()
-    .size_full()
-    .overflow_hidden()
-    .child(div().absolute().size_full().bg(linear_gradient(
-      148.,
-      linear_color_stop(sapphire.divide(if dark { 0.12 } else { 0.025 }), 0.),
-      linear_color_stop(mauve, 1.),
-    )))
-    .child(
-      div()
-        .absolute()
-        .top_0()
-        .left_0()
-        .w_full()
-        .h(px(220.))
-        .bg(linear_gradient(
-          180.,
-          linear_color_stop(sheen, 0.),
-          linear_color_stop(hsla(0.0, 0.0, 1.0, 0.0), 1.),
-        )),
-    )
-    .child(
-      div()
-        .absolute()
-        .top(px(-180.))
-        .right(px(-80.))
-        .w(px(420.))
-        .h(px(420.))
-        .rounded_full()
-        .bg(sapphire_glow)
-        .shadow(vec![box_shadow(
-          px(0.),
-          px(0.),
-          px(160.),
-          px(60.),
-          sapphire_glow,
-        )]),
-    )
-    .child(
-      div()
-        .absolute()
-        .bottom(px(-200.))
-        .left(px(-120.))
-        .w(px(380.))
-        .h(px(380.))
-        .rounded_full()
-        .bg(mauve)
-        .shadow(vec![box_shadow(px(0.), px(0.), px(140.), px(48.), mauve)]),
-    )
-    .child(
-      div()
-        .absolute()
-        .top(px(180.))
-        .left(px(-40.))
-        .w(px(180.))
-        .h(px(180.))
-        .rounded_full()
-        .bg(cyan_glow)
-        .shadow(vec![box_shadow(
-          px(0.),
-          px(0.),
-          px(80.),
-          px(20.),
-          cyan_glow,
-        )]),
-    )
+pub fn hover_fill(cx: &App) -> gpui::Background {
+  glass_hover_fill(cx)
 }

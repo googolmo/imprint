@@ -57,7 +57,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, ubuntu-22.04-arm, macos-latest, windows-latest, windows-11-arm]
     steps:
       - uses: actions/checkout@v4
 
@@ -103,12 +103,17 @@ jobs:
       matrix:
         include:
           # Match release.yml so GUI native deps stay in lockstep with packaging.
+          # Intel macOS is release-only (macos-15-intel); CI covers ARM macOS.
           - name: linux
             os: ubuntu-22.04
+          - name: linux-aarch64
+            os: ubuntu-22.04-arm
           - name: macos
             os: macos-latest
           - name: windows
             os: windows-latest
+          - name: windows-aarch64
+            os: windows-11-arm
     env:
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
     steps:

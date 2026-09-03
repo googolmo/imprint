@@ -6,6 +6,7 @@ Sign with CARGO_PACKAGER_SIGN_PRIVATE_KEY (and optional password).
 
 Usage:
   scripts/prepare-updater-assets.py [version] [notes]
+  scripts/prepare-updater-assets.py --arch aarch64 [version] [notes]
 """
 
 from __future__ import annotations
@@ -215,6 +216,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="",
         help="Release notes stored on the fragment",
     )
+    parser.add_argument(
+        "--arch",
+        help="CPU architecture written into latest-<os>-<arch>.json "
+        "(aarch64 or x86_64). Default: this machine.",
+    )
     return parser.parse_args(argv)
 
 
@@ -223,7 +229,7 @@ def main(argv: list[str] | None = None) -> int:
     DIST.mkdir(parents=True, exist_ok=True)
     version = args.version or packager_version()
     notes = args.notes or ""
-    arch = normalize_arch(platform.machine())
+    arch = normalize_arch(args.arch or platform.machine())
     repo = github_repo()
     github_base = f"https://github.com/{repo}/releases/download/v{version}"
     pub_date = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")

@@ -10,7 +10,6 @@ description = "Raspberry Pi OS catalog, image download, and first-boot config"
 imprint-core = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-thiserror = { workspace = true }
 tracing = { workspace = true }
 sha2 = { workspace = true }
 ureq = { workspace = true }

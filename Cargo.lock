@@ -3493,7 +3493,6 @@ dependencies = [
  "flate2",
  "imprint-core",
  "liblzma",
- "thiserror 2.0.20",
  "zip",
  "zstd",
 ]
@@ -3508,7 +3507,6 @@ dependencies = [
  "serde_json",
  "sha-crypt",
  "sha2 0.10.9",
- "thiserror 2.0.20",
  "tracing",
  "ureq",
 ]

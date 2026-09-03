@@ -8,7 +8,6 @@ description = "Inspect and stream OS image files (ISO/IMG and compressed variant
 
 [dependencies]
 imprint-core = { workspace = true }
-thiserror = { workspace = true }
 flate2 = { workspace = true }
 bzip2 = { workspace = true }
 liblzma = { workspace = true }

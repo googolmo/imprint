@@ -171,7 +171,8 @@
     "eject": "Éjecter en cas de succès",
     "eject_hint": "Démonter le lecteur une fois l'écriture terminée.",
     "hide_system": "Masquer les disques système",
-    "hide_system_hint": "Ne jamais lister les disques internes."
+    "hide_system_hint": "Ne jamais lister les disques internes.",
+    "about": "À propos"
   },
   "about": {
     "title": "À propos d'Imprint",

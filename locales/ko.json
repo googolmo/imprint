@@ -171,7 +171,8 @@
     "eject": "성공 시 꺼내기",
     "eject_hint": "쓰기가 끝나면 드라이브 마운트를 해제합니다.",
     "hide_system": "시스템 드라이브 숨기기",
-    "hide_system_hint": "내장 디스크는 목록에 표시하지 않습니다."
+    "hide_system_hint": "내장 디스크는 목록에 표시하지 않습니다.",
+    "about": "정보"
   },
   "about": {
     "title": "Imprint 정보",

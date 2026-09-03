@@ -171,7 +171,8 @@
     "eject": "完成後退出",
     "eject_hint": "寫入結束後卸載磁碟。",
     "hide_system": "隱藏系統磁碟",
-    "hide_system_hint": "不列出內建磁碟。"
+    "hide_system_hint": "不列出內建磁碟。",
+    "about": "關於"
   },
   "about": {
     "title": "關於 Imprint",

@@ -171,7 +171,8 @@
     "eject": "成功後に取り出す",
     "eject_hint": "書き込み完了後にドライブをアンマウントします。",
     "hide_system": "システムドライブを隠す",
-    "hide_system_hint": "内蔵ディスクは一覧に表示しません。"
+    "hide_system_hint": "内蔵ディスクは一覧に表示しません。",
+    "about": "情報"
   },
   "about": {
     "title": "Imprint について",

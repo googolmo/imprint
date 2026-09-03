@@ -171,7 +171,8 @@
     "eject": "Eject on success",
     "eject_hint": "Unmount the drive when writing finishes.",
     "hide_system": "Hide system drives",
-    "hide_system_hint": "Never list internal disks."
+    "hide_system_hint": "Never list internal disks.",
+    "about": "About"
   },
   "about": {
     "title": "About Imprint",

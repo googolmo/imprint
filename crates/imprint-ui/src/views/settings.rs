@@ -1,14 +1,18 @@
-use gpui::{App, Entity, InteractiveElement, IntoElement, ParentElement, Styled, Window, div, px};
+use gpui::{
+  App, ClickEvent, Entity, InteractiveElement, IntoElement, ParentElement,
+  StatefulInteractiveElement, Styled, Window, div, px,
+};
 use gpui_component::{
-  ActiveTheme as _, Colorize as _, IconName, Sizable as _, WindowExt as _,
+  ActiveTheme as _, Colorize as _, Icon, IconName, Sizable as _, WindowExt as _,
   button::{Button, ButtonRounded},
+  h_flex,
   menu::{DropdownMenu as _, PopupMenuItem},
   separator::Separator,
   switch::Switch,
   tab::{Tab, TabBar},
   v_flex,
 };
-use imprint_core::i18n::{self, t};
+use imprint_core::i18n::{self, t, tr};
 use imprint_core::{Language, LocalePref, Settings};
 
 use crate::app::ImprintApp;
@@ -109,6 +113,24 @@ pub(crate) fn open(view: Entity<ImprintApp>, window: &mut Window, cx: &mut App) 
                       cx,
                     )),
                 ),
+            )
+            .child(
+              v_flex()
+                .gap_2()
+                .child(section_label(cx, t("settings.about")))
+                .child(glass_surface(v_flex().w_full(), cx).child(setting_action(
+                  "about",
+                  t("about.title"),
+                  tr("about.version", &[("version", env!("CARGO_PKG_VERSION"))]),
+                  {
+                    let view = view.clone();
+                    move |_, window, cx| {
+                      window.close_sheet(cx);
+                      view.update(cx, |this, cx| this.open_about(window, cx));
+                    }
+                  },
+                  cx,
+                ))),
             ),
         )
     });
@@ -158,6 +180,42 @@ fn setting_switch(
             cx.notify();
           });
         }),
+    )
+}
+
+fn setting_action(
+  id: &'static str,
+  title: impl Into<String>,
+  hint: impl Into<String>,
+  on_click: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
+  cx: &App,
+) -> impl IntoElement {
+  let title = title.into();
+  let hint = hint.into();
+  let g = glass(cx);
+  h_flex()
+    .id(id)
+    .w_full()
+    .justify_between()
+    .items_center()
+    .gap_4()
+    .px_4()
+    .py_3()
+    .cursor_pointer()
+    .hover(|s| s.bg(g.fill_hover))
+    .on_click(on_click)
+    .child(
+      v_flex()
+        .flex_1()
+        .min_w_0()
+        .gap_1()
+        .child(div().w_full().whitespace_normal().child(title))
+        .child(div().w_full().whitespace_normal().child(muted(cx, hint))),
+    )
+    .child(
+      Icon::new(IconName::ChevronRight)
+        .flex_shrink_0()
+        .text_color(cx.theme().muted_foreground),
     )
 }
 

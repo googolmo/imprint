@@ -84,7 +84,7 @@ sudo apt-get install -y --no-install-recommends \
   libgl1-mesa-dev
 ```
 
-打包版本（`.dmg`、`.msi`、`.deb`、AppImage）在 [GitHub Releases](https://github.com/googolmo/imprint/releases) 中提供。
+打包版本在 [GitHub Releases](https://github.com/googolmo/imprint/releases) 中提供：macOS arm64 与 x86-64（`.dmg`）、Windows x86-64（`.msi`）与 arm64（NSIS）、Linux x86-64 与 arm64（Ubuntu 22.04/Debian 与 Ubuntu 24.04 的 `.deb`、AppImage、Arch `.pkg.tar.zst`、以及 AUR `PKGBUILD`）。
 
 ## 权限
 

@@ -9,6 +9,10 @@ authors = ["Imprint Contributors"]
 license-file = "LICENSE"
 category = "Utility"
 out-dir = "./dist"
+# Native CI runners write here (`cargo build --release`). Release.yml passes
+# `--target <triple>` to cargo-packager for package naming only; it does not
+# change this directory. Do not cross-compile into target/<triple>/release
+# without updating binaries-dir to match.
 binaries-dir = "./target/release"
 before-packaging-command = "cargo build --release -p imprint-app -p imprint-cli"
 icons = [
@@ -16,7 +20,15 @@ icons = [
   "assets/icon/AppIcon.ico",
   "assets/icon/AppIcon.png",
 ]
-# Release packaging: `.github/workflows/release.yml` (cargo-binstall + cargo-packager).
+# Release packaging: `.github/workflows/release.yml` (native runners, both arches).
+#   macOS   aarch64 / x86_64  → .app + .dmg
+#   Windows x86_64            → .msi (WiX)
+#   Windows aarch64           → NSIS .exe
+#   Linux   aarch64 / x86_64  → .deb (Ubuntu 22.04 / Debian 12) + AppImage
+#                               + Arch .pkg.tar.zst (Docker makepkg)
+#   Linux   Ubuntu 24.04      → extra .deb per arch (imprint_*_ubuntu24.04_*.deb)
+#   AUR: `scripts/prepare-aur-pkgbuild.py` uploads imprint-bin PKGBUILD + .SRCINFO
+#        (cargo-packager's per-arch PKGBUILD is not a release asset)
 # Updater manifest: `scripts/update-latest-json.py --upload <tag>` merges into the release.
 # Env vars used at build/package time (full list is in that workflow's header):
 #   CARGO_PACKAGER_UPDATER_PUBKEY / CARGO_PACKAGER_UPDATER_ENDPOINT (comma-separated URLs ok)
@@ -25,7 +37,39 @@ icons = [
 #   APPLE_API_KEY / APPLE_API_ISSUER / APPLE_API_KEY_CONTENT
 #   WINDOWS_CERTIFICATE / WINDOWS_CERTIFICATE_PASSWORD
 #   WINDOWS_CERTIFICATE_THUMBPRINT / WINDOWS_TIMESTAMP_URL
-formats = ["app", "dmg", "wix", "deb", "appimage", "pacman"]
+formats = ["app", "dmg", "wix", "nsis", "deb", "appimage", "pacman"]
+
+# Depends work on Ubuntu 22.04+ and Debian 12+ (`libasound2t64` is Ubuntu 24.04).
+# Release.yml also uploads a Ubuntu 24.04-built .deb (newer glibc) per arch.
+[deb]
+package-name = "imprint"
+section = "utils"
+depends = [
+  "libxkbcommon0",
+  "libxkbcommon-x11-0",
+  "libwayland-client0",
+  "libfontconfig1",
+  "libfreetype6",
+  "libx11-6",
+  "libasound2 | libasound2t64",
+  "libvulkan1",
+  "libgl1",
+]
+
+[pacman]
+depends = [
+  "alsa-lib",
+  "fontconfig",
+  "freetype2",
+  "libx11",
+  "libxkbcommon",
+  "libxkbcommon-x11",
+  "mesa",
+  "vulkan-icd-loader",
+  "wayland",
+]
+provides = ["imprint"]
+conflicts = ["imprint"]
 
 [[binaries]]
 path = "imprint"

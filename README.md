@@ -84,7 +84,7 @@ sudo apt-get install -y --no-install-recommends \
   libgl1-mesa-dev
 ```
 
-Packaged builds (`.dmg`, `.msi`, `.deb`, AppImage) are attached to [GitHub Releases](https://github.com/googolmo/imprint/releases).
+Packaged builds are attached to [GitHub Releases](https://github.com/googolmo/imprint/releases): macOS arm64 and x86-64 (`.dmg`), Windows x86-64 (`.msi`) and arm64 (NSIS), Linux x86-64 and arm64 (`.deb` for Ubuntu 22.04/Debian and Ubuntu 24.04, AppImage, Arch `.pkg.tar.zst`, and an AUR `PKGBUILD`).
 
 ## Privileges
 

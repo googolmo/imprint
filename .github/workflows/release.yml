@@ -3,18 +3,34 @@
 # Flow:
 #   1. Create the GitHub Release if it does not exist (author: github-actions[bot]
 #      via ${{ github.token }}; do not substitute a personal PAT).
-#   2. Build/pack per OS with cargo-binstall + cargo-packager.
+#   2. Build/pack per OS+arch on native runners with cargo-binstall + cargo-packager.
 #   3. Each pack job uploads binaries, then merges that platform into latest.json
 #      and uploads it (scripts/update-latest-json.py --upload).
+#   4. Linux pacman jobs wrap the cargo-packager usr/ tarball with makepkg
+#      inside Arch Docker (scripts/build-arch-package.sh) → .pkg.tar.zst.
+#   5. After every pack job succeeds, emit a combined Arch Linux AUR PKGBUILD
+#      (imprint-bin, x86_64 + aarch64) from the pacman tarballs.
 #
 # Triggers:
 #   - push of a tag matching v* (e.g. v0.1.0) — version must match Packager.toml
 #   - workflow_dispatch — packages the committed version; draft release
 #
-# Installs cargo-packager via cargo-binstall, then:
-#   macOS   → .app + .dmg
-#   Windows → .msi (WiX)
-#   Linux   → .deb + .AppImage + pacman
+# Native runners (no cross-compile; GPUI needs host Metal / MSVC / system libs):
+#   macOS   aarch64  macos-latest      → .app + .dmg
+#   macOS   x86_64   macos-15-intel    → .app + .dmg
+#   Windows x86_64   windows-latest    → .msi (WiX)
+#   Windows aarch64  windows-11-arm    → NSIS .exe (WiX 3 is unreliable on ARM)
+#   Linux   x86_64   ubuntu-22.04      → .deb + AppImage + Arch .pkg.tar.zst (Docker makepkg)
+#   Linux   aarch64  ubuntu-22.04-arm  → .deb + AppImage + Arch .pkg.tar.zst (Docker makepkg)
+#   Linux   x86_64   ubuntu-24.04      → .deb tagged ubuntu24.04 (glibc 2.39)
+#   Linux   aarch64  ubuntu-24.04-arm  → .deb tagged ubuntu24.04 (glibc 2.39)
+#
+# Linux/Windows arm64 hosted runners are free on public repos. Private repos
+# need GitHub's arm64 larger runners (or the jobs will fail to schedule).
+#
+# Ubuntu 22.04 .deb (amd64/arm64) is the Debian-format package for Ubuntu 22.04+
+# and Debian 12+ (glibc 2.35). Ubuntu 24.04 jobs upload a second .deb per arch
+# named imprint_<ver>_ubuntu24.04_<arch>.deb (will not run on 22.04 / bookworm).
 #
 # ---------------------------------------------------------------------------
 # Secrets / env (set on the repo; empty = skip that signing layer)
@@ -177,15 +193,50 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: macos-app-dmg
+          - name: macos-aarch64
             os: macos-latest
             formats: app,dmg
-          - name: windows-msi
+            arch: aarch64
+            triple: aarch64-apple-darwin
+          - name: macos-x86_64
+            os: macos-15-intel
+            formats: app,dmg
+            arch: x86_64
+            triple: x86_64-apple-darwin
+          - name: windows-x86_64
             os: windows-latest
             formats: wix
-          - name: linux-packages
+            arch: x86_64
+            triple: x86_64-pc-windows-msvc
+          - name: windows-aarch64
+            os: windows-11-arm
+            formats: nsis
+            arch: aarch64
+            triple: aarch64-pc-windows-msvc
+          - name: linux-x86_64
             os: ubuntu-22.04
             formats: deb,appimage,pacman
+            arch: x86_64
+            triple: x86_64-unknown-linux-gnu
+          - name: linux-aarch64
+            os: ubuntu-22.04-arm
+            formats: deb,appimage,pacman
+            arch: aarch64
+            triple: aarch64-unknown-linux-gnu
+          - name: linux-ubuntu24-x86_64
+            os: ubuntu-24.04
+            formats: deb
+            arch: x86_64
+            triple: x86_64-unknown-linux-gnu
+            deb_tag: ubuntu24.04
+            skip_updater: true
+          - name: linux-ubuntu24-aarch64
+            os: ubuntu-24.04-arm
+            formats: deb
+            arch: aarch64
+            triple: aarch64-unknown-linux-gnu
+            deb_tag: ubuntu24.04
+            skip_updater: true
     env:
       # Compile-time updater config (imprint-ui/build.rs)
       CARGO_PACKAGER_UPDATER_PUBKEY: ${{ secrets.CARGO_PACKAGER_UPDATER_PUBKEY }}
@@ -205,6 +256,8 @@ jobs:
       WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
       WINDOWS_CERTIFICATE_THUMBPRINT: ${{ secrets.WINDOWS_CERTIFICATE_THUMBPRINT }}
       WINDOWS_TIMESTAMP_URL: ${{ secrets.WINDOWS_TIMESTAMP_URL }}
+      # linuxdeploy AppImages need this when FUSE is unavailable (ARM runners).
+      APPIMAGE_EXTRACT_AND_RUN: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -212,6 +265,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.98.0
+          targets: ${{ matrix.triple }}
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -222,44 +276,52 @@ jobs:
 
       - name: Install cargo-packager
         shell: bash
-        run: cargo binstall --no-confirm --locked cargo-packager
+        run: |
+          set -euo pipefail
+          # cargo-binstall may not ship an ARM Windows / ARM Linux binary yet.
+          if ! cargo binstall --no-confirm --locked cargo-packager; then
+            echo "cargo-binstall failed; compiling cargo-packager from crates.io"
+            cargo install --locked cargo-packager
+          fi
 
       - name: Install Linux packaging dependencies
         if: runner.os == 'Linux'
+        env:
+          FORMATS: ${{ matrix.formats }}
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential \
-            clang \
-            cmake \
-            pkg-config \
-            file \
-            wget \
-            fuse \
-            libfuse2 \
-            patchelf \
-            desktop-file-utils \
-            libssl-dev \
-            libzstd-dev \
-            libclang-dev \
-            libfontconfig-dev \
-            libfreetype6-dev \
-            libxkbcommon-dev \
-            libxkbcommon-x11-dev \
-            libwayland-dev \
-            libx11-dev \
-            libxrandr-dev \
-            libxi-dev \
-            libxinerama-dev \
-            libxcursor-dev \
-            libxcomposite-dev \
-            libxdamage-dev \
-            libxext-dev \
-            libxfixes-dev \
-            libasound2-dev \
-            libvulkan-dev \
-            libgl1-mesa-dev \
+          pkgs=(
+            build-essential
+            clang
+            cmake
+            pkg-config
+            libssl-dev
+            libzstd-dev
+            libclang-dev
+            libfontconfig-dev
+            libfreetype6-dev
+            libxkbcommon-dev
+            libxkbcommon-x11-dev
+            libwayland-dev
+            libx11-dev
+            libxrandr-dev
+            libxi-dev
+            libxinerama-dev
+            libxcursor-dev
+            libxcomposite-dev
+            libxdamage-dev
+            libxext-dev
+            libxfixes-dev
+            libasound2-dev
+            libvulkan-dev
+            libgl1-mesa-dev
             mesa-vulkan-drivers
+          )
+          # fuse / linuxdeploy are AppImage-only; Ubuntu 24.04 dropped libfuse2.
+          if [[ "$FORMATS" == *appimage* ]]; then
+            pkgs+=(file wget fuse libfuse2 patchelf desktop-file-utils)
+          fi
+          sudo apt-get install -y --no-install-recommends "${pkgs[@]}"
 
       - name: Select Xcode
         if: runner.os == 'macOS'
@@ -369,32 +431,73 @@ jobs:
           else
             echo "CARGO_PACKAGER_SIGN_PRIVATE_KEY unset; updater .sig files will be missing"
           fi
-          cargo packager --release --formats "${{ matrix.formats }}" "${extra[@]}"
+          cargo packager --release --formats "${{ matrix.formats }}" \
+            --target "${{ matrix.triple }}" "${extra[@]}"
+
+      - name: Arch Linux package (Docker makepkg)
+        if: ${{ contains(matrix.formats, 'pacman') }}
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: scripts/build-arch-package.sh --version "$VERSION" --arch "${{ matrix.arch }}"
 
       - name: Updater payload + latest.json fragment
+        if: ${{ !matrix.skip_updater }}
         shell: bash
         run: |
           set -euo pipefail
-          python3 scripts/prepare-updater-assets.py "${{ needs.version.outputs.version }}"
+          python3 scripts/prepare-updater-assets.py \
+            --arch "${{ matrix.arch }}" \
+            "${{ needs.version.outputs.version }}"
 
       - name: Upload binaries to GitHub Release
         shell: bash
         env:
           TAG: ${{ needs.version.outputs.tag }}
+          DEB_TAG: ${{ matrix.deb_tag }}
         run: |
           set -euo pipefail
           shopt -s nullglob
-          files=(
-            dist/*.dmg
-            dist/*.msi
-            dist/*.deb
-            dist/*.AppImage
-            dist/*.tar.gz
+          # Ubuntu 24.04 .deb would otherwise overwrite the 22.04/Debian file
+          # (same imprint_<ver>_amd64.deb name). Insert the distro tag.
+          if [[ -n "${DEB_TAG:-}" ]]; then
+            for f in dist/*.deb; do
+              [[ -f "$f" ]] || continue
+              name="$(basename "$f" .deb)"
+              arch="${name##*_}"
+              prefix="${name%_*}"
+              dest="dist/${prefix}_${DEB_TAG}_${arch}.deb"
+              if [[ -f "${f}.sig" ]]; then
+                mv "${f}.sig" "${dest}.sig"
+              fi
+              mv "$f" "$dest"
+              echo "renamed $(basename "$f") -> $(basename "$dest")"
+            done
+          fi
+          # gh release upload glob-expands each arg and errors on zero matches.
+          # Only pass real files. Skip cargo-packager's per-arch PKGBUILD
+          # (local source= filename, not AUR-ready). The aur job uploads
+          # imprint-bin PKGBUILD + .SRCINFO instead.
+          files=()
+          for f in \
+            dist/*.dmg \
+            dist/*.msi \
+            dist/*.exe \
+            dist/*.deb \
+            dist/*.AppImage \
+            dist/*.tar.gz \
+            dist/*.pkg.tar.zst \
+            dist/*.pkg.tar.xz \
             dist/*.sig
-            dist/PKGBUILD
-          )
+          do
+            [[ -f "$f" ]] || continue
+            case "$(basename "$f")" in
+              PKGBUILD | PKGBUILD.* | PKGBUILD.sig) continue ;;
+            esac
+            files+=("$f")
+          done
           if [[ ${#files[@]} -eq 0 ]]; then
             echo "no package files in dist/" >&2
+            ls -la dist/ >&2 || true
             exit 1
           fi
           gh release upload "$TAG" "${files[@]}" --clobber
@@ -402,8 +505,33 @@ jobs:
           printf '  %s\n' "${files[@]}"
 
       - name: Merge and upload latest.json
+        if: ${{ !matrix.skip_updater }}
         shell: bash
         env:
           TAG: ${{ needs.version.outputs.tag }}
           VERSION: ${{ needs.version.outputs.version }}
         run: python3 scripts/update-latest-json.py --version "$VERSION" --upload "$TAG"
+
+  aur:
+    name: AUR PKGBUILD
+    needs: [version, package]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download pacman archives
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          gh release download "$TAG" --dir dist \
+            --pattern 'imprint_*_x86_64.tar.gz' \
+            --pattern 'imprint_*_aarch64.tar.gz'
+
+      - name: Generate imprint-bin PKGBUILD
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: python3 scripts/prepare-aur-pkgbuild.py --version "$VERSION" --upload "$TAG"

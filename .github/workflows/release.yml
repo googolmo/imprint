@@ -351,10 +351,6 @@ jobs:
             APPLE_CERTIFICATE \
             APPLE_CERTIFICATE_PASSWORD \
             APPLE_SIGNING_IDENTITY \
-            # APPLE_API_KEY \
-            # APPLE_API_ISSUER \
-            # APPLE_API_KEY_PATH \
-            # APPLE_API_KEY_CONTENT \
             WINDOWS_CERTIFICATE \
             WINDOWS_CERTIFICATE_PASSWORD \
             WINDOWS_CERTIFICATE_THUMBPRINT \

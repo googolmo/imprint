@@ -241,11 +241,11 @@ mod windows {
   }
 
   #[link(name = "shell32")]
-  extern "system" {
+  unsafe extern "system" {
     fn ShellExecuteExW(info: *mut ShellExecuteInfoW) -> i32;
   }
   #[link(name = "kernel32")]
-  extern "system" {
+  unsafe extern "system" {
     pub(super) fn CloseHandle(handle: *mut core::ffi::c_void) -> i32;
     fn WaitForSingleObject(handle: *mut core::ffi::c_void, millis: u32) -> u32;
     fn GetExitCodeProcess(handle: *mut core::ffi::c_void, code: *mut u32) -> i32;

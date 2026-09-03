@@ -29,7 +29,7 @@ fn windows_is_elevated() -> bool {
   const TOKEN_ELEVATION: u32 = 20;
 
   #[link(name = "advapi32")]
-  extern "system" {
+  unsafe extern "system" {
     fn OpenProcessToken(
       process: *mut core::ffi::c_void,
       access: u32,
@@ -44,7 +44,7 @@ fn windows_is_elevated() -> bool {
     ) -> i32;
   }
   #[link(name = "kernel32")]
-  extern "system" {
+  unsafe extern "system" {
     fn GetCurrentProcess() -> *mut core::ffi::c_void;
     fn CloseHandle(handle: *mut core::ffi::c_void) -> i32;
   }

@@ -27,7 +27,8 @@ icons = [
 #   Linux   aarch64 / x86_64  → .deb (Ubuntu 22.04 / Debian 12) + AppImage
 #                               + Arch .pkg.tar.zst (Docker makepkg)
 #   Linux   Ubuntu 24.04      → extra .deb per arch (imprint_*_ubuntu24.04_*.deb)
-#   AUR: `scripts/prepare-aur-pkgbuild.py` writes imprint-bin (both Linux arches)
+#   AUR: `scripts/prepare-aur-pkgbuild.py` uploads imprint-bin PKGBUILD + .SRCINFO
+#        (cargo-packager's per-arch PKGBUILD is not a release asset)
 # Updater manifest: `scripts/update-latest-json.py --upload <tag>` merges into the release.
 # Env vars used at build/package time (full list is in that workflow's header):
 #   CARGO_PACKAGER_UPDATER_PUBKEY / CARGO_PACKAGER_UPDATER_ENDPOINT (comma-separated URLs ok)

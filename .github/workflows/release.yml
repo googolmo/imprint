@@ -457,11 +457,6 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          # cargo-packager writes dist/PKGBUILD (no arch). Rename so the two
-          # Linux jobs do not clobber each other on the same release.
-          if [[ -f dist/PKGBUILD ]]; then
-            mv dist/PKGBUILD "dist/PKGBUILD.${{ matrix.arch }}"
-          fi
           # Ubuntu 24.04 .deb would otherwise overwrite the 22.04/Debian file
           # (same imprint_<ver>_amd64.deb name). Insert the distro tag.
           if [[ -n "${DEB_TAG:-}" ]]; then
@@ -478,8 +473,10 @@ jobs:
               echo "renamed $(basename "$f") -> $(basename "$dest")"
             done
           fi
-          # gh release upload glob-expands each arg and errors on zero matches
-          # (`no matches found for dist/PKGBUILD`). Only pass real files.
+          # gh release upload glob-expands each arg and errors on zero matches.
+          # Only pass real files. Skip cargo-packager's per-arch PKGBUILD
+          # (local source= filename, not AUR-ready). The aur job uploads
+          # imprint-bin PKGBUILD + .SRCINFO instead.
           files=()
           for f in \
             dist/*.dmg \
@@ -490,13 +487,13 @@ jobs:
             dist/*.tar.gz \
             dist/*.pkg.tar.zst \
             dist/*.pkg.tar.xz \
-            dist/*.sig \
-            dist/PKGBUILD \
-            dist/PKGBUILD.*
+            dist/*.sig
           do
-            if [[ -f "$f" ]]; then
-              files+=("$f")
-            fi
+            [[ -f "$f" ]] || continue
+            case "$(basename "$f")" in
+              PKGBUILD | PKGBUILD.* | PKGBUILD.sig) continue ;;
+            esac
+            files+=("$f")
           done
           if [[ ${#files[@]} -eq 0 ]]; then
             echo "no package files in dist/" >&2

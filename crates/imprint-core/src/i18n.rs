@@ -16,6 +16,9 @@ const ZH_HANT: &str = include_str!("../../../locales/zh-Hant.json");
 const JA: &str = include_str!("../../../locales/ja.json");
 const KO: &str = include_str!("../../../locales/ko.json");
 const DE: &str = include_str!("../../../locales/de.json");
+const ES: &str = include_str!("../../../locales/es.json");
+const FR: &str = include_str!("../../../locales/fr.json");
+const PT: &str = include_str!("../../../locales/pt.json");
 
 static CATALOGS: OnceLock<HashMap<Language, HashMap<String, String>>> = OnceLock::new();
 static PREF: RwLock<LocalePref> = RwLock::new(LocalePref::System);
@@ -35,16 +38,25 @@ pub enum Language {
   Ko,
   #[serde(rename = "de")]
   De,
+  #[serde(rename = "es")]
+  Es,
+  #[serde(rename = "fr")]
+  Fr,
+  #[serde(rename = "pt")]
+  Pt,
 }
 
 impl Language {
-  pub const ALL: [Language; 6] = [
+  pub const ALL: [Language; 9] = [
     Language::En,
     Language::ZhHans,
     Language::ZhHant,
     Language::Ja,
     Language::Ko,
     Language::De,
+    Language::Es,
+    Language::Fr,
+    Language::Pt,
   ];
 
   pub fn id(self) -> &'static str {
@@ -55,6 +67,9 @@ impl Language {
       Self::Ja => "ja",
       Self::Ko => "ko",
       Self::De => "de",
+      Self::Es => "es",
+      Self::Fr => "fr",
+      Self::Pt => "pt",
     }
   }
 
@@ -66,6 +81,9 @@ impl Language {
       Self::Ja => "日本語",
       Self::Ko => "한국어",
       Self::De => "Deutsch",
+      Self::Es => "Español",
+      Self::Fr => "Français",
+      Self::Pt => "Português",
     }
   }
 
@@ -90,6 +108,15 @@ impl Language {
     }
     if tag.starts_with("de") {
       return Self::De;
+    }
+    if tag.starts_with("es") {
+      return Self::Es;
+    }
+    if tag.starts_with("fr") {
+      return Self::Fr;
+    }
+    if tag.starts_with("pt") {
+      return Self::Pt;
     }
     Self::En
   }
@@ -152,6 +179,9 @@ fn catalogs() -> &'static HashMap<Language, HashMap<String, String>> {
       (Language::Ja, JA),
       (Language::Ko, KO),
       (Language::De, DE),
+      (Language::Es, ES),
+      (Language::Fr, FR),
+      (Language::Pt, PT),
     ] {
       map.insert(lang, parse_catalog(raw, lang.id()));
     }
@@ -292,7 +322,20 @@ mod tests {
     assert_eq!(Language::from_tag("ja_JP.UTF-8"), Language::Ja);
     assert_eq!(Language::from_tag("ko-KR"), Language::Ko);
     assert_eq!(Language::from_tag("de_DE.UTF-8"), Language::De);
+    assert_eq!(Language::from_tag("es-ES"), Language::Es);
+    assert_eq!(Language::from_tag("es_MX"), Language::Es);
+    assert_eq!(Language::from_tag("fr-FR"), Language::Fr);
+    assert_eq!(Language::from_tag("fr_CA.UTF-8"), Language::Fr);
+    assert_eq!(Language::from_tag("pt-BR"), Language::Pt);
+    assert_eq!(Language::from_tag("pt_PT.UTF-8"), Language::Pt);
     assert_eq!(Language::from_tag("en-US"), Language::En);
-    assert_eq!(Language::from_tag("fr-FR"), Language::En);
+    assert_eq!(Language::from_tag("it-IT"), Language::En);
+  }
+
+  #[test]
+  fn romance_catalogs() {
+    assert_eq!(lookup_in(Language::Fr, "write.action"), "Écrire");
+    assert_eq!(lookup_in(Language::Es, "write.action"), "Escribir");
+    assert_eq!(lookup_in(Language::Pt, "write.action"), "Gravar");
   }
 }

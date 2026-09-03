@@ -10,15 +10,15 @@ mod windows;
 pub fn list_disks() -> Result<Vec<TargetDisk>> {
   #[cfg(target_os = "linux")]
   {
-    return linux::list();
+    linux::list()
   }
   #[cfg(target_os = "macos")]
   {
-    return macos::list();
+    macos::list()
   }
   #[cfg(windows)]
   {
-    return windows::list();
+    windows::list()
   }
   #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
   {

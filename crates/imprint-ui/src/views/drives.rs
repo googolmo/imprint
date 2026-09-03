@@ -25,7 +25,7 @@ pub(crate) fn open(view: Entity<ImprintApp>, window: &mut Window, cx: &mut App) 
         .title(t("drives.title"))
         .w(px(520.))
         .child(muted(cx, t("drives.hint")))
-        .child(drive_list(&app, view.clone(), cx))
+        .child(drive_list(app, view.clone(), cx))
         .footer(
           h_flex()
             .w_full()

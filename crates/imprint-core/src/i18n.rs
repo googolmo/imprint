@@ -209,10 +209,8 @@ fn flatten(value: &Value, prefix: &str, out: &mut HashMap<String, String>) {
         flatten(child, &next, out);
       }
     }
-    Value::String(text) => {
-      if !prefix.is_empty() {
-        out.insert(prefix.to_string(), text.clone());
-      }
+    Value::String(text) if !prefix.is_empty() => {
+      out.insert(prefix.to_string(), text.clone());
     }
     _ => {}
   }
@@ -227,10 +225,10 @@ fn lookup_in(lang: Language, key: &str) -> String {
   if let Some(text) = catalogs.get(&lang).and_then(|c| c.get(key)) {
     return text.clone();
   }
-  if lang != Language::En {
-    if let Some(text) = catalogs.get(&Language::En).and_then(|c| c.get(key)) {
-      return text.clone();
-    }
+  if lang != Language::En
+    && let Some(text) = catalogs.get(&Language::En).and_then(|c| c.get(key))
+  {
+    return text.clone();
   }
   key.to_string()
 }

@@ -17,7 +17,7 @@ pub(crate) fn sector_size(file: &File) -> usize {
 /// Transfer size: 1 MiB truncated so every full block is sector-aligned.
 pub(crate) fn io_chunk(sector: usize) -> usize {
   let sector = sector.max(1);
-  if BLOCK % sector == 0 {
+  if BLOCK.is_multiple_of(sector) {
     BLOCK
   } else {
     (BLOCK - (BLOCK % sector)).max(sector)
@@ -63,11 +63,11 @@ pub(crate) fn sync_device(file: &File) -> io::Result<()> {
     if macos_synchronize_cache(file).is_ok() {
       return Ok(());
     }
-    return match fsync_fd(file) {
+    match fsync_fd(file) {
       Ok(()) => Ok(()),
       Err(err) if is_unsupported_sync(&err) => Ok(()),
       Err(err) => Err(err),
-    };
+    }
   }
   #[cfg(not(target_os = "macos"))]
   match file.sync_all() {
@@ -87,16 +87,16 @@ fn is_unsupported_sync(err: &io::Error) -> bool {
   #[cfg(unix)]
   {
     let code = err.raw_os_error();
-    return code == Some(libc::EINVAL)
+    code == Some(libc::EINVAL)
       || code == Some(libc::ENOTTY)
       || code == Some(libc::ENODEV)
       || code == Some(libc::ENOTSUP)
-      || code == Some(libc::EOPNOTSUPP);
+      || code == Some(libc::EOPNOTSUPP)
   }
   #[cfg(windows)]
   {
     // ERROR_INVALID_FUNCTION, ERROR_NOT_SUPPORTED, ERROR_INVALID_PARAMETER
-    return matches!(err.raw_os_error(), Some(1) | Some(50) | Some(87));
+    matches!(err.raw_os_error(), Some(1) | Some(50) | Some(87))
   }
   #[cfg(not(any(unix, windows)))]
   false
@@ -105,15 +105,15 @@ fn is_unsupported_sync(err: &io::Error) -> bool {
 fn query_sector_size(file: &File) -> Option<usize> {
   #[cfg(target_os = "macos")]
   {
-    return macos_sector_size(file);
+    macos_sector_size(file)
   }
   #[cfg(target_os = "linux")]
   {
-    return linux_sector_size(file);
+    linux_sector_size(file)
   }
   #[cfg(target_os = "freebsd")]
   {
-    return freebsd_sector_size(file);
+    freebsd_sector_size(file)
   }
   #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "freebsd")))]
   {

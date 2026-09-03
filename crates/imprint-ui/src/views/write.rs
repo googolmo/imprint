@@ -167,6 +167,7 @@ fn target_subtitle(app: &ImprintApp) -> String {
   }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn stage_card(
   cx: &App,
   id: &'static str,

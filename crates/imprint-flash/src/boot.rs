@@ -103,10 +103,10 @@ fn find_fat_partition<T: Read + Seek>(dev: &mut T) -> Result<(u64, u64)> {
   dev
     .read_exact(&mut mbr)
     .map_err(|err| Error::BootConfig(err.to_string()))?;
-  if mbr[510..] == MBR_SIGNATURE {
-    if let Some(part) = mbr_fat(&mbr) {
-      return Ok(part);
-    }
+  if mbr[510..] == MBR_SIGNATURE
+    && let Some(part) = mbr_fat(&mbr)
+  {
+    return Ok(part);
   }
   if let Some(part) = gpt_first(dev) {
     return Ok(part);
@@ -302,7 +302,7 @@ mod tests {
   impl<T: Seek> StrictIo<T> {
     fn check(&mut self, len: usize) -> io::Result<()> {
       let pos = self.inner.stream_position()?;
-      if self.sector > 1 && (pos % self.sector != 0 || len as u64 % self.sector != 0) {
+      if self.sector > 1 && (pos % self.sector != 0 || !(len as u64).is_multiple_of(self.sector)) {
         return Err(io::Error::from_raw_os_error(22));
       }
       Ok(())

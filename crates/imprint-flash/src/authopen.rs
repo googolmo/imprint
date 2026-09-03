@@ -159,7 +159,7 @@ mod tests {
     msg.msg_control = cmsg_buf.as_mut_ptr() as *mut libc::c_void;
     msg.msg_controllen = cmsg_buf.len() as _;
 
-    let hdr = unsafe { libc::CMSG_FIRSTHDR(&mut msg) };
+    let hdr = unsafe { libc::CMSG_FIRSTHDR(&msg) };
     assert!(!hdr.is_null());
     unsafe {
       (*hdr).cmsg_level = libc::SOL_SOCKET;

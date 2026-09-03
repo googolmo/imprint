@@ -113,7 +113,7 @@ pub(crate) fn flash_in_process(
       let sector = crate::raw::sector_size(&dest);
       crate::boot::apply_on(&mut dest, boot, sector)?;
       dest.flush()?;
-      crate::raw::sync_device(&mut dest)?;
+      crate::raw::sync_device(&dest)?;
     }
 
     if request.expand && request.image.kind != ImageKind::Iso {
@@ -264,7 +264,7 @@ fn open_device(path: &std::path::Path) -> Result<File> {
       {
         let mut file = crate::authopen::open_device(path)?;
         let _ = file.seek(SeekFrom::Start(0));
-        return Ok(file);
+        Ok(file)
       }
       #[cfg(not(target_os = "macos"))]
       Err(Error::Privileges(path.display().to_string()))

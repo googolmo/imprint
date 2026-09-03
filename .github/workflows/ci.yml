@@ -1,0 +1,168 @@
+# PR and default-branch checks (not packaging — see release.yml).
+#
+# Mirrors AGENTS.md:
+#   cargo fmt
+#   cargo clippy --all-targets -- -D warnings
+#   cargo test --workspace --exclude imprint-app --exclude imprint-ui
+#   cargo check -p imprint-cli
+#   cargo check -p imprint-ui
+#   cargo check -p imprint-app   # desktop binary + GPUI platform backends
+#
+# imprint-app is excluded from tests (needs gpui test-support; macOS needs Metal).
+# Do not open real block devices in CI.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  RUST_BACKTRACE: "1"
+
+jobs:
+  fmt:
+    name: rustfmt
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.0
+          components: rustfmt
+
+      - name: cargo fmt
+        run: cargo fmt --all -- --check
+
+  cli:
+    name: cli (${{ matrix.os }})
+    needs: fmt
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.0
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ci-cli-${{ matrix.os }}
+
+      - name: Install Linux CLI build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            pkg-config \
+            liblzma-dev \
+            libbz2-dev
+
+      - name: cargo test
+        run: cargo test --locked --workspace --exclude imprint-app --exclude imprint-ui
+
+      - name: cargo check -p imprint-cli
+        run: cargo check --locked -p imprint-cli
+
+      - name: cargo clippy
+        run: >
+          cargo clippy --locked --workspace
+          --exclude imprint-app --exclude imprint-ui
+          --all-targets -- -D warnings
+
+  gui:
+    name: gui (${{ matrix.name }})
+    needs: fmt
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Match release.yml so GUI native deps stay in lockstep with packaging.
+          - name: linux
+            os: ubuntu-22.04
+          - name: macos
+            os: macos-latest
+          - name: windows
+            os: windows-latest
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.0
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ci-gui-${{ matrix.name }}
+
+      - name: Install Linux GUI build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            clang \
+            cmake \
+            pkg-config \
+            libclang-dev \
+            libfontconfig-dev \
+            libfreetype6-dev \
+            libxkbcommon-dev \
+            libxkbcommon-x11-dev \
+            libwayland-dev \
+            libx11-dev \
+            libx11-xcb-dev \
+            libxrandr-dev \
+            libxi-dev \
+            libxinerama-dev \
+            libxcursor-dev \
+            libxcomposite-dev \
+            libxdamage-dev \
+            libxext-dev \
+            libxfixes-dev \
+            libasound2-dev \
+            libvulkan-dev \
+            libgl1-mesa-dev \
+            mesa-vulkan-drivers
+
+      - name: Select Xcode
+        if: runner.os == 'macOS'
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: cargo check -p imprint-ui
+        run: cargo check --locked -p imprint-ui
+
+      - name: cargo check -p imprint-app
+        run: cargo check --locked -p imprint-app
+
+      - name: cargo clippy
+        run: cargo clippy --locked -p imprint-ui -p imprint-app --all-targets -- -D warnings

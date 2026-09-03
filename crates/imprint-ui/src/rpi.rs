@@ -200,7 +200,7 @@ impl RpiState {
     }
   }
 
-  pub(crate) fn selected_device<'a>(&'a self) -> Option<&'a Device> {
+  pub(crate) fn selected_device(&self) -> Option<&Device> {
     let catalog = self.catalog()?;
     self
       .selected_device
@@ -270,12 +270,14 @@ impl ImprintApp {
 
   pub(crate) fn select_rpi_device(&mut self, index: usize, cx: &mut Context<Self>) {
     self.rpi.selected_device = Some(index);
-    if let Some(os) = &self.rpi.selected_os {
-      if let Some(device) = self.rpi.selected_device() {
-        if !imprint_rpi::os_matches_device(os, device) {
-          self.rpi.selected_os = None;
-        }
-      }
+    let incompatible = self.rpi.selected_os.as_ref().is_some_and(|os| {
+      self
+        .rpi
+        .selected_device()
+        .is_some_and(|device| !imprint_rpi::os_matches_device(os, device))
+    });
+    if incompatible {
+      self.rpi.selected_os = None;
     }
     cx.notify();
   }
@@ -350,10 +352,10 @@ impl ImprintApp {
   }
 
   pub(crate) fn set_rpi_init_format(&mut self, format: InitFormat, cx: &mut Context<Self>) {
-    if let Some(os) = &mut self.rpi.selected_os {
-      if os.is_local() {
-        os.set_init_format(format);
-      }
+    if let Some(os) = &mut self.rpi.selected_os
+      && os.is_local()
+    {
+      os.set_init_format(format);
     }
     cx.notify();
   }
@@ -406,12 +408,11 @@ impl ImprintApp {
   }
 
   pub(crate) fn needed_write_size(&self) -> u64 {
-    if self.mode == AppMode::RaspberryPi {
-      if let Some(os) = &self.rpi.selected_os {
-        if os.extract_size > 0 {
-          return os.extract_size;
-        }
-      }
+    if self.mode == AppMode::RaspberryPi
+      && let Some(os) = &self.rpi.selected_os
+      && os.extract_size > 0
+    {
+      return os.extract_size;
     }
     self.image.as_ref().map(|i| i.write_size()).unwrap_or(0)
   }
@@ -588,10 +589,10 @@ impl ImprintApp {
         RpiEvent::Subitems { path, result } => {
           match result {
             Ok(subitems) => {
-              if let CatalogStatus::Ready(catalog) = &mut self.rpi.catalog {
-                if let Some(item) = os_item_at_mut(&mut catalog.os_list, &path) {
-                  item.subitems = subitems;
-                }
+              if let CatalogStatus::Ready(catalog) = &mut self.rpi.catalog
+                && let Some(item) = os_item_at_mut(&mut catalog.os_list, &path)
+              {
+                item.subitems = subitems;
               }
               if let Some(index) = path.last().copied() {
                 let parent = &path[..path.len().saturating_sub(1)];

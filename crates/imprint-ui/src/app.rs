@@ -36,7 +36,7 @@ enum ProgressEvent {
 
 enum UpdateEvent {
   None,
-  Available(cargo_packager_updater::Update),
+  Available(Box<cargo_packager_updater::Update>),
   Failed(String),
   DownloadProgress { received: u64, total: Option<u64> },
   Installed,
@@ -133,14 +133,14 @@ impl ImprintApp {
       main_window: window.window_handle(),
       about_window: None,
     };
-    if let Some(version) = updater::take_update_notice() {
-      if version == env!("CARGO_PKG_VERSION") {
-        window.push_notification(
-          Notification::success(tr("update.updated_to", &[("version", &version)]))
-            .id::<UpdateToast>(),
-          cx,
-        );
-      }
+    if let Some(version) = updater::take_update_notice()
+      && version == env!("CARGO_PKG_VERSION")
+    {
+      window.push_notification(
+        Notification::success(tr("update.updated_to", &[("version", &version)]))
+          .id::<UpdateToast>(),
+        cx,
+      );
     }
     if updater::is_configured() {
       this.begin_update_check(false, window, cx);
@@ -472,7 +472,7 @@ impl ImprintApp {
       .name("imprint-update-check".into())
       .spawn(move || {
         let event = match updater::check_for_update() {
-          Ok(Some(update)) => UpdateEvent::Available(update),
+          Ok(Some(update)) => UpdateEvent::Available(Box::new(update)),
           Ok(None) => UpdateEvent::None,
           Err(err) => UpdateEvent::Failed(err),
         };
@@ -546,7 +546,7 @@ impl ImprintApp {
                   keep = false;
                 }
                 UpdateEvent::Available(update) => {
-                  this.update = UpdateStatus::Available(update);
+                  this.update = UpdateStatus::Available(*update);
                   this.update_dismissed = false;
                   keep = false;
                 }
@@ -594,12 +594,12 @@ impl ImprintApp {
           (keep, toast)
         });
         let (keep, toast) = outcome.unwrap_or((false, None));
-        if let Some(kind) = toast {
-          if let Some(handle) = cx.update(|cx| cx.active_window()) {
-            let _ = handle.update(cx, |_, window, cx| {
-              window.push_notification(kind.into_notification(), cx);
-            });
-          }
+        if let Some(kind) = toast
+          && let Some(handle) = cx.update(|cx| cx.active_window())
+        {
+          let _ = handle.update(cx, |_, window, cx| {
+            window.push_notification(kind.into_notification(), cx);
+          });
         }
         if !keep {
           break;

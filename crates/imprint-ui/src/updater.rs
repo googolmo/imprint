@@ -90,12 +90,12 @@ pub fn is_packaged() -> bool {
 
   #[cfg(target_os = "macos")]
   {
-    return path.contains(".app/Contents/MacOS/");
+    path.contains(".app/Contents/MacOS/")
   }
 
   #[cfg(any(target_os = "linux", target_os = "freebsd"))]
   {
-    return env::var_os("APPIMAGE").is_some();
+    env::var_os("APPIMAGE").is_some()
   }
 
   #[cfg(windows)]
@@ -138,13 +138,13 @@ fn notice_dir() -> Option<PathBuf> {
   #[cfg(target_os = "macos")]
   {
     let home = env::var_os("HOME")?;
-    return Some(PathBuf::from(home).join("Library/Application Support/imprint"));
+    Some(PathBuf::from(home).join("Library/Application Support/imprint"))
   }
 
   #[cfg(windows)]
   {
     let appdata = env::var_os("APPDATA")?;
-    return Some(PathBuf::from(appdata).join("imprint"));
+    Some(PathBuf::from(appdata).join("imprint"))
   }
 
   #[cfg(not(any(target_os = "macos", windows)))]
@@ -198,7 +198,7 @@ pub fn relaunch() -> Result<(), String> {
       .arg(app)
       .spawn()
       .map_err(|err| err.to_string())?;
-    return Ok(());
+    Ok(())
   }
 
   #[cfg(not(target_os = "macos"))]

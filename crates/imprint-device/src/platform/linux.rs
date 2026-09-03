@@ -77,10 +77,10 @@ fn classify(sys: &Path, name: &str, removable: bool) -> BusKind {
 }
 
 fn is_system(name: &str, root_dev: &Option<String>, removable: bool) -> bool {
-  if let Some(root) = root_dev {
-    if root == name || root.starts_with(name) {
-      return true;
-    }
+  if let Some(root) = root_dev
+    && (root == name || root.starts_with(name))
+  {
+    return true;
   }
   !removable && !name.starts_with("mmcblk")
 }

@@ -40,11 +40,11 @@ impl ElevatedChild {
 impl Drop for ElevatedChild {
   fn drop(&mut self) {
     #[cfg(windows)]
-    if let Inner::Handle(handle) = self.inner {
-      if !handle.is_null() {
-        // SAFETY: handle is the exclusive process handle from ShellExecuteExW.
-        unsafe { windows::CloseHandle(handle) };
-      }
+    if let Inner::Handle(handle) = self.inner
+      && !handle.is_null()
+    {
+      // SAFETY: handle is the exclusive process handle from ShellExecuteExW.
+      unsafe { windows::CloseHandle(handle) };
     }
   }
 }
@@ -53,15 +53,15 @@ pub fn spawn_elevated(exe: &Path, session_dir: &Path) -> Result<ElevatedChild> {
   info!("requesting administrator privileges for {}", exe.display());
   #[cfg(target_os = "macos")]
   {
-    return macos::spawn(exe, session_dir);
+    macos::spawn(exe, session_dir)
   }
   #[cfg(any(target_os = "linux", target_os = "freebsd"))]
   {
-    return linux::spawn(exe, session_dir);
+    linux::spawn(exe, session_dir)
   }
   #[cfg(windows)]
   {
-    return windows::spawn(exe, session_dir);
+    windows::spawn(exe, session_dir)
   }
   #[cfg(not(any(
     target_os = "macos",
@@ -178,12 +178,10 @@ mod linux {
           });
         }
         Err(err) if err.kind() == io::ErrorKind::NotFound => last_err = Some(err),
-        Err(err) => {
-          if err.kind() == io::ErrorKind::PermissionDenied {
-            return Err(Error::ElevationCancelled);
-          }
-          return Err(elevation_failed(err.to_string()));
+        Err(err) if err.kind() == io::ErrorKind::PermissionDenied => {
+          return Err(Error::ElevationCancelled);
         }
+        Err(err) => return Err(elevation_failed(err.to_string())),
       }
     }
     Err(elevation_failed(

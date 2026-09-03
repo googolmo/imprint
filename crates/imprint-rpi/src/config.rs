@@ -223,9 +223,9 @@ fn firstrun(cfg: &PiCustomization) -> Result<String> {
     body.push_str("systemctl enable ssh\n");
     if let Some(key) = cfg.ssh_public_key.as_deref().filter(|s| !s.is_empty()) {
       body.push_str("install -o 1000 -g 1000 -m 700 -d \"$FIRSTUSERHOME/.ssh\"\n");
-      body.push_str(&format!(
-        "install -o 1000 -g 1000 -m 600 /dev/null \"$FIRSTUSERHOME/.ssh/authorized_keys\"\n"
-      ));
+      body.push_str(
+        "install -o 1000 -g 1000 -m 600 /dev/null \"$FIRSTUSERHOME/.ssh/authorized_keys\"\n",
+      );
       for line in key.lines().map(str::trim).filter(|s| !s.is_empty()) {
         body.push_str(&format!(
           "echo {} >> \"$FIRSTUSERHOME/.ssh/authorized_keys\"\n",

@@ -1,7 +1,7 @@
 use gpui::{
   App, Bounds, Context, Entity, FocusHandle, FontWeight, InteractiveElement, IntoElement,
-  ParentElement, Render, Styled, Subscription, Window, WindowBackgroundAppearance, WindowBounds,
-  WindowKind, div, prelude::*, px, size,
+  ParentElement, Render, Styled, Subscription, Window, WindowBounds, WindowKind, div, prelude::*,
+  px, size,
 };
 use gpui_component::{
   ActiveTheme as _, Root, TitleBar,
@@ -12,7 +12,7 @@ use imprint_core::i18n::{t, tr};
 
 use crate::CloseAbout;
 use crate::app::ImprintApp;
-use crate::widgets::{app_icon, atmosphere, muted};
+use crate::widgets::{app_icon, muted};
 
 pub(crate) fn open(view: Entity<ImprintApp>, window: &mut Window, cx: &mut App) {
   window.defer(cx, move |_, cx| open_now(view, cx));
@@ -27,14 +27,9 @@ fn open_now(view: Entity<ImprintApp>, cx: &mut App) {
   let mut options = TitleBar::window_options();
   options.window_bounds = Some(WindowBounds::Windowed(bounds));
   options.window_min_size = Some(size(px(400.), px(380.)));
-  options.app_id = Some("imprint.cdxtheme.com".into());
+  options.app_id = Some(crate::APP_IDENTIFIER.into());
   options.kind = WindowKind::Normal;
   options.is_resizable = false;
-  options.window_background = if cfg!(target_os = "windows") {
-    WindowBackgroundAppearance::MicaBackdrop
-  } else {
-    WindowBackgroundAppearance::Blurred
-  };
 
   let app = view.clone();
   let Ok(handle) = cx.open_window(options, |window, cx| {
@@ -110,9 +105,8 @@ impl Render for AboutWindow {
       }))
       .size_full()
       .relative()
-      .bg(cx.theme().transparent)
+      .bg(cx.theme().background)
       .text_color(cx.theme().foreground)
-      .child(atmosphere(cx))
       .child(
         TitleBar::new()
           .bg(cx.theme().title_bar)

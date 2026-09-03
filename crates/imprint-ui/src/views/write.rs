@@ -213,10 +213,11 @@ fn stage_card(
   .child(
     div()
       .w_full()
+      .min_w_0()
       .px_1()
       .text_center()
       .font_weight(FontWeight::SEMIBOLD)
-      .truncate()
+      .whitespace_normal()
       .child(title),
   )
   .child(

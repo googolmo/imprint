@@ -22,7 +22,7 @@ use imprint_rpi::{InitFormat, OsItem, cached_path, filter_items};
 use crate::app::ImprintApp;
 use crate::rpi::{CatalogStatus, ChoiceSelect, DownloadStatus, RpiStep};
 use crate::theme::{glass, raspberry_pi};
-use crate::widgets::{glass_surface, hover_fill, icon_badge, muted, section_label};
+use crate::widgets::{bytes_progress, glass_surface, hover_fill, icon_badge, muted, section_label};
 
 pub(crate) fn page(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {
   let view = cx.entity();
@@ -89,16 +89,22 @@ pub(crate) fn download_panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> 
     .child(
       div()
         .w_full()
+        .h(px(24.))
+        .flex()
+        .items_center()
+        .justify_center()
         .text_center()
         .font_weight(FontWeight::MEDIUM)
+        .truncate()
         .child(name),
     )
-    .child(muted(
+    .child(bytes_progress(
       cx,
-      match total {
-        Some(total) => format!("{} / {}", format_bytes(received), format_bytes(total)),
-        None => format_bytes(received),
-      },
+      format_bytes(received),
+      total
+        .filter(|n| *n > 0)
+        .map(format_bytes)
+        .unwrap_or_else(|| "—".into()),
     ))
     .child(
       Button::new("rpi-download-cancel")

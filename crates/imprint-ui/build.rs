@@ -1,4 +1,5 @@
 fn main() {
+  imprint_build::emit_packager_identity();
   emit("CARGO_PACKAGER_UPDATER_PUBKEY");
   emit("CARGO_PACKAGER_UPDATER_ENDPOINT");
 }

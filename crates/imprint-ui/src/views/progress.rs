@@ -1,6 +1,6 @@
 use std::sync::atomic::Ordering;
 
-use gpui::{Context, FontWeight, IntoElement, ParentElement, Styled, div, prelude::*, px};
+use gpui::{App, Context, FontWeight, IntoElement, ParentElement, Styled, div, prelude::*, px};
 use gpui_component::{
   ActiveTheme as _, Icon, IconName,
   button::{Button, ButtonRounded, ButtonVariants as _},
@@ -13,7 +13,7 @@ use imprint_core::format_bytes;
 use imprint_core::i18n::{t, tr};
 
 use crate::app::ImprintApp;
-use crate::widgets::{glass_surface, muted, section_label};
+use crate::widgets::{bytes_progress, glass_surface, muted, section_label};
 
 pub(crate) fn panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {
   let progress = app.progress.clone();
@@ -38,6 +38,13 @@ pub(crate) fn panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl Into
   let indeterminate = progress.as_ref().is_some_and(|p| p.is_indeterminate());
   let pct_value = progress.as_ref().map(|p| p.percent() as f32).unwrap_or(0.0);
   let pct = format!("{}%", pct_value as u32);
+  let bytes_done = progress.as_ref().map(|p| p.bytes_done).unwrap_or(0);
+  let bytes_total = progress
+    .as_ref()
+    .map(|p| p.bytes_total)
+    .filter(|n| *n > 0)
+    .map(format_bytes)
+    .unwrap_or_else(|| "—".into());
   let view = cx.entity();
   let ring_color = if failed {
     cx.theme().danger
@@ -50,7 +57,7 @@ pub(crate) fn panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl Into
   v_flex().size_full().items_center().justify_center().child(
     glass_surface(
       v_flex()
-        .w(px(420.))
+        .w(px(520.))
         .max_w_full()
         .items_center()
         .gap_4()
@@ -90,29 +97,25 @@ pub(crate) fn panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl Into
             .into_any_element()
         }),
     )
+    .child(progress_caption(app, cx, failed, &message))
+    .child(bytes_progress(cx, format_bytes(bytes_done), bytes_total))
     .child(
       div()
-        .w_full()
-        .text_center()
-        .text_lg()
-        .font_weight(FontWeight::MEDIUM)
-        .text_color(if failed {
-          cx.theme().danger
-        } else {
-          cx.theme().foreground
-        })
-        .child(message),
+        .h(px(28.))
+        .flex()
+        .items_center()
+        .justify_center()
+        .when(!speed.is_empty(), |d| {
+          d.child(
+            div()
+              .px_3()
+              .py_1()
+              .rounded_full()
+              .bg(cx.theme().muted)
+              .child(muted(cx, speed)),
+          )
+        }),
     )
-    .when(!speed.is_empty(), |d| {
-      d.child(
-        div()
-          .px_3()
-          .py_1()
-          .rounded_full()
-          .bg(cx.theme().muted)
-          .child(muted(cx, speed)),
-      )
-    })
     .when(app.flashing, |d| {
       d.child(
         Button::new("cancel")
@@ -152,36 +155,57 @@ fn phase_label(phase: FlashPhase) -> String {
   })
 }
 
+fn progress_caption(app: &ImprintApp, cx: &App, failed: bool, message: &str) -> impl IntoElement {
+  let route = (!failed).then(|| flash_route(app)).flatten();
+  let mut caption = v_flex().w_full().items_center().gap_1();
+  if let Some((image, disk)) = route {
+    caption = caption
+      .child(wrap_caption(cx, image, false))
+      .child(div().text_color(cx.theme().muted_foreground).child("→"))
+      .child(wrap_caption(cx, disk, false));
+  } else {
+    caption = caption.child(wrap_caption(cx, message, failed));
+  }
+  caption
+}
+
+fn flash_route(app: &ImprintApp) -> Option<(String, String)> {
+  let progress = app.progress.as_ref()?;
+  if !matches!(
+    progress.phase,
+    FlashPhase::Preparing | FlashPhase::Writing | FlashPhase::Verifying | FlashPhase::Finishing
+  ) {
+    return None;
+  }
+  let image = app.image.as_ref()?.display_name.clone();
+  if image.is_empty() || progress.target_label.is_empty() {
+    return None;
+  }
+  Some((image, progress.target_label.clone()))
+}
+
+fn wrap_caption(cx: &App, text: impl Into<String>, failed: bool) -> impl IntoElement {
+  div()
+    .w_full()
+    .text_center()
+    .font_weight(FontWeight::MEDIUM)
+    .whitespace_normal()
+    .text_color(if failed {
+      cx.theme().danger
+    } else {
+      cx.theme().foreground
+    })
+    .child(text.into())
+}
+
 fn localized_progress_message(app: &ImprintApp) -> String {
   let Some(progress) = &app.progress else {
     return t("progress.working");
   };
   match progress.phase {
     FlashPhase::Preparing => tr("progress.unmounting", &[("disk", &progress.target_label)]),
-    FlashPhase::Writing => {
-      if progress.bytes_done == 0 {
-        let image = app
-          .image
-          .as_ref()
-          .map(|i| i.display_name.as_str())
-          .unwrap_or("");
-        tr(
-          "progress.writing",
-          &[("image", image), ("disk", &progress.target_label)],
-        )
-      } else {
-        let bytes = format_bytes(progress.bytes_done);
-        tr("progress.written", &[("bytes", &bytes)])
-      }
-    }
-    FlashPhase::Verifying => {
-      if progress.bytes_done == 0 {
-        t("progress.validating")
-      } else {
-        let bytes = format_bytes(progress.bytes_done);
-        tr("progress.checked", &[("bytes", &bytes)])
-      }
-    }
+    FlashPhase::Writing => t("progress.phase.writing"),
+    FlashPhase::Verifying => t("progress.validating"),
     FlashPhase::Finishing => t("progress.syncing"),
     FlashPhase::Done => t("progress.complete"),
     FlashPhase::Failed => progress.message.clone(),

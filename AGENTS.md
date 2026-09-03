@@ -10,6 +10,7 @@ Cross-platform USB/SD image writer (Etcher-class). GPUI desktop app + CLI. Writi
 
 ```
 Cargo.toml                 workspace versions only
+crates/imprint-build/      build.rs helpers (Packager.toml identity)
 crates/imprint-core/       types + errors (no IO, no GPUI)
 crates/imprint-image/      inspect + payload reader
 crates/imprint-device/     list / unmount / eject (OS-specific under src/platform/)
@@ -45,7 +46,7 @@ Do not depend on `imprint-ui` from flash/device/image. Do not put block-device I
 
 `imprint-app` enables `gpui_platform` features `font-kit`, `wayland`, `x11` (Zed README cross-platform set).
 
-App identity: `imprint.cdxtheme.com` (`cx.set_app_identity` in `imprint-app`).
+App identity: `Packager.toml` `identifier` / `product-name`, baked in at compile time as `IMPRINT_APP_IDENTIFIER` and `IMPRINT_APP_PRODUCT_NAME` (`env!` in `imprint-app` and `imprint-ui`).
 
 ## Commands
 

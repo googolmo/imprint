@@ -308,10 +308,10 @@ fn paint_glass(theme: &mut Theme, p: Flavor) {
   theme.chart_bearish = p.red;
 
   if dark {
-    theme.title_bar = p.mantle.opacity(0.72);
-    theme.title_bar_border = p.surface0.opacity(0.55);
-    theme.status_bar = p.crust.opacity(0.70);
-    theme.status_bar_border = p.surface0.opacity(0.45);
+    theme.title_bar = p.mantle;
+    theme.title_bar_border = p.surface0;
+    theme.status_bar = p.crust;
+    theme.status_bar_border = p.surface0;
     theme.input = p.surface0.opacity(0.70);
     theme.secondary = p.surface0.opacity(0.70);
     theme.secondary_hover = p.surface1.opacity(0.80);
@@ -354,10 +354,10 @@ fn paint_glass(theme: &mut Theme, p: Flavor) {
     theme.table_head_foreground = p.subtext0;
     theme.table_row_border = p.surface0.opacity(0.70);
   } else {
-    theme.title_bar = p.mantle.opacity(0.88);
-    theme.title_bar_border = p.surface1.opacity(0.70);
-    theme.status_bar = p.crust.opacity(0.92);
-    theme.status_bar_border = p.surface1.opacity(0.55);
+    theme.title_bar = p.mantle;
+    theme.title_bar_border = p.surface1;
+    theme.status_bar = p.crust;
+    theme.status_bar_border = p.surface1;
     theme.input = p.crust.opacity(0.80);
     theme.secondary = p.crust;
     theme.secondary_hover = p.surface0;
@@ -445,22 +445,7 @@ fn paint_glass(theme: &mut Theme, p: Flavor) {
 
 fn paint_gradients(theme: &mut Theme, p: Flavor, primary: Hsla, hover: Hsla, active: Hsla) {
   let dark = theme.is_dark();
-  theme.tokens.background = ThemeToken::new(
-    theme.background,
-    if dark {
-      linear_gradient(
-        148.,
-        linear_color_stop(p.mantle, 0.),
-        linear_color_stop(p.crust, 1.),
-      )
-    } else {
-      linear_gradient(
-        148.,
-        linear_color_stop(p.base, 0.),
-        linear_color_stop(p.crust, 1.),
-      )
-    },
-  );
+  theme.tokens.background = ThemeToken::from(theme.background);
   theme.tokens.button_primary = ThemeToken::new(
     primary,
     linear_gradient(

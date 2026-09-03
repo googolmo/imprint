@@ -36,6 +36,11 @@ actions!(
 
 pub use app::{ImprintApp, ImprintShell};
 
+/// Bundle identifier from `Packager.toml` (`identifier`), baked in at compile time.
+pub const APP_IDENTIFIER: &str = env!("IMPRINT_APP_IDENTIFIER");
+/// Product name from `Packager.toml` (`product-name`), baked in at compile time.
+pub const APP_PRODUCT_NAME: &str = env!("IMPRINT_APP_PRODUCT_NAME");
+
 /// Initialize gpui-component and follow the system appearance by default.
 pub fn init(cx: &mut App) {
   i18n::init();

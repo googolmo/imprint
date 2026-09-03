@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+  "crates/imprint-build",
   "crates/imprint-core",
   "crates/imprint-image",
   "crates/imprint-device",
@@ -22,6 +23,7 @@ homepage = "https://github.com/googolmo/imprint"
 authors = ["Imprint Contributors"]
 
 [workspace.dependencies]
+imprint-build = { path = "crates/imprint-build" }
 imprint-core = { path = "crates/imprint-core" }
 imprint-image = { path = "crates/imprint-image" }
 imprint-device = { path = "crates/imprint-device" }

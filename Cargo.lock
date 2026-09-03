@@ -3421,6 +3421,7 @@ dependencies = [
  "gpui-component-assets",
  "gpui_platform",
  "image",
+ "imprint-build",
  "imprint-flash",
  "imprint-ui",
  "objc2 0.6.4",
@@ -3429,6 +3430,10 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
 ]
+
+[[package]]
+name = "imprint-build"
+version = "0.1.0"
 
 [[package]]
 name = "imprint-cli"
@@ -3519,6 +3524,7 @@ dependencies = [
  "crossbeam-channel",
  "gpui",
  "gpui-component",
+ "imprint-build",
  "imprint-core",
  "imprint-device",
  "imprint-flash",

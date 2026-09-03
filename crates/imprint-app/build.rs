@@ -1,4 +1,5 @@
 fn main() {
+  imprint_build::emit_packager_identity();
   println!("cargo:rerun-if-changed=../../assets/icon/AppIcon.ico");
   println!("cargo:rerun-if-changed=../../assets/icon/AppIcon.icns");
   println!("cargo:rerun-if-changed=../../assets/icon/AppIcon.png");

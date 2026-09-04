@@ -1,0 +1,398 @@
+# Called from release.yml as independent jobs (macOS / Windows / Linux /
+# Linux preview) so Homebrew can start when macOS packs finish, and linux-repo
+# when Ubuntu 24.04 + Arch packs finish. Ubuntu 26.04 is a separate caller job
+# so a preview-runner failure does not skip the package index.
+#
+# `formats: pacman` jobs skip the host Rust / apt / cargo-packager steps.
+# They compile inside Arch Linux Docker (Ubuntu is only the Docker host).
+
+name: Release package
+
+on:
+  workflow_call:
+    inputs:
+      name:
+        type: string
+        required: true
+      os:
+        type: string
+        required: true
+      formats:
+        type: string
+        required: true
+      arch:
+        type: string
+        required: true
+      triple:
+        type: string
+        required: true
+      version:
+        type: string
+        required: true
+      tag:
+        type: string
+        required: true
+      out_dir:
+        type: string
+        required: true
+        description: >
+          cargo-packager output directory under dist/, named
+          {system}[-{version}]-{arch} (macos-arm64, ubuntu-24.04-amd64,
+          windows-amd64, archlinux-arm64).
+      deb_tag:
+        type: string
+        required: false
+        default: ""
+      skip_updater:
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+  RUST_BACKTRACE: "1"
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  pack:
+    name: ${{ inputs.name }}
+    runs-on: ${{ inputs.os }}
+    timeout-minutes: 120
+    env:
+      # Compile-time updater config (imprint-ui/build.rs)
+      CARGO_PACKAGER_UPDATER_PUBKEY: ${{ secrets.CARGO_PACKAGER_UPDATER_PUBKEY }}
+      CARGO_PACKAGER_UPDATER_ENDPOINT: ${{ secrets.CARGO_PACKAGER_UPDATER_ENDPOINT }}
+      # cargo-packager minisign
+      CARGO_PACKAGER_SIGN_PRIVATE_KEY: ${{ secrets.CARGO_PACKAGER_SIGN_PRIVATE_KEY }}
+      CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD: ${{ secrets.CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD }}
+      # macOS codesign + notarization
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+      # Windows Authenticode
+      WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      WINDOWS_CERTIFICATE_THUMBPRINT: ${{ secrets.WINDOWS_CERTIFICATE_THUMBPRINT }}
+      WINDOWS_TIMESTAMP_URL: ${{ secrets.WINDOWS_TIMESTAMP_URL }}
+      # linuxdeploy AppImages need this when FUSE is unavailable (ARM runners).
+      APPIMAGE_EXTRACT_AND_RUN: "1"
+      # cargo-packager -o / scripts --dist. Slug is system[-version]-arch.
+      PACK_DIR: dist/${{ inputs.out_dir }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create pack output directory
+        shell: bash
+        run: mkdir -p "$PACK_DIR"
+
+      - name: Install Rust
+        if: ${{ !contains(inputs.formats, 'pacman') }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.0
+          targets: ${{ inputs.triple }}
+
+      - uses: Swatinem/rust-cache@v2
+        if: ${{ !contains(inputs.formats, 'pacman') }}
+        with:
+          shared-key: release-${{ inputs.name }}
+
+      - name: Cache cargo (Arch Docker)
+        if: ${{ contains(inputs.formats, 'pacman') }}
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            ~/.cargo/git/checkouts
+            ~/.rustup
+            target
+          key: arch-docker-${{ inputs.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: |
+            arch-docker-${{ inputs.arch }}-
+
+      - name: Install cargo-binstall
+        if: ${{ !contains(inputs.formats, 'pacman') }}
+        uses: cargo-bins/cargo-binstall@v1.22.0
+
+      - name: Install cargo-packager
+        if: ${{ !contains(inputs.formats, 'pacman') }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # cargo-binstall may not ship an ARM Windows / ARM Linux binary yet.
+          if ! cargo binstall --no-confirm --locked cargo-packager; then
+            echo "cargo-binstall failed; compiling cargo-packager from crates.io"
+            cargo install --locked cargo-packager
+          fi
+
+      - name: Install Linux packaging dependencies
+        if: ${{ runner.os == 'Linux' && !contains(inputs.formats, 'pacman') }}
+        env:
+          FORMATS: ${{ inputs.formats }}
+        run: |
+          sudo apt-get update
+          pkgs=(
+            build-essential
+            clang
+            cmake
+            pkg-config
+            libssl-dev
+            libzstd-dev
+            libclang-dev
+            libfontconfig-dev
+            libfreetype6-dev
+            libxkbcommon-dev
+            libxkbcommon-x11-dev
+            libwayland-dev
+            libx11-dev
+            libx11-xcb-dev
+            libxrandr-dev
+            libxi-dev
+            libxinerama-dev
+            libxcursor-dev
+            libxcomposite-dev
+            libxdamage-dev
+            libxext-dev
+            libxfixes-dev
+            libasound2-dev
+            libvulkan-dev
+            libgl1-mesa-dev
+            mesa-vulkan-drivers
+          )
+          # fuse / linuxdeploy are AppImage-only. Ubuntu 24.04+ ships the
+          # libfuse2 ABI as libfuse2t64; APPIMAGE_EXTRACT_AND_RUN=1 if FUSE fails.
+          if [[ "$FORMATS" == *appimage* ]]; then
+            pkgs+=(file wget fuse3 libfuse2t64 patchelf desktop-file-utils)
+          fi
+          sudo apt-get install -y --no-install-recommends "${pkgs[@]}"
+
+      - name: Select Xcode
+        if: runner.os == 'macOS'
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Default updater endpoint
+        shell: bash
+        run: |
+          if [[ -z "${CARGO_PACKAGER_UPDATER_ENDPOINT:-}" ]]; then
+            endpoint="https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/latest.json"
+            echo "CARGO_PACKAGER_UPDATER_ENDPOINT=${endpoint}" >> "$GITHUB_ENV"
+            echo "CARGO_PACKAGER_UPDATER_ENDPOINT unset; using ${endpoint}"
+          fi
+
+      - name: Write App Store Connect API key
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${APPLE_API_KEY_CONTENT:-}" || -z "${APPLE_API_KEY:-}" ]]; then
+            echo "APPLE_API_KEY_CONTENT / APPLE_API_KEY not set; skipping .p8 write"
+            exit 0
+          fi
+          mkdir -p private_keys "${HOME}/private_keys" "${HOME}/.appstoreconnect/private_keys"
+          keyfile="private_keys/AuthKey_${APPLE_API_KEY}.p8"
+          printf '%s\n' "${APPLE_API_KEY_CONTENT}" > "${keyfile}"
+          chmod 600 "${keyfile}"
+          echo "APPLE_API_KEY_PATH=${PWD}/${keyfile}" >> "$GITHUB_ENV"
+
+      - name: Normalize APPLE_CERTIFICATE
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${APPLE_CERTIFICATE:-}" ]]; then
+            echo "APPLE_CERTIFICATE unset; .app/.dmg will not be Developer ID signed"
+            exit 0
+          fi
+          # Secret may be an openssl-wrapped .p12.base64 file (newlines).
+          # Collapse to one line so GitHub env + cargo-packager decode it.
+          normalized="$(printf '%s' "$APPLE_CERTIFICATE" | tr -d '[:space:]')"
+          if [[ -z "$normalized" ]]; then
+            echo "APPLE_CERTIFICATE empty after stripping whitespace" >&2
+            exit 1
+          fi
+          {
+            echo "APPLE_CERTIFICATE<<APPLE_CERTIFICATE_EOF"
+            printf '%s\n' "$normalized"
+            echo "APPLE_CERTIFICATE_EOF"
+          } >> "$GITHUB_ENV"
+
+      - name: Inject macOS signing identity
+        if: runner.os == 'macOS'
+        shell: bash
+        run: python3 .github/scripts/inject-packager-signing.py
+
+      # cargo-packager signs MacOS/* by path depth only; imprint-cli is a
+      # sibling of the main exe and must be signed first. Prepend a codesign
+      # wrapper that does that (.github/scripts/codesign).
+      - name: Wrap codesign for nested MacOS binaries
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          wrap="${RUNNER_TEMP}/imprint-codesign"
+          mkdir -p "$wrap"
+          cp .github/scripts/codesign "$wrap/codesign"
+          chmod +x "$wrap/codesign"
+          echo "$wrap" >> "$GITHUB_PATH"
+
+      - name: Import Windows code-signing certificate
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $thumb = $env:WINDOWS_CERTIFICATE_THUMBPRINT
+          if (-not $thumb -and $env:WINDOWS_CERTIFICATE) {
+            $pfx = Join-Path $env:RUNNER_TEMP "windows-cert.pfx"
+            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+            $pass = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
+            $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $pass
+            $thumb = $cert.Thumbprint
+            Remove-Item $pfx -Force
+          }
+          if (-not $thumb) {
+            Write-Host "no WINDOWS_CERTIFICATE / WINDOWS_CERTIFICATE_THUMBPRINT; MSI will be unsigned"
+            exit 0
+          }
+          echo "WINDOWS_CERTIFICATE_THUMBPRINT=$thumb" >> $env:GITHUB_ENV
+
+      - name: Locate SignTool
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./.github/scripts/locate-signtool.ps1
+
+      - name: Inject Windows Authenticode config
+        if: runner.os == 'Windows'
+        shell: bash
+        run: python3 .github/scripts/inject-packager-signing.py
+
+      - name: cargo packager
+        if: ${{ !contains(inputs.formats, 'pacman') }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # GitHub maps missing secrets to ""; cargo-packager treats Some("") as set.
+          for var in \
+            CARGO_PACKAGER_SIGN_PRIVATE_KEY \
+            CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD \
+            APPLE_CERTIFICATE \
+            APPLE_CERTIFICATE_PASSWORD \
+            APPLE_SIGNING_IDENTITY \
+            WINDOWS_CERTIFICATE \
+            WINDOWS_CERTIFICATE_PASSWORD \
+            WINDOWS_CERTIFICATE_THUMBPRINT \
+            WINDOWS_TIMESTAMP_URL
+          do
+            if [[ -z "${!var:-}" ]]; then
+              unset "$var" || true
+            fi
+          done
+          # Force App Store Connect API key notarization; ignore Apple ID / keychain.
+          unset APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID APPLE_KEYCHAIN_PROFILE || true
+
+          # macOS bash 3.2 + set -u: empty arrays are unbound (`extra[@]`).
+          args=(cargo packager --release --formats "${{ inputs.formats }}"
+            --target "${{ inputs.triple }}"
+            --out-dir "$PACK_DIR"
+            --binaries-dir ./target/release)
+          if [[ -n "${CARGO_PACKAGER_SIGN_PRIVATE_KEY:-}" ]]; then
+            args+=(-k "${CARGO_PACKAGER_SIGN_PRIVATE_KEY}"
+              --password "${CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD:-}")
+          else
+            echo "CARGO_PACKAGER_SIGN_PRIVATE_KEY unset; updater .sig files will be missing"
+          fi
+          "${args[@]}"
+
+      # Ubuntu runner is the Docker host only. cargo build + makepkg run in
+      # Arch Linux (see .github/scripts/build-arch-package.sh).
+      - name: Arch Linux package (Docker)
+        if: ${{ contains(inputs.formats, 'pacman') }}
+        env:
+          VERSION: ${{ inputs.version }}
+        run: .github/scripts/build-arch-package.sh --version "$VERSION" --arch "${{ inputs.arch }}" --out-dir "$PACK_DIR"
+
+      # cargo-packager names mix amd64/arm64/x64; Ubuntu 24.04 / 26.04
+      # .debs would collide. Stamp every asset imprint_{ver}_{system}_{cpu}.*
+      # inside $PACK_DIR (macos-arm64, ubuntu-24.04-amd64, ...).
+      - name: Tag artifacts with OS and CPU
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+          DEB_TAG: ${{ inputs.deb_tag }}
+        run: |
+          set -euo pipefail
+          # macOS bash 3.2 + set -u: `"${extra[@]}"` on an empty array errors
+          # with `extra[@]: unbound variable`. Always start with a non-empty argv.
+          args=(python3 .github/scripts/tag-release-assets.py
+            --version "$VERSION"
+            --arch "${{ inputs.arch }}"
+            --dist "$PACK_DIR")
+          if [[ -n "${DEB_TAG:-}" ]]; then
+            args+=(--deb-tag "$DEB_TAG")
+          fi
+          "${args[@]}"
+
+      - name: Updater payload + latest.json fragment
+        if: ${{ !inputs.skip_updater }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/prepare-updater-assets.py \
+            --arch "${{ inputs.arch }}" \
+            --dist "$PACK_DIR" \
+            "${{ inputs.version }}"
+
+      - name: Upload binaries to GitHub Release
+        shell: bash
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          # gh release upload glob-expands each arg and errors on zero matches.
+          # Only pass real files. Skip cargo-packager's per-arch PKGBUILD
+          # (local source= filename, not a release asset).
+          files=()
+          for f in \
+            "$PACK_DIR"/*.dmg \
+            "$PACK_DIR"/*.msi \
+            "$PACK_DIR"/*.exe \
+            "$PACK_DIR"/*.deb \
+            "$PACK_DIR"/*.AppImage \
+            "$PACK_DIR"/*.tar.gz \
+            "$PACK_DIR"/*.pkg.tar.zst \
+            "$PACK_DIR"/*.pkg.tar.xz \
+            "$PACK_DIR"/*.sig
+          do
+            [[ -f "$f" ]] || continue
+            case "$(basename "$f")" in
+              PKGBUILD | PKGBUILD.* | PKGBUILD.sig) continue ;;
+            esac
+            files+=("$f")
+          done
+          if [[ ${#files[@]} -eq 0 ]]; then
+            echo "no package files in ${PACK_DIR}/" >&2
+            ls -la "$PACK_DIR" >&2 || true
+            ls -la dist/ >&2 || true
+            exit 1
+          fi
+          gh release upload "$TAG" "${files[@]}" --clobber
+          printf 'uploaded to %s:\n' "$TAG"
+          printf '  %s\n' "${files[@]}"
+
+      - name: Merge and upload latest.json
+        if: ${{ !inputs.skip_updater }}
+        shell: bash
+        env:
+          TAG: ${{ inputs.tag }}
+          VERSION: ${{ inputs.version }}
+        run: python3 .github/scripts/update-latest-json.py --version "$VERSION" --dist "$PACK_DIR" --upload "$TAG"

@@ -59,17 +59,45 @@ imprint-cli flash ubuntu.iso --device /dev/rdisk4 --yes
 ### macOS（Homebrew）
 
 ```bash
-brew tap googolmo/imprint https://github.com/googolmo/imprint
+brew tap googolmo/tap
 brew install --cask imprint
 ```
 
-**Imprint** は `/Applications` に入り、`imprint-cli` が `PATH` に追加されます。cask はこのリポジトリ内にあるため、`homebrew/cask` ではなく URL 付きで tap してください。
+**Imprint** は `/Applications` に入り、`imprint-cli` が `PATH` に追加されます。cask は [googolmo/homebrew-tap](https://github.com/googolmo/homebrew-tap) にあり、`homebrew/cask` ではありません。
 
 [GitHub Releases](https://github.com/googolmo/imprint/releases) から `.dmg` を入手することもできます。
 
+### Linux（Debian / Ubuntu）
+
+[googolmo/repo](https://github.com/googolmo/repo) の APT ソースを入れます。`apt` は `.deb` をこのプロジェクトの [GitHub Releases](https://github.com/googolmo/imprint/releases) から取得します。
+
+```bash
+sudo mkdir -p /usr/share/keyrings
+sudo curl -fsSL https://googolmo.github.io/repo/keys/repo.gpg \
+  -o /usr/share/keyrings/repo-archive-keyring.gpg
+sudo chmod 644 /usr/share/keyrings/repo-archive-keyring.gpg
+sudo curl -fsSL https://googolmo.github.io/repo/ubuntu/repo.sources \
+  -o /etc/apt/sources.list.d/repo.sources
+sudo apt update
+sudo apt install imprint
+```
+
+スイート `stable` は Ubuntu 24.04 / Debian 13+ 向けです。新しい glibc 向けパッケージは `repo.sources` の suite を `ubuntu26.04` にします。
+
+### Linux（Arch）
+
+[googolmo/repo](https://github.com/googolmo/repo) の Pacman ソースファイルを入れます。`pacman` は `.pkg.tar.zst` をこのプロジェクトの [GitHub Releases](https://github.com/googolmo/imprint/releases) から取得します。
+
+```bash
+sudo curl -fsSL https://googolmo.github.io/repo/pacman/repo.conf \
+  -o /etc/pacman.d/repo
+echo -e '\nInclude = /etc/pacman.d/repo' | sudo tee -a /etc/pacman.conf
+sudo pacman -Sy imprint
+```
+
 ### Linux と Windows
 
-パッケージ版は [GitHub Releases](https://github.com/googolmo/imprint/releases) にあります。Windows x86-64（`.msi`）と arm64（NSIS）、Linux x86-64 と arm64（Ubuntu 22.04/Debian と Ubuntu 24.04 向け `.deb`、AppImage、Arch の `.pkg.tar.zst`、AUR の `PKGBUILD`）。
+パッケージ版は [GitHub Releases](https://github.com/googolmo/imprint/releases) にあります。Windows amd64（`.msi`）と arm64（NSIS）、Linux amd64 と arm64（Ubuntu 24.04/Debian 13+ と Ubuntu 26.04 向け `.deb`、AppImage、Arch の `.pkg.tar.zst`）。
 
 ## クイックスタート（ソースから）
 

@@ -1,29 +1,47 @@
 #!/usr/bin/env python3
-"""Rename cargo-packager dist/ files so each asset includes OS + CPU.
+"""Rename cargo-packager output so each asset includes OS + CPU.
+
+Release CI writes packages into dist/<pack_dir>/, where pack_dir is
+`{system}[-{version}]-{arch}` and arch is amd64 | arm64:
+
+  macos-arm64, macos-amd64
+  ubuntu-24.04-amd64, ubuntu-24.04-arm64
+  ubuntu-26.04-amd64, ubuntu-26.04-arm64
+  windows-amd64, windows-arm64
+  archlinux-amd64, archlinux-arm64
 
 cargo-packager names mix Debian (amd64/arm64), Windows (x64/arm64), and rustc
-(x86_64/aarch64) arches, and only the Ubuntu 24.04 job used to inject a distro
-tag. Release assets become:
+(x86_64/aarch64) arches. Files inside the pack dir become:
 
   imprint_{version}_{system}_{cpu}{suffix}
 
-  system  ubuntu22.04 | ubuntu24.04 | macos | windows | archlinux
-  cpu     x86_64 | arm64
+  system  ubuntu24.04 | ubuntu26.04 | macos | windows | archlinux
+  cpu     amd64 | arm64
 
 Examples:
-  imprint_0.1.3_amd64.deb              → imprint_0.1.3_ubuntu22.04_x86_64.deb
-  imprint_0.1.3_x86_64.AppImage        → imprint_0.1.3_ubuntu22.04_x86_64.AppImage
-  Imprint_0.1.3_aarch64.dmg            → imprint_0.1.3_macos_arm64.dmg
-  imprint_0.1.3_x64_en-US.msi          → imprint_0.1.3_windows_x86_64.msi
-  imprint_0.1.3_arm64-setup.exe        → imprint_0.1.3_windows_arm64-setup.exe
-  imprint_0.1.3_x86_64.tar.gz          → imprint_0.1.3_archlinux_x86_64.tar.gz
-  imprint-0.1.3-1-x86_64.pkg.tar.zst   → imprint_0.1.3_archlinux_x86_64.pkg.tar.zst
+  dist/ubuntu-24.04-amd64/imprint_0.1.3_amd64.deb
+      → imprint_0.1.3_ubuntu24.04_amd64.deb
+  dist/ubuntu-24.04-amd64/imprint_0.1.3_x86_64.AppImage
+      → imprint_0.1.3_ubuntu24.04_amd64.AppImage
+  dist/macos-arm64/Imprint_0.1.3_aarch64.dmg
+      → imprint_0.1.3_macos_arm64.dmg
+  dist/windows-amd64/imprint_0.1.3_x64_en-US.msi
+      → imprint_0.1.3_windows_amd64.msi
+  dist/windows-arm64/imprint_0.1.3_arm64-setup.exe
+      → imprint_0.1.3_windows_arm64-setup.exe
+  dist/archlinux-amd64/imprint-0.1.3-1-x86_64.pkg.tar.zst
+      → imprint_0.1.3_archlinux_amd64.pkg.tar.zst
 
 Sibling `.sig` files move with the asset. latest-*.json, PKGBUILD, and
 directories are left alone.
 
+A pack dir name supplies system + cpu, so `--arch` / `--deb-tag` are optional
+when `--dist` is (or contains) those directories. Flat `dist/` still needs
+`--arch` (and `--deb-tag` for .deb / AppImage).
+
 Usage:
-  .github/scripts/tag-release-assets.py --version 0.1.3 --arch x86_64 --deb-tag ubuntu22.04
+  .github/scripts/tag-release-assets.py --version 0.1.3 --dist dist/ubuntu-24.04-amd64
+  .github/scripts/tag-release-assets.py --version 0.1.3 --arch amd64 --deb-tag ubuntu24.04
   .github/scripts/tag-release-assets.py --self-test
 """
 
@@ -39,12 +57,12 @@ ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DIST = ROOT / "dist"
 
 CPU_ALIASES = {
-    "x86_64": "x86_64",
-    "amd64": "x86_64",
-    "x64": "x86_64",
-    "AMD64": "x86_64",
-    "aarch64": "arm64",
+    "amd64": "amd64",
+    "x86_64": "amd64",
+    "x64": "amd64",
+    "AMD64": "amd64",
     "arm64": "arm64",
+    "aarch64": "arm64",
     "ARM64": "arm64",
 }
 
@@ -52,14 +70,57 @@ SKIP_EXACT = {"latest.json", "PKGBUILD", ".SRCINFO"}
 SKIP_PREFIXES = ("latest-", "PKGBUILD.")
 
 
-def normalize_cpu(arch: str) -> str:
+def try_normalize_cpu(arch: str) -> str | None:
     key = arch.strip()
-    mapped = CPU_ALIASES.get(key) or CPU_ALIASES.get(key.lower())
+    return CPU_ALIASES.get(key) or CPU_ALIASES.get(key.lower())
+
+
+def normalize_cpu(arch: str) -> str:
+    mapped = try_normalize_cpu(arch)
     if mapped is None:
         raise SystemExit(
-            f"unsupported arch {arch!r}; imprint packages x86_64 and arm64 only"
+            f"unsupported arch {arch!r}; imprint packages amd64 and arm64 only"
         )
     return mapped
+
+
+def parse_pack_dir(name: str) -> tuple[str, str] | None:
+    """Return (system, cpu) for a pack directory name, or None if it is not one.
+
+    `{system}[-{version}]-{arch}`:
+      macos-arm64         → macos, arm64
+      ubuntu-24.04-amd64  → ubuntu24.04, amd64
+      windows-amd64       → windows, amd64
+      archlinux-arm64     → archlinux, arm64
+    rustc suffixes (x86_64 / aarch64) are accepted as aliases.
+    """
+    slug = Path(name).name
+    system_raw, sep, arch_raw = slug.rpartition("-")
+    if not sep or not system_raw or not arch_raw:
+        return None
+    cpu = try_normalize_cpu(arch_raw)
+    if cpu is None:
+        return None
+    if system_raw in {"macos", "windows", "archlinux"}:
+        return system_raw, cpu
+    if system_raw.startswith("ubuntu-"):
+        version = system_raw.removeprefix("ubuntu-")
+        if not version or not any(ch.isdigit() for ch in version):
+            return None
+        return f"ubuntu{version}", cpu
+    return None
+
+
+def pack_dirs_to_process(dist: Path) -> list[Path]:
+    """Prefer named pack dirs; fall back to treating dist/ as a flat folder."""
+    if parse_pack_dir(dist.name):
+        return [dist]
+    children = sorted(
+        path for path in dist.iterdir() if path.is_dir() and parse_pack_dir(path.name)
+    )
+    if children:
+        return children
+    return [dist]
 
 
 def classify(path: Path) -> str | None:
@@ -110,7 +171,7 @@ def pkg_suffix(path: Path, kind: str) -> str:
 def system_for(kind: str, deb_tag: str | None) -> str:
     mapping = {
         "deb": deb_tag or "linux",
-        # AppImage is built on the same runner as the .deb (Ubuntu 22.04 today).
+        # AppImage is built on the same runner as the primary .deb (Ubuntu 24.04).
         "appimage": deb_tag or "linux",
         "dmg": "macos",
         "msi": "windows",
@@ -123,7 +184,8 @@ def system_for(kind: str, deb_tag: str | None) -> str:
     if kind == "deb" and not deb_tag:
         raise SystemExit(
             f"refusing to tag {kind} without --deb-tag "
-            "(ubuntu22.04 or ubuntu24.04); filenames would collide across distros"
+            "(ubuntu24.04 or ubuntu26.04); "
+            "filenames would collide across distros"
         )
     return system
 
@@ -147,22 +209,25 @@ def move_with_sig(src: Path, dest: Path) -> None:
         shutil.move(str(src_sig), str(dest_sig))
 
 
-def tag_assets(
+def tag_one_dir(
     dist: Path,
     *,
     version: str,
-    arch: str,
-    deb_tag: str | None = None,
-    dry_run: bool = False,
+    cpu: str,
+    pack_system: str | None,
+    deb_tag: str | None,
+    dry_run: bool,
 ) -> list[tuple[Path, Path]]:
-    cpu = normalize_cpu(arch)
     planned: list[tuple[Path, Path]] = []
     dests: dict[Path, Path] = {}
     for path in sorted(dist.iterdir()):
         kind = classify(path)
         if kind is None:
             continue
-        system = system_for(kind, deb_tag)
+        if pack_system is not None:
+            system = pack_system
+        else:
+            system = system_for(kind, deb_tag)
         dest = dist / canonical_name(version, system, cpu, pkg_suffix(path, kind))
         planned.append((path, dest))
         if dest in dests and dests[dest].resolve() != path.resolve():
@@ -183,24 +248,70 @@ def tag_assets(
     return planned
 
 
+def tag_assets(
+    dist: Path,
+    *,
+    version: str,
+    arch: str | None = None,
+    deb_tag: str | None = None,
+    dry_run: bool = False,
+) -> list[tuple[Path, Path]]:
+    planned: list[tuple[Path, Path]] = []
+    for pack in pack_dirs_to_process(dist):
+        inferred = parse_pack_dir(pack.name)
+        pack_system = inferred[0] if inferred else None
+        inferred_cpu = inferred[1] if inferred else None
+        if arch:
+            cpu = normalize_cpu(arch)
+            if inferred_cpu is not None and cpu != inferred_cpu:
+                raise SystemExit(
+                    f"--arch {arch} does not match pack dir {pack.name} ({inferred_cpu})"
+                )
+        elif inferred_cpu is not None:
+            cpu = inferred_cpu
+        else:
+            raise SystemExit(
+                "--arch is required when --dist is not a pack dir named like "
+                "macos-arm64 or ubuntu-24.04-amd64"
+            )
+        if pack_system and deb_tag and pack_system != deb_tag:
+            raise SystemExit(
+                f"--deb-tag {deb_tag} does not match pack dir {pack.name} ({pack_system})"
+            )
+        planned.extend(
+            tag_one_dir(
+                pack,
+                version=version,
+                cpu=cpu,
+                pack_system=pack_system,
+                deb_tag=deb_tag,
+                dry_run=dry_run,
+            )
+        )
+    return planned
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Rename dist/ packages to imprint_{version}_{system}_{cpu}.*",
+        description="Rename pack-dir packages to imprint_{version}_{system}_{cpu}.*",
     )
     parser.add_argument("--version", help="Package version (required unless --self-test)")
     parser.add_argument(
         "--arch",
-        help="CPU architecture of this job (x86_64 or arm64; aarch64/amd64/x64 aliases ok)",
+        help="CPU architecture of this job (amd64 or arm64; x86_64/aarch64/x64 aliases ok). "
+        "Optional when --dist is a pack dir like macos-arm64 / ubuntu-24.04-amd64.",
     )
     parser.add_argument(
         "--deb-tag",
-        help="OS tag for .deb files (ubuntu22.04 or ubuntu24.04). Required when dist/ has a .deb.",
+        help="OS tag for .deb files (ubuntu24.04 or ubuntu26.04). "
+        "Optional when --dist is a ubuntu-<version>-<arch> pack dir.",
     )
     parser.add_argument(
         "--dist",
         type=Path,
         default=DEFAULT_DIST,
-        help="Package directory (default: dist/)",
+        help="Package directory (default: dist/). "
+        "A pack dir (macos-arm64, ubuntu-24.04-amd64, ...) or a parent of those.",
     )
     parser.add_argument("--dry-run", action="store_true", help="Print planned renames only")
     parser.add_argument("--self-test", action="store_true", help="Run built-in checks and exit")
@@ -213,11 +324,45 @@ def _touch(path: Path, body: str = "x") -> Path:
     return path
 
 
+def _expect_exit(fn) -> None:
+    try:
+        fn()
+    except SystemExit:
+        return
+    raise SystemExit("expected SystemExit")
+
+
 def _self_test() -> None:
+    parsed = {
+        "macos-arm64": ("macos", "arm64"),
+        "macos-amd64": ("macos", "amd64"),
+        "macos-aarch64": ("macos", "arm64"),
+        "macos-x86_64": ("macos", "amd64"),
+        "ubuntu-24.04-amd64": ("ubuntu24.04", "amd64"),
+        "ubuntu-24.04-arm64": ("ubuntu24.04", "arm64"),
+        "ubuntu-26.04-amd64": ("ubuntu26.04", "amd64"),
+        "ubuntu-26.04-aarch64": ("ubuntu26.04", "arm64"),
+        "windows-amd64": ("windows", "amd64"),
+        "windows-arm64": ("windows", "arm64"),
+        "windows-x86_64": ("windows", "amd64"),
+        "windows-aarch64": ("windows", "arm64"),
+        "archlinux-amd64": ("archlinux", "amd64"),
+        "archlinux-arm64": ("archlinux", "arm64"),
+        "archlinux-x86_64": ("archlinux", "amd64"),
+        "archlinux-aarch64": ("archlinux", "arm64"),
+    }
+    for slug, want in parsed.items():
+        got = parse_pack_dir(slug)
+        if got != want:
+            raise SystemExit(f"parse_pack_dir({slug!r}) -> {got}, want {want}")
+    for slug in ("dist", "latest.json", "ubuntu", "macos-", "-amd64"):
+        if parse_pack_dir(slug) is not None:
+            raise SystemExit(f"parse_pack_dir({slug!r}) should be None")
+
     cases: list[tuple[str, str | None, list[str], list[str]]] = [
         (
             "x86_64",
-            "ubuntu22.04",
+            "ubuntu24.04",
             [
                 "imprint_0.1.3_amd64.deb",
                 "imprint_0.1.3_amd64.deb.sig",
@@ -228,18 +373,18 @@ def _self_test() -> None:
                 "latest-linux-x86_64.json",
             ],
             [
-                "imprint_0.1.3_ubuntu22.04_x86_64.deb",
-                "imprint_0.1.3_ubuntu22.04_x86_64.deb.sig",
-                "imprint_0.1.3_ubuntu22.04_x86_64.AppImage",
-                "imprint_0.1.3_archlinux_x86_64.tar.gz",
-                "imprint_0.1.3_archlinux_x86_64.pkg.tar.zst",
+                "imprint_0.1.3_ubuntu24.04_amd64.deb",
+                "imprint_0.1.3_ubuntu24.04_amd64.deb.sig",
+                "imprint_0.1.3_ubuntu24.04_amd64.AppImage",
+                "imprint_0.1.3_archlinux_amd64.tar.gz",
+                "imprint_0.1.3_archlinux_amd64.pkg.tar.zst",
                 "PKGBUILD",
                 "latest-linux-x86_64.json",
             ],
         ),
         (
             "aarch64",
-            "ubuntu22.04",
+            "ubuntu24.04",
             [
                 "imprint_0.1.3_arm64.deb",
                 "imprint_0.1.3_aarch64.AppImage",
@@ -247,20 +392,17 @@ def _self_test() -> None:
                 "imprint-0.1.3-1-aarch64.pkg.tar.zst",
             ],
             [
-                "imprint_0.1.3_ubuntu22.04_arm64.deb",
-                "imprint_0.1.3_ubuntu22.04_arm64.AppImage",
+                "imprint_0.1.3_ubuntu24.04_arm64.deb",
+                "imprint_0.1.3_ubuntu24.04_arm64.AppImage",
                 "imprint_0.1.3_archlinux_arm64.tar.gz",
                 "imprint_0.1.3_archlinux_arm64.pkg.tar.zst",
             ],
         ),
         (
-            "aarch64",
-            "ubuntu24.04",
-            ["imprint_0.1.3_arm64.deb", "imprint_0.1.3_arm64.deb.sig"],
-            [
-                "imprint_0.1.3_ubuntu24.04_arm64.deb",
-                "imprint_0.1.3_ubuntu24.04_arm64.deb.sig",
-            ],
+            "amd64",
+            "ubuntu26.04",
+            ["imprint_0.1.3_amd64.deb"],
+            ["imprint_0.1.3_ubuntu26.04_amd64.deb"],
         ),
         (
             "aarch64",
@@ -272,10 +414,10 @@ def _self_test() -> None:
             "x86_64",
             None,
             ["imprint_0.1.3_x64_en-US.msi"],
-            ["imprint_0.1.3_windows_x86_64.msi"],
+            ["imprint_0.1.3_windows_amd64.msi"],
         ),
         (
-            "aarch64",
+            "arm64",
             None,
             ["imprint_0.1.3_arm64-setup.exe"],
             ["imprint_0.1.3_windows_arm64-setup.exe"],
@@ -290,31 +432,107 @@ def _self_test() -> None:
             got = sorted(p.name for p in dist.iterdir())
             want = sorted(expected)
             if got != want:
-                raise SystemExit(f"self-test failed arch={arch} deb_tag={deb_tag}\n  got:  {got}\n  want: {want}")
+                raise SystemExit(
+                    f"self-test failed arch={arch} deb_tag={deb_tag}\n  got:  {got}\n  want: {want}"
+                )
+    # Previous canonical x86_64 names migrate to amd64.
+    with tempfile.TemporaryDirectory() as tmp:
+        dist = Path(tmp)
+        _touch(dist / "imprint_0.1.3_ubuntu24.04_x86_64.deb")
+        tag_assets(dist, version="0.1.3", arch="x86_64", deb_tag="ubuntu24.04")
+        names = [p.name for p in dist.iterdir()]
+        if names != ["imprint_0.1.3_ubuntu24.04_amd64.deb"]:
+            raise SystemExit(f"x86_64 → amd64 migrate failed: {names}")
     # Idempotent when names are already canonical.
     with tempfile.TemporaryDirectory() as tmp:
         dist = Path(tmp)
-        _touch(dist / "imprint_0.1.3_ubuntu22.04_x86_64.deb")
-        tag_assets(dist, version="0.1.3", arch="x86_64", deb_tag="ubuntu22.04")
+        _touch(dist / "imprint_0.1.3_ubuntu24.04_amd64.deb")
+        tag_assets(dist, version="0.1.3", arch="amd64", deb_tag="ubuntu24.04")
         names = [p.name for p in dist.iterdir()]
-        if names != ["imprint_0.1.3_ubuntu22.04_x86_64.deb"]:
+        if names != ["imprint_0.1.3_ubuntu24.04_amd64.deb"]:
             raise SystemExit(f"idempotent rename failed: {names}")
     with tempfile.TemporaryDirectory() as tmp:
         dist = Path(tmp)
-        _touch(dist / "imprint_0.1.3_ubuntu22.04_arm64.deb")
-        tag_assets(dist, version="0.1.3", arch="arm64", deb_tag="ubuntu22.04")
+        _touch(dist / "imprint_0.1.3_ubuntu24.04_arm64.deb")
+        tag_assets(dist, version="0.1.3", arch="arm64", deb_tag="ubuntu24.04")
         names = [p.name for p in dist.iterdir()]
-        if names != ["imprint_0.1.3_ubuntu22.04_arm64.deb"]:
+        if names != ["imprint_0.1.3_ubuntu24.04_arm64.deb"]:
             raise SystemExit(f"idempotent arm64 rename failed: {names}")
     with tempfile.TemporaryDirectory() as tmp:
         dist = Path(tmp)
         _touch(dist / "imprint_0.1.3_amd64.deb")
-        try:
-            tag_assets(dist, version="0.1.3", arch="x86_64")
-        except SystemExit:
-            pass
-        else:
-            raise SystemExit("expected SystemExit when tagging a .deb without --deb-tag")
+        _expect_exit(lambda: tag_assets(dist, version="0.1.3", arch="x86_64"))
+
+    # Pack dir infers system + cpu (no --arch / --deb-tag).
+    with tempfile.TemporaryDirectory() as tmp:
+        dist = Path(tmp) / "ubuntu-24.04-amd64"
+        _touch(dist / "imprint_0.1.3_amd64.deb")
+        _touch(dist / "imprint_0.1.3_x86_64.AppImage")
+        tag_assets(dist, version="0.1.3")
+        got = sorted(p.name for p in dist.iterdir())
+        want = sorted(
+            [
+                "imprint_0.1.3_ubuntu24.04_amd64.deb",
+                "imprint_0.1.3_ubuntu24.04_amd64.AppImage",
+            ]
+        )
+        if got != want:
+            raise SystemExit(f"pack-dir ubuntu infer failed\n  got:  {got}\n  want: {want}")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        dist = Path(tmp) / "macos-arm64"
+        _touch(dist / "Imprint_0.1.3_aarch64.dmg")
+        _touch(dist / "Imprint_0.1.3_aarch64.dmg.sig")
+        tag_assets(dist, version="0.1.3")
+        got = sorted(p.name for p in dist.iterdir())
+        want = sorted(
+            ["imprint_0.1.3_macos_arm64.dmg", "imprint_0.1.3_macos_arm64.dmg.sig"]
+        )
+        if got != want:
+            raise SystemExit(f"pack-dir macos infer failed\n  got:  {got}\n  want: {want}")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        dist = Path(tmp) / "archlinux-amd64"
+        _touch(dist / "imprint-0.1.3-1-x86_64.pkg.tar.zst")
+        tag_assets(dist, version="0.1.3", arch="x86_64")
+        names = [p.name for p in dist.iterdir()]
+        if names != ["imprint_0.1.3_archlinux_amd64.pkg.tar.zst"]:
+            raise SystemExit(f"pack-dir arch infer failed: {names}")
+
+    # Parent dist/ with several pack dirs, no --arch.
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _touch(root / "macos-arm64" / "Imprint_0.1.3_aarch64.dmg")
+        _touch(root / "ubuntu-24.04-amd64" / "imprint_0.1.3_amd64.deb")
+        _touch(root / "windows-amd64" / "imprint_0.1.3_x64_en-US.msi")
+        tag_assets(root, version="0.1.3")
+        got = sorted(
+            str(p.relative_to(root))
+            for p in root.rglob("*")
+            if p.is_file()
+        )
+        want = sorted(
+            [
+                "macos-arm64/imprint_0.1.3_macos_arm64.dmg",
+                "ubuntu-24.04-amd64/imprint_0.1.3_ubuntu24.04_amd64.deb",
+                "windows-amd64/imprint_0.1.3_windows_amd64.msi",
+            ]
+        )
+        if got != want:
+            raise SystemExit(f"parent pack-dir walk failed\n  got:  {got}\n  want: {want}")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        dist = Path(tmp) / "macos-arm64"
+        _touch(dist / "Imprint_0.1.3_aarch64.dmg")
+        _expect_exit(lambda: tag_assets(dist, version="0.1.3", arch="x86_64"))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        dist = Path(tmp) / "ubuntu-24.04-amd64"
+        _touch(dist / "imprint_0.1.3_amd64.deb")
+        _expect_exit(
+            lambda: tag_assets(dist, version="0.1.3", arch="x86_64", deb_tag="ubuntu26.04")
+        )
+
     print("self-test ok")
 
 
@@ -323,8 +541,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.self_test:
         _self_test()
         return 0
-    if not args.version or not args.arch:
-        print("--version and --arch are required", file=sys.stderr)
+    if not args.version:
+        print("--version is required", file=sys.stderr)
         return 2
     dist: Path = args.dist
     if not dist.is_dir():

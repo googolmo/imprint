@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 """Write a Homebrew cask (Casks/imprint.rb) for the macOS .dmg assets.
 
-Expects disk images in dist/ (after .github/scripts/tag-release-assets.py):
+Expects disk images in dist/ or dist/macos-*/ (after
+.github/scripts/tag-release-assets.py):
 
   imprint_<version>_macos_arm64.dmg
-  imprint_<version>_macos_x86_64.dmg
+  imprint_<version>_macos_amd64.dmg
 
 Falls back to cargo-packager names (Imprint_<version>_aarch64.dmg /
 Imprint_<version>_x64.dmg) so an already-published release can still be
 casked.
 
-`--upload TAG` also uploads imprint.rb to that GitHub Release.
+`--upload TAG` also uploads imprint.rb to that GitHub Release. Tag pushes
+copy the cask to googolmo/homebrew-tap (`brew tap googolmo/tap`); this
+repository is not itself a Homebrew tap.
 
 Usage:
   .github/scripts/prepare-homebrew-cask.py
@@ -36,6 +39,11 @@ GITHUB_REMOTE = re.compile(r"github\.com[:/](?P<repo>[^/]+/[^/.]+)(?:\.git)?$")
 
 # Homebrew `arch` tokens (arm, intel) → filename CPU for the canonical scheme.
 CANONICAL = {
+    "arm": "arm64",
+    "intel": "amd64",
+}
+# Previous release asset CPU (x86_64) before amd64.
+PREVIOUS = {
     "arm": "arm64",
     "intel": "x86_64",
 }
@@ -110,11 +118,14 @@ def dmg_candidates(version: str, brew_arch: str) -> tuple[str, ...]:
         ]
     else:
         names = [
+            f"imprint_{version}_macos_amd64.dmg",
             f"imprint_{version}_macos_x86_64.dmg",
             f"Imprint_{version}_x64.dmg",
             f"Imprint_{version}_x86_64.dmg",
+            f"Imprint_{version}_amd64.dmg",
             f"imprint_{version}_x64.dmg",
             f"imprint_{version}_x86_64.dmg",
+            f"imprint_{version}_amd64.dmg",
         ]
     seen: list[str] = []
     for name in names:
@@ -124,10 +135,14 @@ def dmg_candidates(version: str, brew_arch: str) -> tuple[str, ...]:
 
 
 def find_dmg(dist: Path, version: str, brew_arch: str) -> Path | None:
+    search_dirs = [dist]
+    if dist.is_dir():
+        search_dirs.extend(sorted(path for path in dist.iterdir() if path.is_dir()))
     for name in dmg_candidates(version, brew_arch):
-        path = dist / name
-        if path.is_file():
-            return path
+        for directory in search_dirs:
+            path = directory / name
+            if path.is_file():
+                return path
     return None
 
 
@@ -156,6 +171,7 @@ def url_scheme(dmgs: dict[str, Path], version: str) -> tuple[str, dict[str, str]
     intel_name = dmgs["intel"].name
     schemes = (
         (CANONICAL, f"imprint_{version}_macos_{{arch}}.dmg"),
+        (PREVIOUS, f"imprint_{version}_macos_{{arch}}.dmg"),
         (LEGACY, f"Imprint_{version}_{{arch}}.dmg"),
     )
     for tokens, template in schemes:
@@ -286,12 +302,12 @@ def _self_test() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         dist = Path(tmp)
         _touch(dist / f"imprint_{version}_macos_arm64.dmg", arm_body)
-        _touch(dist / f"imprint_{version}_macos_x86_64.dmg", intel_body)
+        _touch(dist / f"imprint_{version}_macos_amd64.dmg", intel_body)
         dmgs = require_dmgs(dist, version)
         cask = render_cask(version=version, repo=repo, dmgs=dmgs)
         for needle in (
             'cask "imprint" do',
-            'arch arm: "arm64", intel: "x86_64"',
+            'arch arm: "arm64", intel: "amd64"',
             f'version "{version}"',
             f'sha256 arm:   "{arm_sha}"',
             f'intel: "{intel_sha}"',
@@ -303,6 +319,15 @@ def _self_test() -> None:
         ):
             if needle not in cask:
                 raise SystemExit(f"canonical cask missing {needle!r}\n{cask}")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        dist = Path(tmp)
+        _touch(dist / f"imprint_{version}_macos_arm64.dmg", arm_body)
+        _touch(dist / f"imprint_{version}_macos_x86_64.dmg", intel_body)
+        dmgs = require_dmgs(dist, version)
+        cask = render_cask(version=version, repo=repo, dmgs=dmgs)
+        if 'arch arm: "arm64", intel: "x86_64"' not in cask:
+            raise SystemExit(f"previous x86_64 cask missing intel token\n{cask}")
 
     with tempfile.TemporaryDirectory() as tmp:
         dist = Path(tmp)
@@ -340,6 +365,21 @@ def _self_test() -> None:
             pass
         else:
             raise SystemExit("expected SystemExit when the intel .dmg is missing")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        dist = Path(tmp)
+        _touch(dist / "macos-arm64" / f"imprint_{version}_macos_arm64.dmg", arm_body)
+        _touch(dist / "macos-amd64" / f"imprint_{version}_macos_amd64.dmg", intel_body)
+        dmgs = require_dmgs(dist, version)
+        cask = render_cask(version=version, repo=repo, dmgs=dmgs)
+        if "imprint_#{version}_macos_#{arch}.dmg" not in cask:
+            raise SystemExit(f"pack-dir cask missing canonical url\n{cask}")
+        if 'arch arm: "arm64", intel: "amd64"' not in cask:
+            raise SystemExit(f"pack-dir cask missing amd64 token\n{cask}")
+        if dmgs["arm"].parent.name != "macos-arm64":
+            raise SystemExit(f"arm dmg not from macos-arm64: {dmgs['arm']}")
+        if dmgs["intel"].parent.name != "macos-amd64":
+            raise SystemExit(f"intel dmg not from macos-amd64: {dmgs['intel']}")
 
     print("self-test ok")
 

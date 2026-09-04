@@ -59,17 +59,45 @@ Device paths: macOS `/dev/rdiskN`, Linux `/dev/sdX` or `/dev/nvmeXn1`, Windows `
 ### macOS (Homebrew)
 
 ```bash
-brew tap googolmo/imprint https://github.com/googolmo/imprint
+brew tap googolmo/tap
 brew install --cask imprint
 ```
 
-This installs **Imprint** in `/Applications` and puts `imprint-cli` on your `PATH`. The tap URL is required because the cask lives in this repository, not `homebrew/cask`.
+This installs **Imprint** in `/Applications` and puts `imprint-cli` on your `PATH`. The cask lives in [googolmo/homebrew-tap](https://github.com/googolmo/homebrew-tap), not `homebrew/cask`.
 
 Or download the `.dmg` from [GitHub Releases](https://github.com/googolmo/imprint/releases).
 
+### Linux (Debian / Ubuntu)
+
+Install the APT source from [googolmo/repo](https://github.com/googolmo/repo). `apt` then downloads the `.deb` from this project's [GitHub Releases](https://github.com/googolmo/imprint/releases):
+
+```bash
+sudo mkdir -p /usr/share/keyrings
+sudo curl -fsSL https://googolmo.github.io/repo/keys/repo.gpg \
+  -o /usr/share/keyrings/repo-archive-keyring.gpg
+sudo chmod 644 /usr/share/keyrings/repo-archive-keyring.gpg
+sudo curl -fsSL https://googolmo.github.io/repo/ubuntu/repo.sources \
+  -o /etc/apt/sources.list.d/repo.sources
+sudo apt update
+sudo apt install imprint
+```
+
+Suite `stable` is the Ubuntu 24.04 / Debian 13+ build. Use `ubuntu26.04` in `repo.sources` for that newer-glibc package.
+
+### Linux (Arch)
+
+Install the Pacman source from [googolmo/repo](https://github.com/googolmo/repo). `pacman` then downloads the `.pkg.tar.zst` from this project's [GitHub Releases](https://github.com/googolmo/imprint/releases):
+
+```bash
+sudo curl -fsSL https://googolmo.github.io/repo/pacman/repo.conf \
+  -o /etc/pacman.d/repo
+echo -e '\nInclude = /etc/pacman.d/repo' | sudo tee -a /etc/pacman.conf
+sudo pacman -Sy imprint
+```
+
 ### Linux and Windows
 
-Packaged builds are attached to [GitHub Releases](https://github.com/googolmo/imprint/releases): Windows x86-64 (`.msi`) and arm64 (NSIS); Linux x86-64 and arm64 (`.deb` for Ubuntu 22.04/Debian and Ubuntu 24.04, AppImage, Arch `.pkg.tar.zst`, and an AUR `PKGBUILD`).
+Packaged builds are attached to [GitHub Releases](https://github.com/googolmo/imprint/releases): Windows amd64 (`.msi`) and arm64 (NSIS); Linux amd64 and arm64 (`.deb` for Ubuntu 24.04/Debian 13+ and Ubuntu 26.04, AppImage, and Arch `.pkg.tar.zst`).
 
 ## Quick start (from source)
 

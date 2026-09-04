@@ -19,7 +19,8 @@ crates/imprint-flash/      write + verify pipeline (+ FAT boot overlay)
 crates/imprint-ui/         GPUI views (theme, cards, overlays)
 crates/imprint-app/        binary: gpui_platform::application()
 crates/imprint-cli/        binary: clap
-.grok/skills/gpui/         short pointer; full GPUI skill is ~/.grok/skills/gpui
+.grok/skills/gpui/              short pointer; full GPUI skill is ~/.grok/skills/gpui
+.grok/skills/imprint-release/   GitHub Release / packaging pitfalls
 ```
 
 Dependency graph:

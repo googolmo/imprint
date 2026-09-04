@@ -3,43 +3,57 @@
 # Flow:
 #   1. Create the GitHub Release if it does not exist (author: github-actions[bot]
 #      via ${{ github.token }}; do not substitute a personal PAT).
-#   2. Build/pack per OS+arch on native runners with cargo-binstall + cargo-packager.
+#   2. Build/pack per OS+arch: cargo-binstall + cargo-packager on native
+#      macOS / Windows / Ubuntu runners. Arch jobs do not compile on Ubuntu.
 #   3. Each pack job uploads binaries, then merges that platform into latest.json
 #      and uploads it (.github/scripts/update-latest-json.py --upload).
-#   4. Linux pacman jobs wrap the cargo-packager usr/ tarball with makepkg
-#      inside Arch Docker (.github/scripts/build-arch-package.sh) → .pkg.tar.zst.
-#   5. After every pack job succeeds, emit a combined Arch Linux AUR PKGBUILD
-#      (imprint-bin, x86_64 + aarch64) from the pacman tarballs.
-#   6. After every pack job succeeds, emit a Homebrew cask (Casks/imprint.rb)
-#      from the macOS .dmg files and upload imprint.rb. Tag pushes also commit
-#      the cask to the default branch so `brew tap googolmo/imprint` stays current.
+#   4. Dedicated Arch jobs (`linux-arch-*`) compile and package inside
+#      Arch Docker (.github/scripts/build-arch-package.sh) → .pkg.tar.zst.
+#      Ubuntu runners are the Docker host only; cargo does not run on Ubuntu.
+#   5. After macOS pack jobs succeed, emit a Homebrew cask from the macOS
+#      .dmg files and upload imprint.rb to the Release. Tag pushes also
+#      commit Casks/imprint.rb to googolmo/homebrew-tap (WORKFLOW_GH_TOKEN;
+#      that tap is shared, this job only touches the imprint cask).
+#   6. After Ubuntu 24.04 + Arch pack jobs succeed, tag pushes dispatch
+#      googolmo/repo's `update-index` workflow with this tag. That job rewrites
+#      APT Packages, Cloudflare _redirects (.deb → this Release), and
+#      pacman/repo.conf. Ubuntu 26.04 is a separate job: its failure must not
+#      skip linux-repo. Homebrew does not wait for Linux; linux-repo does not
+#      wait for macOS.
 #
 # Triggers:
 #   - push of a tag matching v* (e.g. v0.1.0) — version must match Packager.toml
 #   - workflow_dispatch — packages the committed version; draft release
 #
 # Native runners (no cross-compile; GPUI needs host Metal / MSVC / system libs):
-#   macOS   aarch64  macos-latest      → .app + .dmg
-#   macOS   x86_64   macos-15-intel    → .app + .dmg
-#   Windows x86_64   windows-latest    → .msi (WiX)
-#   Windows aarch64  windows-11-arm    → NSIS .exe (WiX 3 is unreliable on ARM)
-#   Linux   x86_64   ubuntu-22.04      → .deb + AppImage + Arch .pkg.tar.zst (Docker makepkg)
-#   Linux   aarch64  ubuntu-22.04-arm  → .deb + AppImage + Arch .pkg.tar.zst (Docker makepkg)
-#   Linux   x86_64   ubuntu-24.04      → .deb (glibc 2.39)
-#   Linux   aarch64  ubuntu-24.04-arm  → .deb (glibc 2.39)
+#   macOS   arm64   macos-latest      → .app + .dmg
+#   macOS   amd64   macos-15-intel    → .app + .dmg
+#   Windows amd64   windows-latest    → .msi (WiX)
+#   Windows arm64   windows-11-arm    → NSIS .exe (WiX 3 is unreliable on ARM)
+#   Linux   amd64   ubuntu-24.04      → .deb + AppImage (glibc 2.39)
+#   Linux   arm64   ubuntu-24.04-arm  → .deb + AppImage (glibc 2.39)
+#   Arch    amd64   ubuntu-24.04      → .pkg.tar.zst (Arch Docker cargo+makepkg)
+#   Arch    arm64   ubuntu-24.04-arm  → .pkg.tar.zst (Arch Docker cargo+makepkg)
+#   Linux   amd64   ubuntu-26.04      → .deb (glibc 2.43; runner public preview)
+#   Linux   arm64   ubuntu-26.04-arm  → .deb (glibc 2.43; runner public preview)
 #
-# Every uploaded binary is renamed by .github/scripts/tag-release-assets.py to
+# cargo-packager writes into dist/<pack_dir>/ (system, version when it
+# matters, CPU). Examples: macos-arm64, ubuntu-24.04-amd64,
+# windows-amd64, archlinux-arm64. tag-release-assets.py then renames
+# files in that dir to
 #   imprint_{version}_{system}_{cpu}{suffix}
-# with cpu = x86_64 | arm64. system is ubuntu22.04 / ubuntu24.04 (.deb and
-# AppImage), macos, windows, or archlinux.
+# with cpu = amd64 | arm64. system is ubuntu24.04 / ubuntu26.04
+# (.deb and AppImage), macos, windows, or archlinux. GitHub Release
+# assets stay flat (basename only). rustc triples stay x86_64 / aarch64.
 #
 # Linux/Windows arm64 hosted runners are free on public repos. Private repos
 # need GitHub's arm64 larger runners (or the jobs will fail to schedule).
 #
-# Ubuntu 22.04 .deb is the Debian-format package for Ubuntu 22.04+ and Debian 12+
-# (glibc 2.35): imprint_<ver>_ubuntu22.04_<cpu>.deb. Ubuntu 24.04 jobs upload a
-# second .deb per CPU named imprint_<ver>_ubuntu24.04_<cpu>.deb (newer glibc;
-# will not run on 22.04 / bookworm).
+# Ubuntu 24.04 .deb is the Debian-format package for Ubuntu 24.04+ and Debian 13+
+# (glibc 2.39): imprint_<ver>_ubuntu24.04_<cpu>.deb. Ubuntu 26.04 jobs upload a
+# second .deb per CPU (imprint_<ver>_ubuntu26.04_<cpu>.deb) linked against that
+# release's glibc; it will not run on an older distro. Ubuntu 22.04 / Debian 12
+# are not packaged.
 #
 # ---------------------------------------------------------------------------
 # Secrets / env (set on the repo; empty = skip that signing layer)
@@ -107,6 +121,22 @@
 #
 # Linux packages are unsigned at the OS level (no extra env). Updater
 # .sig files still use CARGO_PACKAGER_SIGN_PRIVATE_KEY.
+#
+# googolmo/repo (`update-index` workflow)
+#   LINUX_REPO_TOKEN
+#       PAT that can dispatch workflows on googolmo/repo (fine-grained
+#       Actions: write, or classic `repo` scope). Tag pushes run
+#       `gh workflow run update-index.yml` with this release's tag.
+#       Required on tag pushes. googolmo/repo signs APT InRelease with
+#       its own GPG_PRIVATE_KEY secret.
+#
+# googolmo/homebrew-tap (Homebrew cask)
+#   WORKFLOW_GH_TOKEN
+#       PAT that can push to googolmo/homebrew-tap (fine-grained Contents:
+#       write, or classic `repo` scope). Tag pushes commit Casks/imprint.rb.
+#       Required on tag pushes. github.token cannot write another repo, so
+#       this step must not reuse the workflow GH_TOKEN. The tap hosts casks
+#       for more than imprint; this workflow only updates Casks/imprint.rb.
 # ---------------------------------------------------------------------------
 
 name: Release
@@ -122,7 +152,9 @@ permissions:
 
 concurrency:
   group: release-${{ github.ref }}
-  cancel-in-progress: true
+  # Never cancel a release in progress: upload / latest.json merge is not safe
+  # to interrupt, and a re-run of the same tag would --clobber anyway.
+  cancel-in-progress: false
 
 env:
   CARGO_TERM_COLOR: always
@@ -194,383 +226,168 @@ jobs:
             "${extra[@]}"
           echo "created release ${TAG} as github-actions[bot]"
 
-  package:
+  # Pack is split by OS so downstream jobs can start as soon as their
+  # platform artifacts exist. GitHub `needs` waits for every matrix cell
+  # of a job; a single `package` matrix would block Homebrew on Linux
+  # and linux-repo on macOS.
+  package-macos:
     name: ${{ matrix.name }}
     needs: [version, create-release]
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: macos-aarch64
+          - name: macos-arm64
             os: macos-latest
             formats: app,dmg
             arch: aarch64
             triple: aarch64-apple-darwin
-          - name: macos-x86_64
+            out_dir: macos-arm64
+          - name: macos-amd64
             os: macos-15-intel
             formats: app,dmg
             arch: x86_64
             triple: x86_64-apple-darwin
-          - name: windows-x86_64
+            out_dir: macos-amd64
+    uses: ./.github/workflows/release-package.yml
+    with:
+      name: ${{ matrix.name }}
+      os: ${{ matrix.os }}
+      formats: ${{ matrix.formats }}
+      arch: ${{ matrix.arch }}
+      triple: ${{ matrix.triple }}
+      version: ${{ needs.version.outputs.version }}
+      tag: ${{ needs.version.outputs.tag }}
+      out_dir: ${{ matrix.out_dir }}
+      deb_tag: ${{ matrix.deb_tag || '' }}
+      skip_updater: ${{ matrix.skip_updater || false }}
+    secrets: inherit
+
+  package-windows:
+    name: ${{ matrix.name }}
+    needs: [version, create-release]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-amd64
             os: windows-latest
             formats: wix
             arch: x86_64
             triple: x86_64-pc-windows-msvc
-          - name: windows-aarch64
+            out_dir: windows-amd64
+          - name: windows-arm64
             os: windows-11-arm
             formats: nsis
             arch: aarch64
             triple: aarch64-pc-windows-msvc
-          - name: linux-x86_64
-            os: ubuntu-22.04
-            formats: deb,appimage,pacman
-            arch: x86_64
-            triple: x86_64-unknown-linux-gnu
-            deb_tag: ubuntu22.04
-          - name: linux-aarch64
-            os: ubuntu-22.04-arm
-            formats: deb,appimage,pacman
-            arch: aarch64
-            triple: aarch64-unknown-linux-gnu
-            deb_tag: ubuntu22.04
-          - name: linux-ubuntu24-x86_64
+            out_dir: windows-arm64
+    uses: ./.github/workflows/release-package.yml
+    with:
+      name: ${{ matrix.name }}
+      os: ${{ matrix.os }}
+      formats: ${{ matrix.formats }}
+      arch: ${{ matrix.arch }}
+      triple: ${{ matrix.triple }}
+      version: ${{ needs.version.outputs.version }}
+      tag: ${{ needs.version.outputs.tag }}
+      out_dir: ${{ matrix.out_dir }}
+      deb_tag: ${{ matrix.deb_tag || '' }}
+      skip_updater: ${{ matrix.skip_updater || false }}
+    secrets: inherit
+
+  package-linux:
+    name: ${{ matrix.name }}
+    needs: [version, create-release]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-ubuntu24-amd64
             os: ubuntu-24.04
+            formats: deb,appimage
+            arch: x86_64
+            triple: x86_64-unknown-linux-gnu
+            out_dir: ubuntu-24.04-amd64
+            deb_tag: ubuntu24.04
+          - name: linux-ubuntu24-arm64
+            os: ubuntu-24.04-arm
+            formats: deb,appimage
+            arch: aarch64
+            triple: aarch64-unknown-linux-gnu
+            out_dir: ubuntu-24.04-arm64
+            deb_tag: ubuntu24.04
+          # Ubuntu is the Docker host only; cargo build runs in Arch Linux.
+          - name: linux-arch-amd64
+            os: ubuntu-24.04
+            formats: pacman
+            arch: x86_64
+            triple: x86_64-unknown-linux-gnu
+            out_dir: archlinux-amd64
+            skip_updater: true
+          - name: linux-arch-arm64
+            os: ubuntu-24.04-arm
+            formats: pacman
+            arch: aarch64
+            triple: aarch64-unknown-linux-gnu
+            out_dir: archlinux-arm64
+            skip_updater: true
+    uses: ./.github/workflows/release-package.yml
+    with:
+      name: ${{ matrix.name }}
+      os: ${{ matrix.os }}
+      formats: ${{ matrix.formats }}
+      arch: ${{ matrix.arch }}
+      triple: ${{ matrix.triple }}
+      version: ${{ needs.version.outputs.version }}
+      tag: ${{ needs.version.outputs.tag }}
+      out_dir: ${{ matrix.out_dir }}
+      deb_tag: ${{ matrix.deb_tag || '' }}
+      skip_updater: ${{ matrix.skip_updater || false }}
+    secrets: inherit
+
+  # Preview runners. Must not share a matrix with package-linux: GitHub `needs`
+  # waits for every cell, so a 26.04 failure would skip linux-repo.
+  package-linux-preview:
+    name: ${{ matrix.name }}
+    needs: [version, create-release]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-ubuntu26-amd64
+            os: ubuntu-26.04
             formats: deb
             arch: x86_64
             triple: x86_64-unknown-linux-gnu
-            deb_tag: ubuntu24.04
+            out_dir: ubuntu-26.04-amd64
+            deb_tag: ubuntu26.04
             skip_updater: true
-          - name: linux-ubuntu24-aarch64
-            os: ubuntu-24.04-arm
+          - name: linux-ubuntu26-arm64
+            os: ubuntu-26.04-arm
             formats: deb
             arch: aarch64
             triple: aarch64-unknown-linux-gnu
-            deb_tag: ubuntu24.04
+            out_dir: ubuntu-26.04-arm64
+            deb_tag: ubuntu26.04
             skip_updater: true
-    env:
-      # Compile-time updater config (imprint-ui/build.rs)
-      CARGO_PACKAGER_UPDATER_PUBKEY: ${{ secrets.CARGO_PACKAGER_UPDATER_PUBKEY }}
-      CARGO_PACKAGER_UPDATER_ENDPOINT: ${{ secrets.CARGO_PACKAGER_UPDATER_ENDPOINT }}
-      # cargo-packager minisign
-      CARGO_PACKAGER_SIGN_PRIVATE_KEY: ${{ secrets.CARGO_PACKAGER_SIGN_PRIVATE_KEY }}
-      CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD: ${{ secrets.CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD }}
-      # macOS codesign + notarization
-      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-      APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
-      # Windows Authenticode
-      WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-      WINDOWS_CERTIFICATE_THUMBPRINT: ${{ secrets.WINDOWS_CERTIFICATE_THUMBPRINT }}
-      WINDOWS_TIMESTAMP_URL: ${{ secrets.WINDOWS_TIMESTAMP_URL }}
-      # linuxdeploy AppImages need this when FUSE is unavailable (ARM runners).
-      APPIMAGE_EXTRACT_AND_RUN: "1"
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: 1.98.0
-          targets: ${{ matrix.triple }}
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: release-${{ matrix.name }}
-
-      - name: Install cargo-binstall
-        uses: cargo-bins/cargo-binstall@v1.22.0
-
-      - name: Install cargo-packager
-        shell: bash
-        run: |
-          set -euo pipefail
-          # cargo-binstall may not ship an ARM Windows / ARM Linux binary yet.
-          if ! cargo binstall --no-confirm --locked cargo-packager; then
-            echo "cargo-binstall failed; compiling cargo-packager from crates.io"
-            cargo install --locked cargo-packager
-          fi
-
-      - name: Install Linux packaging dependencies
-        if: runner.os == 'Linux'
-        env:
-          FORMATS: ${{ matrix.formats }}
-        run: |
-          sudo apt-get update
-          pkgs=(
-            build-essential
-            clang
-            cmake
-            pkg-config
-            libssl-dev
-            libzstd-dev
-            libclang-dev
-            libfontconfig-dev
-            libfreetype6-dev
-            libxkbcommon-dev
-            libxkbcommon-x11-dev
-            libwayland-dev
-            libx11-dev
-            libxrandr-dev
-            libxi-dev
-            libxinerama-dev
-            libxcursor-dev
-            libxcomposite-dev
-            libxdamage-dev
-            libxext-dev
-            libxfixes-dev
-            libasound2-dev
-            libvulkan-dev
-            libgl1-mesa-dev
-            mesa-vulkan-drivers
-          )
-          # fuse / linuxdeploy are AppImage-only; Ubuntu 24.04 dropped libfuse2.
-          if [[ "$FORMATS" == *appimage* ]]; then
-            pkgs+=(file wget fuse libfuse2 patchelf desktop-file-utils)
-          fi
-          sudo apt-get install -y --no-install-recommends "${pkgs[@]}"
-
-      - name: Select Xcode
-        if: runner.os == 'macOS'
-        run: sudo xcode-select -s /Applications/Xcode.app
-
-      - name: Default updater endpoint
-        shell: bash
-        run: |
-          if [[ -z "${CARGO_PACKAGER_UPDATER_ENDPOINT:-}" ]]; then
-            endpoint="https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/latest.json"
-            echo "CARGO_PACKAGER_UPDATER_ENDPOINT=${endpoint}" >> "$GITHUB_ENV"
-            echo "CARGO_PACKAGER_UPDATER_ENDPOINT unset; using ${endpoint}"
-          fi
-
-      - name: Write App Store Connect API key
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ -z "${APPLE_API_KEY_CONTENT:-}" || -z "${APPLE_API_KEY:-}" ]]; then
-            echo "APPLE_API_KEY_CONTENT / APPLE_API_KEY not set; skipping .p8 write"
-            exit 0
-          fi
-          mkdir -p private_keys "${HOME}/private_keys" "${HOME}/.appstoreconnect/private_keys"
-          keyfile="private_keys/AuthKey_${APPLE_API_KEY}.p8"
-          printf '%s\n' "${APPLE_API_KEY_CONTENT}" > "${keyfile}"
-          chmod 600 "${keyfile}"
-          echo "APPLE_API_KEY_PATH=${PWD}/${keyfile}" >> "$GITHUB_ENV"
-
-      - name: Normalize APPLE_CERTIFICATE
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ -z "${APPLE_CERTIFICATE:-}" ]]; then
-            echo "APPLE_CERTIFICATE unset; .app/.dmg will not be Developer ID signed"
-            exit 0
-          fi
-          # Secret may be an openssl-wrapped .p12.base64 file (newlines).
-          # Collapse to one line so GitHub env + cargo-packager decode it.
-          normalized="$(printf '%s' "$APPLE_CERTIFICATE" | tr -d '[:space:]')"
-          if [[ -z "$normalized" ]]; then
-            echo "APPLE_CERTIFICATE empty after stripping whitespace" >&2
-            exit 1
-          fi
-          {
-            echo "APPLE_CERTIFICATE<<APPLE_CERTIFICATE_EOF"
-            printf '%s\n' "$normalized"
-            echo "APPLE_CERTIFICATE_EOF"
-          } >> "$GITHUB_ENV"
-
-      - name: Inject macOS signing identity
-        if: runner.os == 'macOS'
-        shell: bash
-        run: python3 .github/scripts/inject-packager-signing.py
-
-      # cargo-packager signs MacOS/* by path depth only; imprint-cli is a
-      # sibling of the main exe and must be signed first. Prepend a codesign
-      # wrapper that does that (.github/scripts/codesign).
-      - name: Wrap codesign for nested MacOS binaries
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          set -euo pipefail
-          wrap="${RUNNER_TEMP}/imprint-codesign"
-          mkdir -p "$wrap"
-          cp .github/scripts/codesign "$wrap/codesign"
-          chmod +x "$wrap/codesign"
-          echo "$wrap" >> "$GITHUB_PATH"
-
-      - name: Import Windows code-signing certificate
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $thumb = $env:WINDOWS_CERTIFICATE_THUMBPRINT
-          if (-not $thumb -and $env:WINDOWS_CERTIFICATE) {
-            $pfx = Join-Path $env:RUNNER_TEMP "windows-cert.pfx"
-            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
-            $pass = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
-            $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $pass
-            $thumb = $cert.Thumbprint
-            Remove-Item $pfx -Force
-          }
-          if (-not $thumb) {
-            Write-Host "no WINDOWS_CERTIFICATE / WINDOWS_CERTIFICATE_THUMBPRINT; MSI will be unsigned"
-            exit 0
-          }
-          echo "WINDOWS_CERTIFICATE_THUMBPRINT=$thumb" >> $env:GITHUB_ENV
-
-      - name: Locate SignTool
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: ./.github/scripts/locate-signtool.ps1
-
-      - name: Inject Windows Authenticode config
-        if: runner.os == 'Windows'
-        shell: bash
-        run: python3 .github/scripts/inject-packager-signing.py
-
-      - name: cargo packager
-        shell: bash
-        run: |
-          set -euo pipefail
-          # GitHub maps missing secrets to ""; cargo-packager treats Some("") as set.
-          for var in \
-            CARGO_PACKAGER_SIGN_PRIVATE_KEY \
-            CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD \
-            APPLE_CERTIFICATE \
-            APPLE_CERTIFICATE_PASSWORD \
-            APPLE_SIGNING_IDENTITY \
-            WINDOWS_CERTIFICATE \
-            WINDOWS_CERTIFICATE_PASSWORD \
-            WINDOWS_CERTIFICATE_THUMBPRINT \
-            WINDOWS_TIMESTAMP_URL
-          do
-            if [[ -z "${!var:-}" ]]; then
-              unset "$var" || true
-            fi
-          done
-          # Force App Store Connect API key notarization; ignore Apple ID / keychain.
-          unset APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID APPLE_KEYCHAIN_PROFILE || true
-
-          extra=()
-          if [[ -n "${CARGO_PACKAGER_SIGN_PRIVATE_KEY:-}" ]]; then
-            extra+=(-k "${CARGO_PACKAGER_SIGN_PRIVATE_KEY}" --password "${CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD:-}")
-          else
-            echo "CARGO_PACKAGER_SIGN_PRIVATE_KEY unset; updater .sig files will be missing"
-          fi
-          cargo packager --release --formats "${{ matrix.formats }}" \
-            --target "${{ matrix.triple }}" "${extra[@]}"
-
-      - name: Arch Linux package (Docker makepkg)
-        if: ${{ contains(matrix.formats, 'pacman') }}
-        env:
-          VERSION: ${{ needs.version.outputs.version }}
-        run: .github/scripts/build-arch-package.sh --version "$VERSION" --arch "${{ matrix.arch }}"
-
-      # cargo-packager names mix amd64/arm64/x64; Ubuntu 22.04 and 24.04 .debs
-      # would collide. Stamp every asset imprint_{ver}_{system}_{cpu}.*
-      - name: Tag artifacts with OS and CPU
-        shell: bash
-        env:
-          VERSION: ${{ needs.version.outputs.version }}
-          DEB_TAG: ${{ matrix.deb_tag }}
-        run: |
-          set -euo pipefail
-          extra=()
-          if [[ -n "${DEB_TAG:-}" ]]; then
-            extra+=(--deb-tag "$DEB_TAG")
-          fi
-          python3 .github/scripts/tag-release-assets.py \
-            --version "$VERSION" \
-            --arch "${{ matrix.arch }}" \
-            "${extra[@]}"
-
-      - name: Updater payload + latest.json fragment
-        if: ${{ !matrix.skip_updater }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 .github/scripts/prepare-updater-assets.py \
-            --arch "${{ matrix.arch }}" \
-            "${{ needs.version.outputs.version }}"
-
-      - name: Upload binaries to GitHub Release
-        shell: bash
-        env:
-          TAG: ${{ needs.version.outputs.tag }}
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          # gh release upload glob-expands each arg and errors on zero matches.
-          # Only pass real files. Skip cargo-packager's per-arch PKGBUILD
-          # (local source= filename, not AUR-ready). The aur job uploads
-          # imprint-bin PKGBUILD + .SRCINFO instead.
-          files=()
-          for f in \
-            dist/*.dmg \
-            dist/*.msi \
-            dist/*.exe \
-            dist/*.deb \
-            dist/*.AppImage \
-            dist/*.tar.gz \
-            dist/*.pkg.tar.zst \
-            dist/*.pkg.tar.xz \
-            dist/*.sig
-          do
-            [[ -f "$f" ]] || continue
-            case "$(basename "$f")" in
-              PKGBUILD | PKGBUILD.* | PKGBUILD.sig) continue ;;
-            esac
-            files+=("$f")
-          done
-          if [[ ${#files[@]} -eq 0 ]]; then
-            echo "no package files in dist/" >&2
-            ls -la dist/ >&2 || true
-            exit 1
-          fi
-          gh release upload "$TAG" "${files[@]}" --clobber
-          printf 'uploaded to %s:\n' "$TAG"
-          printf '  %s\n' "${files[@]}"
-
-      - name: Merge and upload latest.json
-        if: ${{ !matrix.skip_updater }}
-        shell: bash
-        env:
-          TAG: ${{ needs.version.outputs.tag }}
-          VERSION: ${{ needs.version.outputs.version }}
-        run: python3 .github/scripts/update-latest-json.py --version "$VERSION" --upload "$TAG"
-
-  aur:
-    name: AUR PKGBUILD
-    needs: [version, package]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download pacman archives
-        env:
-          TAG: ${{ needs.version.outputs.tag }}
-        run: |
-          set -euo pipefail
-          mkdir -p dist
-          gh release download "$TAG" --dir dist \
-            --pattern 'imprint_*_archlinux_x86_64.tar.gz' \
-            --pattern 'imprint_*_archlinux_arm64.tar.gz'
-
-      - name: Generate imprint-bin PKGBUILD
-        env:
-          TAG: ${{ needs.version.outputs.tag }}
-          VERSION: ${{ needs.version.outputs.version }}
-        run: python3 .github/scripts/prepare-aur-pkgbuild.py --version "$VERSION" --upload "$TAG"
+    uses: ./.github/workflows/release-package.yml
+    with:
+      name: ${{ matrix.name }}
+      os: ${{ matrix.os }}
+      formats: ${{ matrix.formats }}
+      arch: ${{ matrix.arch }}
+      triple: ${{ matrix.triple }}
+      version: ${{ needs.version.outputs.version }}
+      tag: ${{ needs.version.outputs.tag }}
+      out_dir: ${{ matrix.out_dir }}
+      deb_tag: ${{ matrix.deb_tag || '' }}
+      skip_updater: ${{ matrix.skip_updater || false }}
+    secrets: inherit
 
   homebrew:
     name: Homebrew cask
-    needs: [version, package]
+    needs: [version, package-macos]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -585,6 +402,7 @@ jobs:
           # Canonical names (tag-release-assets.py) plus cargo-packager fallbacks.
           for pattern in \
             'imprint_*_macos_arm64.dmg' \
+            'imprint_*_macos_amd64.dmg' \
             'imprint_*_macos_x86_64.dmg' \
             'Imprint_*_aarch64.dmg' \
             'Imprint_*_x64.dmg'
@@ -598,28 +416,72 @@ jobs:
           VERSION: ${{ needs.version.outputs.version }}
         run: python3 .github/scripts/prepare-homebrew-cask.py --version "$VERSION" --upload "$TAG"
 
-      - name: Commit cask to default branch
+      - name: Push cask to googolmo/homebrew-tap
         if: github.event_name == 'push' && github.ref_type == 'tag'
         env:
           VERSION: ${{ needs.version.outputs.version }}
-          BRANCH: ${{ github.event.repository.default_branch }}
+          WORKFLOW_GH_TOKEN: ${{ secrets.WORKFLOW_GH_TOKEN }}
         run: |
           set -euo pipefail
+          if [[ -z "${WORKFLOW_GH_TOKEN}" ]]; then
+            echo "WORKFLOW_GH_TOKEN is not set; cannot push to googolmo/homebrew-tap" >&2
+            exit 1
+          fi
           cask="Casks/imprint.rb"
           test -f "$cask"
-          generated="${RUNNER_TEMP}/imprint.rb"
-          cp "$cask" "$generated"
-          git fetch origin "$BRANCH"
-          git checkout -B "$BRANCH" "origin/$BRANCH"
-          mkdir -p Casks
-          cp "$generated" "$cask"
-          if [[ -n "$(git status --porcelain -- "$cask")" ]]; then
-            git add "$cask"
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "homebrew: imprint ${VERSION}"
-            git push origin "$BRANCH"
-            echo "committed ${cask} to ${BRANCH}"
-          else
-            echo "cask already up to date on ${BRANCH}"
+          tap="${RUNNER_TEMP}/homebrew-tap"
+          # Public clone: keep workflow GH_TOKEN as github.token.
+          gh repo clone googolmo/homebrew-tap "$tap" -- --depth 1
+          mkdir -p "$tap/Casks"
+          cp "$cask" "$tap/Casks/imprint.rb"
+          git -C "$tap" config user.name "github-actions[bot]"
+          git -C "$tap" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$tap" add Casks/imprint.rb
+          if git -C "$tap" diff --cached --quiet; then
+            echo "cask already up to date on googolmo/homebrew-tap"
+            exit 0
           fi
+          git -C "$tap" commit -m "imprint ${VERSION}"
+          # github.token cannot write another repo. Do not put the PAT in the
+          # remote URL (git prints remotes on failure). Authenticate via header.
+          branch="$(git -C "$tap" rev-parse --abbrev-ref HEAD)"
+          git -C "$tap" remote set-url origin "https://github.com/googolmo/homebrew-tap.git"
+          auth="$(printf 'x-access-token:%s' "$WORKFLOW_GH_TOKEN" | base64 | tr -d '\n')"
+          git -C "$tap" \
+            -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth}" \
+            push origin "HEAD:${branch}"
+          echo "pushed Casks/imprint.rb to googolmo/homebrew-tap"
+
+  linux-repo:
+    name: Trigger package index
+    needs: [version, package-linux]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dispatch googolmo/repo update-index
+        env:
+          GH_TOKEN: ${{ secrets.LINUX_REPO_TOKEN }}
+          TAG: ${{ needs.version.outputs.tag }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: .github/scripts/dispatch-linux-repo.sh
+
+  # Re-dispatch after 26.04 debs exist. Skipped when preview jobs fail; that
+  # must not prevent linux-repo (24.04 + Arch) from running.
+  linux-repo-preview:
+    name: Trigger package index (preview)
+    needs: [version, package-linux, package-linux-preview]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dispatch googolmo/repo update-index
+        env:
+          GH_TOKEN: ${{ secrets.LINUX_REPO_TOKEN }}
+          TAG: ${{ needs.version.outputs.tag }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: .github/scripts/dispatch-linux-repo.sh

@@ -1,5 +1,6 @@
 /target
 /dist
+/Casks/
 **/*.rs.bk
 .DS_Store
 .idea

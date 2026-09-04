@@ -44,6 +44,10 @@ jobs:
         run: |
           python3 .github/scripts/tag-release-assets.py --self-test
           python3 .github/scripts/prepare-homebrew-cask.py --self-test
+          python3 -m py_compile .github/scripts/*.py
+          bash -n .github/scripts/build-arch-package.sh
+          bash -n .github/scripts/dispatch-linux-repo.sh
+          bash -n .github/scripts/codesign
 
   fmt:
     name: rustfmt
@@ -69,7 +73,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-22.04-arm, macos-latest, windows-latest, windows-11-arm]
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest, windows-11-arm]
     steps:
       - uses: actions/checkout@v4
 
@@ -117,14 +121,14 @@ jobs:
           # Match release.yml so GUI native deps stay in lockstep with packaging.
           # Intel macOS is release-only (macos-15-intel); CI covers ARM macOS.
           - name: linux
-            os: ubuntu-22.04
-          - name: linux-aarch64
-            os: ubuntu-22.04-arm
+            os: ubuntu-24.04
+          - name: linux-arm64
+            os: ubuntu-24.04-arm
           - name: macos
             os: macos-latest
           - name: windows
             os: windows-latest
-          - name: windows-aarch64
+          - name: windows-arm64
             os: windows-11-arm
     env:
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"

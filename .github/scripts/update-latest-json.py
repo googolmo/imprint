@@ -2,7 +2,7 @@
 """Merge cargo-packager-updater fragments and optionally upload latest.json.
 
 Fragments are written by .github/scripts/prepare-updater-assets.py as
-  dist/latest-<platform>.json
+  dist/latest-<platform>.json or dist/<pack_dir>/latest-<platform>.json.
 
 `--upload TAG` downloads that release's latest.json, merges the fragments
 into it, then uploads. Merge happens only at upload time.
@@ -95,8 +95,11 @@ def merge_into(manifest: dict, data: dict) -> None:
 
 
 def discover_fragments(dist: Path) -> list[Path]:
+    found: list[Path] = []
+    for pattern in ("latest-*.json", "*/latest-*.json"):
+        found.extend(dist.glob(pattern))
     return sorted(
-        path for path in dist.glob("latest-*.json") if path.name != "latest.json"
+        {path.resolve() for path in found if path.is_file() and path.name != "latest.json"}
     )
 
 
@@ -151,7 +154,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "fragments",
         nargs="*",
         type=Path,
-        help="Fragment JSON files (default: dist/latest-*.json)",
+        help="Fragment JSON files (default: dist/latest-*.json and dist/*/latest-*.json)",
+    )
+    parser.add_argument(
+        "--dist",
+        type=Path,
+        default=ROOT / "dist",
+        help="Directory to search for latest-*.json fragments "
+        "(default: dist/; CI uses dist/macos-arm64, dist/ubuntu-24.04-amd64, ...).",
     )
     parser.add_argument(
         "-o",
@@ -281,7 +291,7 @@ def main(argv: list[str] | None = None) -> int:
 
     fragments = [path.resolve() for path in args.fragments]
     if not fragments:
-        fragments = discover_fragments(ROOT / "dist")
+        fragments = discover_fragments(args.dist)
 
     if args.upload:
         if not fragments:

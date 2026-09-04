@@ -59,17 +59,45 @@ imprint-cli flash ubuntu.iso --device /dev/rdisk4 --yes
 ### macOS（Homebrew）
 
 ```bash
-brew tap googolmo/imprint https://github.com/googolmo/imprint
+brew tap googolmo/tap
 brew install --cask imprint
 ```
 
-會將 **Imprint** 安裝到 `/Applications`，並把 `imprint-cli` 放到 `PATH` 中。必須加上此倉庫 URL，因為 cask 放在本倉庫，不在 `homebrew/cask`。
+會將 **Imprint** 安裝到 `/Applications`，並把 `imprint-cli` 放到 `PATH` 中。cask 在 [googolmo/homebrew-tap](https://github.com/googolmo/homebrew-tap)，不在 `homebrew/cask`。
 
 也可以從 [GitHub Releases](https://github.com/googolmo/imprint/releases) 下載 `.dmg`。
 
+### Linux（Debian / Ubuntu）
+
+先安裝 [googolmo/repo](https://github.com/googolmo/repo) 裡的 APT source。`apt` 接著會從本專案的 [GitHub Releases](https://github.com/googolmo/imprint/releases) 下載 `.deb`：
+
+```bash
+sudo mkdir -p /usr/share/keyrings
+sudo curl -fsSL https://googolmo.github.io/repo/keys/repo.gpg \
+  -o /usr/share/keyrings/repo-archive-keyring.gpg
+sudo chmod 644 /usr/share/keyrings/repo-archive-keyring.gpg
+sudo curl -fsSL https://googolmo.github.io/repo/ubuntu/repo.sources \
+  -o /etc/apt/sources.list.d/repo.sources
+sudo apt update
+sudo apt install imprint
+```
+
+套件 `stable` 對應 Ubuntu 24.04 / Debian 13+ 的建置。若要用較新 glibc 的套件，把 `repo.sources` 裡的 suite 改成 `ubuntu26.04`。
+
+### Linux（Arch）
+
+先安裝 [googolmo/repo](https://github.com/googolmo/repo) 裡的 Pacman source 檔。`pacman` 接著會從本專案的 [GitHub Releases](https://github.com/googolmo/imprint/releases) 下載 `.pkg.tar.zst`：
+
+```bash
+sudo curl -fsSL https://googolmo.github.io/repo/pacman/repo.conf \
+  -o /etc/pacman.d/repo
+echo -e '\nInclude = /etc/pacman.d/repo' | sudo tee -a /etc/pacman.conf
+sudo pacman -Sy imprint
+```
+
 ### Linux 與 Windows
 
-套件版本附於 [GitHub Releases](https://github.com/googolmo/imprint/releases)：Windows x86-64（`.msi`）與 arm64（NSIS）；Linux x86-64 與 arm64（Ubuntu 22.04/Debian 與 Ubuntu 24.04 的 `.deb`、AppImage、Arch `.pkg.tar.zst`、以及 AUR `PKGBUILD`）。
+套件版本附於 [GitHub Releases](https://github.com/googolmo/imprint/releases)：Windows amd64（`.msi`）與 arm64（NSIS）；Linux amd64 與 arm64（Ubuntu 24.04/Debian 13+ 與 Ubuntu 26.04 的 `.deb`、AppImage、Arch `.pkg.tar.zst`）。
 
 ## 快速開始（從原始碼）
 

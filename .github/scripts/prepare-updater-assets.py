@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 """Build the cargo-packager-updater payload for this platform.
 
-Requires a packaged dist/ from `cargo packager --release`.
+Requires a packaged dist/ (or dist/<pack_dir>/) from `cargo packager --release`.
 Sign with CARGO_PACKAGER_SIGN_PRIVATE_KEY (and optional password).
 
 cargo-packager-updater looks up platforms.{os}-{arch} where os is linux|macos|windows
 and arch is the rustc target_arch (x86_64 or aarch64). The `format` field must be
 one of app / appimage / nsis / wix — that is the file the running app downloads.
 
-  macos-aarch64 / macos-x86_64   → imprint_<ver>_macos_{x86_64|arm64}.app.tar.gz  format=app
-  linux-aarch64 / linux-x86_64   → imprint_<ver>_ubuntu22.04_{x86_64|arm64}.AppImage format=appimage
-  windows-x86_64                 → imprint_<ver>_windows_x86_64.msi       format=wix
+  macos-aarch64 / macos-x86_64   → imprint_<ver>_macos_{amd64|arm64}.app.tar.gz  format=app
+  linux-aarch64 / linux-x86_64   → imprint_<ver>_ubuntu24.04_{amd64|arm64}.AppImage format=appimage
+  windows-x86_64                 → imprint_<ver>_windows_amd64.msi       format=wix
   windows-aarch64                → imprint_<ver>_windows_arm64-setup.exe format=nsis
 
 Deb / pacman installs are not in-app-updatable (updater only replaces AppImage).
 
 Usage:
   .github/scripts/prepare-updater-assets.py [version] [notes]
-  .github/scripts/prepare-updater-assets.py --arch aarch64 [version] [notes]
+  .github/scripts/prepare-updater-assets.py --arch aarch64 --dist dist/macos-arm64 [version] [notes]
 """
 
 from __future__ import annotations
@@ -36,6 +36,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 DIST = ROOT / "dist"
 GITHUB_REMOTE = re.compile(r"github\.com[:/](?P<repo>[^/]+/[^/.]+)(?:\.git)?$")
+
+
+def set_dist(path: Path) -> Path:
+    global DIST
+    DIST = path
+    return DIST
 
 
 def packager_version() -> str:
@@ -161,14 +167,18 @@ def first_match(pattern: str) -> Path | None:
 # cargo-packager Windows filenames use x64/arm64, not rustc's x86_64/aarch64.
 WINDOWS_PACKAGER_ARCH = {
     "x86_64": "x64",
+    "amd64": "x64",
     "aarch64": "arm64",
+    "arm64": "arm64",
 }
 
 # Release asset CPU tag (.github/scripts/tag-release-assets.py). latest.json keys stay
-# rustc's aarch64 so cargo-packager-updater can look them up.
+# rustc's x86_64 / aarch64 so cargo-packager-updater can look them up.
 FILE_CPU = {
-    "x86_64": "x86_64",
+    "x86_64": "amd64",
+    "amd64": "amd64",
     "aarch64": "arm64",
+    "arm64": "arm64",
 }
 
 
@@ -284,11 +294,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="CPU architecture written into latest-<os>-<arch>.json "
         "(aarch64 or x86_64; 32-bit x86 is not supported). Default: this machine.",
     )
+    parser.add_argument(
+        "--dist",
+        type=Path,
+        default=DIST,
+        help="Directory that contains this platform's packages "
+        "(default: dist/; CI uses dist/macos-arm64, dist/ubuntu-24.04-amd64, ...).",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    set_dist(args.dist)
     DIST.mkdir(parents=True, exist_ok=True)
     version = args.version or packager_version()
     notes = args.notes or ""

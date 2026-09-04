@@ -58,12 +58,13 @@ Device paths: macOS `/dev/rdiskN`, Linux `/dev/sdX` or `/dev/nvmeXn1`, Windows `
 
 ### macOS (Homebrew)
 
+Install the cask from [googolmo/homebrew-tap](https://github.com/googolmo/homebrew-tap). Homebrew then downloads the `.dmg` from this project's [GitHub Releases](https://github.com/googolmo/imprint/releases):
+
 ```bash
-brew tap googolmo/tap
-brew install --cask imprint
+brew install --cask googolmo/tap/imprint
 ```
 
-This installs **Imprint** in `/Applications` and puts `imprint-cli` on your `PATH`. The cask lives in [googolmo/homebrew-tap](https://github.com/googolmo/homebrew-tap), not `homebrew/cask`.
+This installs **Imprint** in `/Applications` and puts `imprint-cli` on your `PATH`. The cask is not in `homebrew/cask`.
 
 Or download the `.dmg` from [GitHub Releases](https://github.com/googolmo/imprint/releases).
 
@@ -73,25 +74,27 @@ Install the APT source from [googolmo/repo](https://github.com/googolmo/repo). `
 
 ```bash
 sudo mkdir -p /usr/share/keyrings
-sudo curl -fsSL https://googolmo.github.io/repo/keys/repo.gpg \
+sudo curl -fsSL https://repo-cr4.pages.dev/keys/repo.gpg \
   -o /usr/share/keyrings/repo-archive-keyring.gpg
 sudo chmod 644 /usr/share/keyrings/repo-archive-keyring.gpg
-sudo curl -fsSL https://googolmo.github.io/repo/ubuntu/repo.sources \
-  -o /etc/apt/sources.list.d/repo.sources
+sudo curl -fsSL https://repo-cr4.pages.dev/ubuntu/mosumi-repo.sources \
+  -o /etc/apt/sources.list.d/mosumi-repo.sources
 sudo apt update
 sudo apt install imprint
 ```
 
-Suite `stable` is the Ubuntu 24.04 / Debian 13+ build. Use `ubuntu26.04` in `repo.sources` for that newer-glibc package.
+`mosumi-repo.sources` uses suite `noble` (Ubuntu 24.04 / Debian 13+). Use suite `resolute` for Ubuntu 26.04 (amd64 and arm64).
 
 ### Linux (Arch)
 
 Install the Pacman source from [googolmo/repo](https://github.com/googolmo/repo). `pacman` then downloads the `.pkg.tar.zst` from this project's [GitHub Releases](https://github.com/googolmo/imprint/releases):
 
 ```bash
-sudo curl -fsSL https://googolmo.github.io/repo/pacman/repo.conf \
-  -o /etc/pacman.d/repo
-echo -e '\nInclude = /etc/pacman.d/repo' | sudo tee -a /etc/pacman.conf
+curl -fsSL https://repo-cr4.pages.dev/keys/repo.asc | sudo pacman-key --add -
+sudo pacman-key --lsign-key 9DF42B7054F1CB5B
+sudo curl -fsSL https://repo-cr4.pages.dev/pacman/mosumi-repo.conf \
+  -o /etc/pacman.d/mosumi-repo.conf
+echo -e '\nInclude = /etc/pacman.d/mosumi-repo.conf' | sudo tee -a /etc/pacman.conf
 sudo pacman -Sy imprint
 ```
 

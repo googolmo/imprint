@@ -58,12 +58,13 @@ imprint-cli flash ubuntu.iso --device /dev/rdisk4 --yes
 
 ### macOS（Homebrew）
 
+通过 [googolmo/homebrew-tap](https://github.com/googolmo/homebrew-tap) 里的 cask 安装。Homebrew 随后会从这个项目的 [GitHub Releases](https://github.com/googolmo/imprint/releases) 下载 `.dmg`：
+
 ```bash
-brew tap googolmo/tap
-brew install --cask imprint
+brew install --cask googolmo/tap/imprint
 ```
 
-会将 **Imprint** 装到 `/Applications`，并把 `imprint-cli` 放到 `PATH` 中。cask 在 [googolmo/homebrew-tap](https://github.com/googolmo/homebrew-tap)，不在 `homebrew/cask`。
+会将 **Imprint** 装到 `/Applications`，并把 `imprint-cli` 放到 `PATH` 中。这个 cask 不在 `homebrew/cask`。
 
 也可以从 [GitHub Releases](https://github.com/googolmo/imprint/releases) 下载 `.dmg`。
 
@@ -73,25 +74,27 @@ brew install --cask imprint
 
 ```bash
 sudo mkdir -p /usr/share/keyrings
-sudo curl -fsSL https://googolmo.github.io/repo/keys/repo.gpg \
+sudo curl -fsSL https://repo-cr4.pages.dev/keys/repo.gpg \
   -o /usr/share/keyrings/repo-archive-keyring.gpg
 sudo chmod 644 /usr/share/keyrings/repo-archive-keyring.gpg
-sudo curl -fsSL https://googolmo.github.io/repo/ubuntu/repo.sources \
-  -o /etc/apt/sources.list.d/repo.sources
+sudo curl -fsSL https://repo-cr4.pages.dev/ubuntu/mosumi-repo.sources \
+  -o /etc/apt/sources.list.d/mosumi-repo.sources
 sudo apt update
 sudo apt install imprint
 ```
 
-套件 `stable` 对应 Ubuntu 24.04 / Debian 13+ 的构建。若要用更新 glibc 的包，把 `repo.sources` 里的 suite 改成 `ubuntu26.04`。
+`mosumi-repo.sources` 默认 suite 是 `noble`（Ubuntu 24.04 / Debian 13+）。Ubuntu 26.04（amd64 与 arm64）把 suite 改成 `resolute`。
 
 ### Linux（Arch）
 
 先安装 [googolmo/repo](https://github.com/googolmo/repo) 里的 Pacman source 文件。`pacman` 随后会从这个项目的 [GitHub Releases](https://github.com/googolmo/imprint/releases) 下载 `.pkg.tar.zst`：
 
 ```bash
-sudo curl -fsSL https://googolmo.github.io/repo/pacman/repo.conf \
-  -o /etc/pacman.d/repo
-echo -e '\nInclude = /etc/pacman.d/repo' | sudo tee -a /etc/pacman.conf
+curl -fsSL https://repo-cr4.pages.dev/keys/repo.asc | sudo pacman-key --add -
+sudo pacman-key --lsign-key 9DF42B7054F1CB5B
+sudo curl -fsSL https://repo-cr4.pages.dev/pacman/mosumi-repo.conf \
+  -o /etc/pacman.d/mosumi-repo.conf
+echo -e '\nInclude = /etc/pacman.d/mosumi-repo.conf' | sudo tee -a /etc/pacman.conf
 sudo pacman -Sy imprint
 ```
 

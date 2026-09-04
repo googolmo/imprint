@@ -62,6 +62,10 @@ only (`ubuntu-24.04` / `ubuntu-24.04-arm`). Compile + makepkg run in
 `.github/scripts/build-arch-package.sh`. cargo-packager's `pacman` format is a
 `usr/` tarball, not a pacman package; CI must not use it.
 
+`menci/archlinuxarm` does not ship `DisableSandbox`. Pacman 7 Landlock + the
+`alpm` download user fail in GitHub ARM Docker; `build-arch-package.sh` must
+uncomment `DisableSandbox` and comment `DownloadUser` before any `pacman -Sy`.
+
 ## Packager.toml / cargo-packager
 
 - `before-packaging-command` must use `--locked`.

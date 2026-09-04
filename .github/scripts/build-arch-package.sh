@@ -144,7 +144,24 @@ arch_image() {
   esac
 }
 
+disable_pacman_sandbox() {
+  # Pacman 7+ sandboxes downloads with Landlock and a drop to user `alpm`.
+  # Official archlinux:base-devel already ships DisableSandbox
+  # (archlinux-docker#103). menci/archlinuxarm does not, and GitHub ARM
+  # Docker rejects Landlock ("Operation not permitted") plus the alpm switch.
+  local conf=/etc/pacman.conf
+  [[ -f "$conf" ]] || return 0
+  sed -i -E \
+    's/^[[:space:]]*#[[:space:]]*(DisableSandbox(Filesystem|Syscalls)?)\b/\1/' \
+    "$conf"
+  if ! grep -qE '^[[:space:]]*DisableSandbox' "$conf"; then
+    sed -i '/^\[options\]/a DisableSandbox' "$conf"
+  fi
+  sed -i -E 's/^[[:space:]]*DownloadUser\b/#DownloadUser/' "$conf"
+}
+
 setup_pacman() {
+  disable_pacman_sandbox
   if command -v pacman-key >/dev/null 2>&1; then
     pacman-key --init
     pacman-key --populate archlinux 2>/dev/null || \

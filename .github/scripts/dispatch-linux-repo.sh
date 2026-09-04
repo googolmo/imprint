@@ -2,11 +2,13 @@
 # Dispatch googolmo/repo `update-index` for this release tag.
 #
 # Usage (GitHub Actions):
-#   GH_TOKEN=$LINUX_REPO_TOKEN TAG=v0.1.4 VERSION=0.1.4 \
+#   WORKFLOW_GH_TOKEN=… TAG=v0.1.4 VERSION=0.1.4 \
 #     .github/scripts/dispatch-linux-repo.sh
 #
 # Env:
-#   GH_TOKEN / LINUX_REPO_TOKEN   PAT with Actions: write on googolmo/repo
+#   WORKFLOW_GH_TOKEN             PAT with Actions: write on googolmo/repo
+#                                 (exported as GH_TOKEN for `gh`; do not use
+#                                 github.token — it cannot dispatch another repo)
 #   TAG                           git tag (v0.1.4)
 #   VERSION                       Packager.toml version
 #   GITHUB_REPOSITORY             owner/name of the imprint repo
@@ -15,9 +17,11 @@
 
 set -euo pipefail
 
-token="${LINUX_REPO_TOKEN:-${GH_TOKEN:-}}"
+# Prefer WORKFLOW_GH_TOKEN. The workflow sets GH_TOKEN to github.token globally,
+# which cannot create a workflow_dispatch on googolmo/repo (HTTP 403).
+token="${WORKFLOW_GH_TOKEN:-}"
 if [[ -z "$token" ]]; then
-  echo "LINUX_REPO_TOKEN is not set; cannot dispatch googolmo/repo update-index" >&2
+  echo "WORKFLOW_GH_TOKEN is not set; cannot dispatch googolmo/repo update-index" >&2
   exit 1
 fi
 export GH_TOKEN="$token"

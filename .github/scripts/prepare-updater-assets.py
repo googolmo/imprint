@@ -9,7 +9,7 @@ and arch is the rustc target_arch (x86_64 or aarch64). The `format` field must b
 one of app / appimage / nsis / wix — that is the file the running app downloads.
 
   macos-aarch64 / macos-x86_64   → imprint_<ver>_macos_{amd64|arm64}.app.tar.gz  format=app
-  linux-aarch64 / linux-x86_64   → imprint_<ver>_ubuntu24.04_{amd64|arm64}.AppImage format=appimage
+  linux-aarch64 / linux-x86_64   → imprint_<ver>_linux_{amd64|arm64}.AppImage format=appimage
   windows-x86_64                 → imprint_<ver>_windows_amd64.msi       format=wix
   windows-aarch64                → imprint_<ver>_windows_arm64-setup.exe format=nsis
 
@@ -208,7 +208,8 @@ def prepare_linux(
 ) -> None:
     cpu = FILE_CPU.get(arch, arch)
     asset = (
-        first_match(f"imprint_{version}_*_{cpu}.AppImage")
+        first_match(f"imprint_{version}_linux_{cpu}.AppImage")
+        or first_match(f"imprint_{version}_*_{cpu}.AppImage")
         or first_match(f"imprint_{version}_{cpu}.AppImage")
         or first_match(f"imprint_{version}_*_{arch}.AppImage")
         or first_match(f"imprint_{version}_{arch}.AppImage")

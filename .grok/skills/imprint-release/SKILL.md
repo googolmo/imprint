@@ -45,10 +45,12 @@ cargo-packager `--out-dir dist/<pack_dir>/`. `pack_dir` is
 
 `.github/scripts/tag-release-assets.py` then renames files in that dir to
 `imprint_{version}_{system}_{cpu}{suffix}`. `cpu` is `amd64` or `arm64`.
-`system` is `ubuntu24.04` | `ubuntu26.04` | `macos` | `windows` | `archlinux`.
-GitHub Release assets are the basename (flat); the pack dir is local only.
-rustc triples and cargo-packager-updater `platforms` keys stay `x86_64` /
-`aarch64`. Arch PKGBUILD `arch=()` stays `x86_64` / `aarch64`.
+`system` is `ubuntu24.04` | `ubuntu26.04` | `linux` | `macos` | `windows` |
+`archlinux`. AppImage is always `linux` (`imprint_{version}_linux_{cpu}.AppImage`),
+not `ubuntu24.04` — it is not an Ubuntu package even though the 24.04 job
+builds it. GitHub Release assets are the basename (flat); the pack dir is
+local only. rustc triples and cargo-packager-updater `platforms` keys stay
+`x86_64` / `aarch64`. Arch PKGBUILD `arch=()` stays `x86_64` / `aarch64`.
 
 Do not reintroduce Ubuntu 22.04 runners or `ubuntu22.04` asset tags. Stable
 `.deb` is glibc 2.39 (Ubuntu 24.04 / Debian 13+).
@@ -89,9 +91,11 @@ GUI CI Linux runners must match the primary pack runners (`ubuntu-24.04` /
 - Homebrew: generate `Casks/imprint.rb` (gitignored here), push to
   `googolmo/homebrew-tap` with `WORKFLOW_GH_TOKEN`. Authenticate with
   `http.https://github.com/.extraheader`; never put a PAT in the git remote URL.
-- linux-repo: `.github/scripts/dispatch-linux-repo.sh` with `LINUX_REPO_TOKEN`.
-  The script checks that `update-index.yml` exists and lists workflows on
-  failure (`googolmo/repo` may be private). Inputs: `tag`, `version`,
+  The cask is not a GitHub Release asset; do not `gh release upload` it.
+- linux-repo: `.github/scripts/dispatch-linux-repo.sh` with `WORKFLOW_GH_TOKEN`
+  as `GH_TOKEN` (same PAT as Homebrew; `github.token` cannot dispatch another
+  repo). The script checks that `update-index.yml` exists and lists workflows
+  on failure (`googolmo/repo` may be private). Inputs: `tag`, `version`,
   `github_repo`.
 
 ## Scripts CI

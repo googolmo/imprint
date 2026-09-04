@@ -11,15 +11,15 @@
 #      Arch Docker (.github/scripts/build-arch-package.sh) → .pkg.tar.zst.
 #      Ubuntu runners are the Docker host only; cargo does not run on Ubuntu.
 #   5. After macOS pack jobs succeed, emit a Homebrew cask from the macOS
-#      .dmg files and upload imprint.rb to the Release. Tag pushes also
-#      commit Casks/imprint.rb to googolmo/homebrew-tap (WORKFLOW_GH_TOKEN;
-#      that tap is shared, this job only touches the imprint cask).
+#      .dmg files. Tag pushes commit Casks/imprint.rb to googolmo/homebrew-tap
+#      (WORKFLOW_GH_TOKEN; that tap is shared, this job only touches the
+#      imprint cask). imprint.rb is not a GitHub Release asset.
 #   6. After Ubuntu 24.04 + Arch pack jobs succeed, tag pushes dispatch
-#      googolmo/repo's `update-index` workflow with this tag. That job rewrites
-#      APT Packages, Cloudflare _redirects (.deb → this Release), and
-#      pacman/repo.conf. Ubuntu 26.04 is a separate job: its failure must not
-#      skip linux-repo. Homebrew does not wait for Linux; linux-repo does not
-#      wait for macOS.
+#      googolmo/repo's `update-index` workflow with this tag (WORKFLOW_GH_TOKEN
+#      as GH_TOKEN). That job rewrites APT Packages, Cloudflare _redirects
+#      (.deb → this Release), and pacman/repo.conf. Ubuntu 26.04 is a separate
+#      job: its failure must not skip linux-repo. Homebrew does not wait for
+#      Linux; linux-repo does not wait for macOS.
 #
 # Triggers:
 #   - push of a tag matching v* (e.g. v0.1.0) — version must match Packager.toml
@@ -43,7 +43,7 @@
 # files in that dir to
 #   imprint_{version}_{system}_{cpu}{suffix}
 # with cpu = amd64 | arm64. system is ubuntu24.04 / ubuntu26.04
-# (.deb and AppImage), macos, windows, or archlinux. GitHub Release
+# (.deb), linux (AppImage), macos, windows, or archlinux. GitHub Release
 # assets stay flat (basename only). rustc triples stay x86_64 / aarch64.
 #
 # Linux/Windows arm64 hosted runners are free on public repos. Private repos
@@ -122,21 +122,17 @@
 # Linux packages are unsigned at the OS level (no extra env). Updater
 # .sig files still use CARGO_PACKAGER_SIGN_PRIVATE_KEY.
 #
-# googolmo/repo (`update-index` workflow)
-#   LINUX_REPO_TOKEN
-#       PAT that can dispatch workflows on googolmo/repo (fine-grained
-#       Actions: write, or classic `repo` scope). Tag pushes run
-#       `gh workflow run update-index.yml` with this release's tag.
-#       Required on tag pushes. googolmo/repo signs APT InRelease with
-#       its own GPG_PRIVATE_KEY secret.
-#
-# googolmo/homebrew-tap (Homebrew cask)
+# googolmo/homebrew-tap + googolmo/repo (other-repo writes)
 #   WORKFLOW_GH_TOKEN
-#       PAT that can push to googolmo/homebrew-tap (fine-grained Contents:
-#       write, or classic `repo` scope). Tag pushes commit Casks/imprint.rb.
-#       Required on tag pushes. github.token cannot write another repo, so
-#       this step must not reuse the workflow GH_TOKEN. The tap hosts casks
-#       for more than imprint; this workflow only updates Casks/imprint.rb.
+#       PAT that can push to googolmo/homebrew-tap and dispatch workflows on
+#       googolmo/repo (fine-grained Contents + Actions: write, or classic
+#       `repo` scope). Tag pushes commit Casks/imprint.rb and run
+#       `gh workflow run update-index.yml`. Required on tag pushes.
+#       github.token cannot write another repo, so those steps must set
+#       GH_TOKEN to this secret — never the workflow GH_TOKEN. The tap hosts
+#       casks for more than imprint; this workflow only updates
+#       Casks/imprint.rb. googolmo/repo signs APT InRelease with its own
+#       GPG_PRIVATE_KEY secret.
 # ---------------------------------------------------------------------------
 
 name: Release
@@ -412,9 +408,8 @@ jobs:
 
       - name: Generate Homebrew cask
         env:
-          TAG: ${{ needs.version.outputs.tag }}
           VERSION: ${{ needs.version.outputs.version }}
-        run: python3 .github/scripts/prepare-homebrew-cask.py --version "$VERSION" --upload "$TAG"
+        run: python3 .github/scripts/prepare-homebrew-cask.py --version "$VERSION"
 
       - name: Push cask to googolmo/homebrew-tap
         if: github.event_name == 'push' && github.ref_type == 'tag'
@@ -463,7 +458,10 @@ jobs:
 
       - name: Dispatch googolmo/repo update-index
         env:
-          GH_TOKEN: ${{ secrets.LINUX_REPO_TOKEN }}
+          # github.token cannot dispatch another repo. Override the workflow
+          # GH_TOKEN so `gh workflow run` uses the PAT.
+          GH_TOKEN: ${{ secrets.WORKFLOW_GH_TOKEN }}
+          WORKFLOW_GH_TOKEN: ${{ secrets.WORKFLOW_GH_TOKEN }}
           TAG: ${{ needs.version.outputs.tag }}
           VERSION: ${{ needs.version.outputs.version }}
         run: .github/scripts/dispatch-linux-repo.sh
@@ -481,7 +479,8 @@ jobs:
 
       - name: Dispatch googolmo/repo update-index
         env:
-          GH_TOKEN: ${{ secrets.LINUX_REPO_TOKEN }}
+          GH_TOKEN: ${{ secrets.WORKFLOW_GH_TOKEN }}
+          WORKFLOW_GH_TOKEN: ${{ secrets.WORKFLOW_GH_TOKEN }}
           TAG: ${{ needs.version.outputs.tag }}
           VERSION: ${{ needs.version.outputs.version }}
         run: .github/scripts/dispatch-linux-repo.sh

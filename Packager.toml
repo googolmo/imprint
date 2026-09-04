@@ -29,7 +29,7 @@ icons = [
 #   Windows amd64             → imprint_*_windows_amd64.msi (WiX)
 #   Windows arm64             → imprint_*_windows_arm64-setup.exe (NSIS)
 #   Linux   arm64 / amd64     → imprint_*_ubuntu24.04_{cpu}.deb
-#                               + imprint_*_ubuntu24.04_{cpu}.AppImage
+#                               + imprint_*_linux_{cpu}.AppImage
 #                               + imprint_*_archlinux_{cpu}.pkg.tar.zst (Arch Docker)
 #   Linux   Ubuntu 26.04      → extra .deb per CPU (imprint_*_ubuntu26.04_{cpu}.deb)
 #   Homebrew: `.github/scripts/prepare-homebrew-cask.py` writes Casks/imprint.rb;

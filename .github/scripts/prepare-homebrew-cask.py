@@ -11,13 +11,12 @@ Falls back to cargo-packager names (Imprint_<version>_aarch64.dmg /
 Imprint_<version>_x64.dmg) so an already-published release can still be
 casked.
 
-`--upload TAG` also uploads imprint.rb to that GitHub Release. Tag pushes
-copy the cask to googolmo/homebrew-tap (`brew tap googolmo/tap`); this
-repository is not itself a Homebrew tap.
+Tag pushes copy the cask to googolmo/homebrew-tap (`brew tap googolmo/tap`);
+this repository is not itself a Homebrew tap.
 
 Usage:
   .github/scripts/prepare-homebrew-cask.py
-  .github/scripts/prepare-homebrew-cask.py --version 0.1.3 --upload v0.1.3
+  .github/scripts/prepare-homebrew-cask.py --version 0.1.3
   .github/scripts/prepare-homebrew-cask.py --self-test
 """
 
@@ -265,11 +264,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--version", help="Package version (default: Packager.toml)")
     parser.add_argument(
-        "--upload",
-        metavar="TAG",
-        help="Upload imprint.rb to this GitHub Release",
-    )
-    parser.add_argument(
         "--dist",
         type=Path,
         default=DIST,
@@ -403,14 +397,6 @@ def main(argv: list[str] | None = None) -> int:
     print(f"wrote {out}")
     for brew_arch, path in dmgs.items():
         print(f"  {brew_arch}: {path.name} sha256:{sha256_file(path)}")
-
-    if args.upload:
-        subprocess.run(
-            ["gh", "release", "upload", args.upload, str(out), "--clobber"],
-            cwd=ROOT,
-            check=True,
-        )
-        print(f"uploaded {out.name} to {args.upload}")
     return 0
 
 

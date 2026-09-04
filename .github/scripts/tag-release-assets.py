@@ -15,14 +15,17 @@ cargo-packager names mix Debian (amd64/arm64), Windows (x64/arm64), and rustc
 
   imprint_{version}_{system}_{cpu}{suffix}
 
-  system  ubuntu24.04 | ubuntu26.04 | macos | windows | archlinux
+  system  ubuntu24.04 | ubuntu26.04 | linux | macos | windows | archlinux
   cpu     amd64 | arm64
+
+AppImage is a portable Linux payload, not an Ubuntu package, so its system
+tag is always `linux` even when built on the Ubuntu 24.04 pack job.
 
 Examples:
   dist/ubuntu-24.04-amd64/imprint_0.1.3_amd64.deb
       → imprint_0.1.3_ubuntu24.04_amd64.deb
   dist/ubuntu-24.04-amd64/imprint_0.1.3_x86_64.AppImage
-      → imprint_0.1.3_ubuntu24.04_amd64.AppImage
+      → imprint_0.1.3_linux_amd64.AppImage
   dist/macos-arm64/Imprint_0.1.3_aarch64.dmg
       → imprint_0.1.3_macos_arm64.dmg
   dist/windows-amd64/imprint_0.1.3_x64_en-US.msi
@@ -37,7 +40,7 @@ directories are left alone.
 
 A pack dir name supplies system + cpu, so `--arch` / `--deb-tag` are optional
 when `--dist` is (or contains) those directories. Flat `dist/` still needs
-`--arch` (and `--deb-tag` for .deb / AppImage).
+`--arch` (and `--deb-tag` for .deb).
 
 Usage:
   .github/scripts/tag-release-assets.py --version 0.1.3 --dist dist/ubuntu-24.04-amd64
@@ -171,8 +174,7 @@ def pkg_suffix(path: Path, kind: str) -> str:
 def system_for(kind: str, deb_tag: str | None) -> str:
     mapping = {
         "deb": deb_tag or "linux",
-        # AppImage is built on the same runner as the primary .deb (Ubuntu 24.04).
-        "appimage": deb_tag or "linux",
+        "appimage": "linux",
         "dmg": "macos",
         "msi": "windows",
         "nsis": "windows",
@@ -224,7 +226,7 @@ def tag_one_dir(
         kind = classify(path)
         if kind is None:
             continue
-        if pack_system is not None:
+        if pack_system is not None and kind != "appimage":
             system = pack_system
         else:
             system = system_for(kind, deb_tag)
@@ -304,7 +306,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--deb-tag",
         help="OS tag for .deb files (ubuntu24.04 or ubuntu26.04). "
-        "Optional when --dist is a ubuntu-<version>-<arch> pack dir.",
+        "Optional when --dist is a ubuntu-<version>-<arch> pack dir. "
+        "AppImage always uses linux, not this tag.",
     )
     parser.add_argument(
         "--dist",
@@ -375,7 +378,7 @@ def _self_test() -> None:
             [
                 "imprint_0.1.3_ubuntu24.04_amd64.deb",
                 "imprint_0.1.3_ubuntu24.04_amd64.deb.sig",
-                "imprint_0.1.3_ubuntu24.04_amd64.AppImage",
+                "imprint_0.1.3_linux_amd64.AppImage",
                 "imprint_0.1.3_archlinux_amd64.tar.gz",
                 "imprint_0.1.3_archlinux_amd64.pkg.tar.zst",
                 "PKGBUILD",
@@ -393,7 +396,7 @@ def _self_test() -> None:
             ],
             [
                 "imprint_0.1.3_ubuntu24.04_arm64.deb",
-                "imprint_0.1.3_ubuntu24.04_arm64.AppImage",
+                "imprint_0.1.3_linux_arm64.AppImage",
                 "imprint_0.1.3_archlinux_arm64.tar.gz",
                 "imprint_0.1.3_archlinux_arm64.pkg.tar.zst",
             ],
@@ -460,6 +463,20 @@ def _self_test() -> None:
             raise SystemExit(f"idempotent arm64 rename failed: {names}")
     with tempfile.TemporaryDirectory() as tmp:
         dist = Path(tmp)
+        _touch(dist / "imprint_0.1.3_ubuntu24.04_amd64.AppImage")
+        tag_assets(dist, version="0.1.3", arch="amd64", deb_tag="ubuntu24.04")
+        names = [p.name for p in dist.iterdir()]
+        if names != ["imprint_0.1.3_linux_amd64.AppImage"]:
+            raise SystemExit(f"ubuntu AppImage → linux failed: {names}")
+    with tempfile.TemporaryDirectory() as tmp:
+        dist = Path(tmp)
+        _touch(dist / "imprint_0.1.3_linux_amd64.AppImage")
+        tag_assets(dist, version="0.1.3", arch="amd64")
+        names = [p.name for p in dist.iterdir()]
+        if names != ["imprint_0.1.3_linux_amd64.AppImage"]:
+            raise SystemExit(f"idempotent linux AppImage rename failed: {names}")
+    with tempfile.TemporaryDirectory() as tmp:
+        dist = Path(tmp)
         _touch(dist / "imprint_0.1.3_amd64.deb")
         _expect_exit(lambda: tag_assets(dist, version="0.1.3", arch="x86_64"))
 
@@ -473,7 +490,7 @@ def _self_test() -> None:
         want = sorted(
             [
                 "imprint_0.1.3_ubuntu24.04_amd64.deb",
-                "imprint_0.1.3_ubuntu24.04_amd64.AppImage",
+                "imprint_0.1.3_linux_amd64.AppImage",
             ]
         )
         if got != want:

@@ -48,6 +48,7 @@ jobs:
           bash -n .github/scripts/build-arch-package.sh
           bash -n .github/scripts/dispatch-linux-repo.sh
           bash -n .github/scripts/codesign
+          bash -n .github/scripts/hdiutil
 
   fmt:
     name: rustfmt

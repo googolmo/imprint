@@ -98,4 +98,24 @@ GUI CI Linux runners must match the primary pack runners (`ubuntu-24.04` /
 
 `ci.yml` `packaging-scripts` must run `--self-test` on the Python packagers,
 `python3 -m py_compile .github/scripts/*.py`, and `bash -n` on
-`build-arch-package.sh`, `dispatch-linux-repo.sh`, and `codesign`.
+`build-arch-package.sh`, `dispatch-linux-repo.sh`, `codesign`, and `hdiutil`.
+
+## macOS Intel DMG (`macos-15-intel`)
+
+cargo-packager vendors create-dmg 1.1.1, which retries `hdiutil detach` three
+times **without** `-force`. On GitHub Intel runners Spotlight / XProtect hold
+the RW image after `--volicon`, and pack fails with:
+
+```
+hdiutil: couldn't eject "disk4" - Resource busy
+```
+
+`release-package.yml` must keep all three mitigations:
+
+1. `.github/scripts/hdiutil` on `PATH` (retry, then `detach -force`). Same
+   wrapper is copied next to `.github/scripts/codesign` for local
+   `scripts/packager.sh`.
+2. Kill XProtect and `mdutil -a -i off` before `cargo packager`.
+3. Retry `cargo packager` up to 3 times, force-unmounting `/Volumes/Imprint`
+   between attempts. `before-packaging-command` is a no-op once
+   `target/release` exists; do not delete the `.app`.

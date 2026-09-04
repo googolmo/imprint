@@ -165,10 +165,12 @@ python3 "$root/.github/scripts/inject-packager-signing.py" "$packager_toml"
 
 # cargo-packager signs Contents/MacOS binaries by path depth only, so a
 # sidecar (imprint-cli) can be signed after the main exe. Prepend our
-# codesign wrapper (same as CI).
+# codesign wrapper (same as CI). Also wrap hdiutil so create-dmg can
+# force-detach when Spotlight holds the RW image (Intel CI flake).
 codesign_wrap="$(mktemp -d "${TMPDIR:-/tmp}/imprint-codesign.XXXXXX")"
 cp "$root/.github/scripts/codesign" "$codesign_wrap/codesign"
-chmod +x "$codesign_wrap/codesign"
+cp "$root/.github/scripts/hdiutil" "$codesign_wrap/hdiutil"
+chmod +x "$codesign_wrap/codesign" "$codesign_wrap/hdiutil"
 export PATH="$codesign_wrap:$PATH"
 
 # Packager.toml lives at the workspace root (name = "imprint").

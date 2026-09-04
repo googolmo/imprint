@@ -235,16 +235,41 @@ jobs:
       # cargo-packager signs MacOS/* by path depth only; imprint-cli is a
       # sibling of the main exe and must be signed first. Prepend a codesign
       # wrapper that does that (.github/scripts/codesign).
-      - name: Wrap codesign for nested MacOS binaries
+      #
+      # Intel GitHub runners flake on create-dmg unmount ("hdiutil: couldn't
+      # eject … Resource busy"): Spotlight / XProtect hold the RW image.
+      # Prepend .github/scripts/hdiutil so detach retries then -force.
+      - name: PATH wrappers for codesign and hdiutil
         if: runner.os == 'macOS'
         shell: bash
         run: |
           set -euo pipefail
-          wrap="${RUNNER_TEMP}/imprint-codesign"
+          wrap="${RUNNER_TEMP}/imprint-packager-bin"
           mkdir -p "$wrap"
           cp .github/scripts/codesign "$wrap/codesign"
-          chmod +x "$wrap/codesign"
+          cp .github/scripts/hdiutil "$wrap/hdiutil"
+          chmod +x "$wrap/codesign" "$wrap/hdiutil"
           echo "$wrap" >> "$GITHUB_PATH"
+
+      # https://github.com/actions/runner-images/issues/7522
+      # macos-15-intel: XProtect + Spotlight keep a just-mounted DMG busy.
+      - name: Quiet Spotlight and XProtect before DMG
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo pkill -9 XProtect >/dev/null 2>&1 || true
+          sudo pkill -9 XProtectBehaviorService >/dev/null 2>&1 || true
+          n=0
+          while pgrep XProtect >/dev/null 2>&1 || pgrep XProtectBehaviorService >/dev/null 2>&1; do
+            n=$((n + 1))
+            if [[ $n -ge 15 ]]; then
+              echo "XProtect still running; continuing anyway"
+              break
+            fi
+            sleep 2
+          done
+          sudo mdutil -a -i off >/dev/null 2>&1 || true
 
       - name: Import Windows code-signing certificate
         if: runner.os == 'Windows'
@@ -310,7 +335,36 @@ jobs:
           else
             echo "CARGO_PACKAGER_SIGN_PRIVATE_KEY unset; updater .sig files will be missing"
           fi
-          "${args[@]}"
+          # Intel runners can still lose the create-dmg race after the hdiutil
+          # wrapper. Retry the whole packager: before-packaging-command is a
+          # no-op once target/release exists. Detach leftover Imprint volumes
+          # so the next create-dmg is not sitting on a busy mount.
+          if [[ "$(uname -s)" == "Darwin" ]]; then
+            attempt=1
+            max=3
+            while true; do
+              if "${args[@]}"; then
+                break
+              fi
+              if [[ $attempt -ge $max ]]; then
+                echo "cargo packager failed after ${max} attempts" >&2
+                exit 1
+              fi
+              echo "cargo packager failed (attempt ${attempt}/${max}); detaching leftover DMGs"
+              diskutil unmountDisk force /Volumes/Imprint >/dev/null 2>&1 || true
+              /usr/bin/hdiutil detach -force /Volumes/Imprint >/dev/null 2>&1 || true
+              # Bypass the PATH wrapper; leftover RW images hold the busy disk.
+              for img in "$PACK_DIR"/rw.*.dmg; do
+                [[ -f "$img" ]] || continue
+                /usr/bin/hdiutil detach -force "$img" >/dev/null 2>&1 || true
+              done
+              rm -f "$PACK_DIR"/rw.*.dmg || true
+              sleep 8
+              attempt=$((attempt + 1))
+            done
+          else
+            "${args[@]}"
+          fi
 
       # Ubuntu runner is the Docker host only. cargo build + makepkg run in
       # Arch Linux (see .github/scripts/build-arch-package.sh).

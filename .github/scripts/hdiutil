@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+# Drop-in hdiutil: GitHub macos-15-intel (and other Intel CI images) flake
+# when cargo-packager's create-dmg tries to eject the RW image:
+#   hdiutil: couldn't eject "disk4" - Resource busy
+# Spotlight (mds) and XProtect hold the mount. create-dmg 1.1.1 (the
+# revision cargo-packager vendors) retries detach 3 times without -force.
+#
+# bash 3.2 (macOS /bin/bash). Invoked as `hdiutil` from PATH.
+
+set -euo pipefail
+
+real=/usr/bin/hdiutil
+if [[ ! -x "$real" ]]; then
+  printf 'hdiutil wrapper: %s not found\n' "$real" >&2
+  exit 127
+fi
+
+cmd="${1:-}"
+
+busy_error() {
+  local code="$1"
+  local text="$2"
+  if [[ "$code" -eq 16 ]]; then
+    return 0
+  fi
+  case "$text" in
+    *[Rr]esource\ busy* | *[Rr]essource\ occup*) return 0 ;;
+  esac
+  return 1
+}
+
+has_flag() {
+  local needle="$1"
+  shift
+  local a
+  for a in "$@"; do
+    if [[ "$a" == "$needle" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+run_hdiutil() {
+  _hdiutil_out="$(mktemp "${TMPDIR:-/tmp}/imprint-hdiutil.out.XXXXXX")"
+  _hdiutil_err="$(mktemp "${TMPDIR:-/tmp}/imprint-hdiutil.err.XXXXXX")"
+  set +e
+  "$real" "$@" >"$_hdiutil_out" 2>"$_hdiutil_err"
+  _hdiutil_status=$?
+  set -e
+}
+
+emit_success() {
+  cat "$_hdiutil_out"
+  cat "$_hdiutil_err" >&2
+  rm -f "$_hdiutil_out" "$_hdiutil_err"
+}
+
+emit_attempt() {
+  cat "$_hdiutil_out" >&2
+  cat "$_hdiutil_err" >&2
+  rm -f "$_hdiutil_out" "$_hdiutil_err"
+}
+
+combined_text() {
+  cat "$_hdiutil_out" "$_hdiutil_err"
+}
+
+retry_busy() {
+  # $1 = max attempts; remaining args are hdiutil argv.
+  local max="$1"
+  shift
+  local delay=2
+  local i=0
+  local text
+  while [[ $i -lt $max ]]; do
+    i=$((i + 1))
+    run_hdiutil "$@"
+    if [[ $_hdiutil_status -eq 0 ]]; then
+      emit_success
+      return 0
+    fi
+    text="$(combined_text)"
+    if ! busy_error "$_hdiutil_status" "$text"; then
+      emit_attempt
+      return "$_hdiutil_status"
+    fi
+    emit_attempt
+    if [[ $i -ge $max ]]; then
+      return "$_hdiutil_status"
+    fi
+    printf 'hdiutil wrapper: resource busy (attempt %s/%s); retrying in %ss\n' \
+      "$i" "$max" "$delay" >&2
+    sleep "$delay"
+    if [[ $delay -lt 16 ]]; then
+      delay=$((delay * 2))
+    fi
+  done
+  return 16
+}
+
+case "$cmd" in
+  detach | eject | unmount)
+    if retry_busy 4 "$@"; then
+      exit 0
+    fi
+    if ! has_flag -force "$@"; then
+      printf 'hdiutil wrapper: forcing %s\n' "$cmd" >&2
+      sync || true
+      # Documented form: hdiutil detach [-force] image
+      if retry_busy 4 "$cmd" -force "${@:2}"; then
+        exit 0
+      fi
+    fi
+    exit "${_hdiutil_status:-16}"
+    ;;
+  create | attach)
+    retry_busy 6 "$@"
+    exit $?
+    ;;
+  *)
+    exec "$real" "$@"
+    ;;
+esac

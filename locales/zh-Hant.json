@@ -90,6 +90,12 @@
     "next": "下一步",
     "write": "寫入",
     "downloading": "正在下載映像檔",
+    "offer": {
+      "title": "偵測到 Raspberry Pi 映像檔",
+      "body": "這個檔案看起來是 Raspberry Pi 映像檔。要切換到樹莓派模式，在寫入前設定主機名稱、Wi-Fi、SSH 等首次開機選項嗎？",
+      "yes": "使用樹莓派模式",
+      "no": "直接寫入"
+    },
     "step": {
       "device": "裝置",
       "os": "系統",

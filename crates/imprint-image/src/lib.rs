@@ -30,6 +30,31 @@ pub fn kind_from_name(name: &str) -> ImageKind {
   }
 }
 
+/// True when `name` looks like a Raspberry Pi OS / Ubuntu Pi image.
+///
+/// Used to offer Raspberry Pi mode after the user picks a local file.
+pub fn looks_like_raspberry_pi(name: &str) -> bool {
+  let lower = name.to_ascii_lowercase();
+  const MARKERS: &[&str] = &[
+    "raspios",
+    "raspbian",
+    "raspberrypi",
+    "raspberry-pi",
+    "raspberry_pi",
+    "raspberry pi",
+    "+raspi",
+  ];
+  if MARKERS.iter().any(|marker| lower.contains(marker)) {
+    return true;
+  }
+  let stem = strip_compression_suffix(&lower);
+  let stem = [".img", ".iso", ".raw", ".bin", ".dmg"]
+    .iter()
+    .find_map(|ext| stem.strip_suffix(ext))
+    .unwrap_or(stem);
+  stem.ends_with("-raspi") || stem.ends_with("_raspi") || stem.ends_with(".raspi")
+}
+
 pub fn compression_from_name(name: &str) -> Option<Compression> {
   let lower = name.to_ascii_lowercase();
   if lower.ends_with(".gz") || lower.ends_with(".gzip") {
@@ -105,6 +130,24 @@ mod tests {
       Some(Compression::Gzip)
     );
     assert_eq!(compression_from_name("os.iso"), None);
+  }
+
+  #[test]
+  fn raspberry_pi_names() {
+    assert!(looks_like_raspberry_pi(
+      "2024-11-19-raspios-bookworm-arm64.img.xz"
+    ));
+    assert!(looks_like_raspberry_pi("raspbian-stretch-lite.img"));
+    assert!(looks_like_raspberry_pi("Raspberry Pi OS (64-bit).img"));
+    assert!(looks_like_raspberry_pi(
+      "ubuntu-24.04.1-preinstalled-server-arm64+raspi.img.xz"
+    ));
+    assert!(looks_like_raspberry_pi(
+      "ubuntu-24.04-preinstalled-server-arm64-raspi.img"
+    ));
+    assert!(!looks_like_raspberry_pi("ubuntu-24.04.iso"));
+    assert!(!looks_like_raspberry_pi("fedora-workstation.img.xz"));
+    assert!(!looks_like_raspberry_pi("debian-12-generic-amd64.iso"));
   }
 
   #[test]

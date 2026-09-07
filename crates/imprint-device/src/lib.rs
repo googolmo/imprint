@@ -3,10 +3,12 @@
 mod platform;
 mod protect;
 mod unmount;
+mod watch;
 
 pub use platform::list_disks;
 pub use protect::{is_system_disk, system_roots};
 pub use unmount::{eject, unmount};
+pub use watch::{DiskWatch, watch_disks};
 
 use imprint_core::{Result, Settings, TargetDisk};
 

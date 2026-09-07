@@ -90,6 +90,12 @@
     "next": "Siguiente",
     "write": "Escribir",
     "downloading": "Descargando imagen",
+    "offer": {
+      "title": "¿Imagen de Raspberry Pi?",
+      "body": "Este archivo parece una imagen de Raspberry Pi. ¿Cambiar al modo Raspberry Pi para configurar el nombre de host, Wi-Fi, SSH y otras opciones del primer arranque antes de escribir?",
+      "yes": "Usar modo Raspberry Pi",
+      "no": "Escribir tal cual"
+    },
     "step": {
       "device": "Dispositivo",
       "os": "OS",

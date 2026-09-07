@@ -90,6 +90,12 @@
     "next": "Avançar",
     "write": "Gravar",
     "downloading": "Baixando imagem",
+    "offer": {
+      "title": "Imagem Raspberry Pi?",
+      "body": "Este arquivo parece uma imagem Raspberry Pi. Mudar para o modo Raspberry Pi para definir hostname, Wi-Fi, SSH e outras opções da primeira inicialização antes de gravar?",
+      "yes": "Usar modo Raspberry Pi",
+      "no": "Gravar como está"
+    },
     "step": {
       "device": "Dispositivo",
       "os": "OS",

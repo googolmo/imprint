@@ -16,15 +16,16 @@ use imprint_core::i18n::{self, t, tr};
 use imprint_core::{
   FlashPhase, FlashProgress, FlashRequest, ImageRef, LocalePref, Settings, TargetDisk,
 };
-use imprint_device::list_targets;
+use imprint_device::{DiskWatch, list_targets, watch_disks};
 use imprint_flash::flash;
-use imprint_image::inspect;
+use imprint_image::{inspect, looks_like_raspberry_pi};
+use imprint_rpi::image_cache_dir;
 
 use crate::actions::{
   About, AppearanceDark, AppearanceLight, AppearanceSystem, CheckForUpdates, OpenImage,
   OpenRaspberryPi, Quit, RefreshDrives, SelectTarget, StartFlash, ToggleSettings,
 };
-use crate::rpi::{AppMode, RpiEvent, RpiState};
+use crate::rpi::{AppMode, RpiEvent, RpiState, RpiStep};
 use crate::theme::Appearance;
 use crate::updater;
 use crate::views;
@@ -67,6 +68,7 @@ pub struct ImprintApp {
   pub(crate) mode: AppMode,
   pub(crate) rpi: RpiState,
   pub(crate) image: Option<ImageRef>,
+  rpi_offer_path: Option<PathBuf>,
   pub(crate) disks: Vec<TargetDisk>,
   pub(crate) selected: Vec<usize>,
   pub(crate) flashing: bool,
@@ -84,6 +86,8 @@ pub struct ImprintApp {
   update_events: Option<Receiver<UpdateEvent>>,
   _update_pump: Option<gpui::Task<()>>,
   _appearance: Option<Subscription>,
+  _disk_watch: Option<DiskWatch>,
+  _disk_watch_pump: Option<gpui::Task<()>>,
   pub(crate) main_window: AnyWindowHandle,
   pub(crate) about_window: Option<AnyWindowHandle>,
 }
@@ -113,6 +117,7 @@ impl ImprintApp {
       mode: AppMode::Flash,
       rpi,
       image: None,
+      rpi_offer_path: None,
       disks,
       selected: Vec::new(),
       flashing: false,
@@ -130,6 +135,8 @@ impl ImprintApp {
       update_events: None,
       _update_pump: None,
       _appearance: Some(appearance_sub),
+      _disk_watch: None,
+      _disk_watch_pump: None,
       main_window: window.window_handle(),
       about_window: None,
     };
@@ -170,24 +177,144 @@ impl ImprintApp {
   pub(crate) fn refresh_disks(&mut self, cx: &mut Context<Self>) {
     match list_targets(&self.settings) {
       Ok(disks) => {
-        self.disks = disks;
-        self.selected.retain(|i| *i < self.disks.len());
+        self.apply_disks(disks);
       }
       Err(err) => self.error = Some(err.localized()),
     }
     cx.notify();
   }
 
+  pub(crate) fn toggle_disk(&mut self, ix: usize, cx: &mut Context<Self>) {
+    if self.selected.contains(&ix) {
+      self.selected.retain(|i| *i != ix);
+    } else {
+      self.selected.push(ix);
+    }
+    cx.notify();
+  }
+
+  fn apply_disks(&mut self, disks: Vec<TargetDisk>) -> bool {
+    let selected_ids: Vec<_> = self
+      .selected
+      .iter()
+      .filter_map(|i| self.disks.get(*i).map(|d| d.id.clone()))
+      .collect();
+    if self.disks == disks {
+      return false;
+    }
+    self.disks = disks;
+    self.selected = selected_ids
+      .into_iter()
+      .filter_map(|id| self.disks.iter().position(|d| d.id == id))
+      .collect();
+    true
+  }
+
+  fn watching_disks(&self) -> bool {
+    !self.flashing && self.mode == AppMode::RaspberryPi && self.rpi.step == RpiStep::Storage
+  }
+
+  pub(crate) fn sync_disk_watch(&mut self, cx: &mut Context<Self>) {
+    if self.watching_disks() {
+      self.start_disk_watch(cx);
+    } else {
+      self.stop_disk_watch();
+    }
+  }
+
+  fn start_disk_watch(&mut self, cx: &mut Context<Self>) {
+    if self._disk_watch.is_some() {
+      return;
+    }
+    self.refresh_disks(cx);
+    let (tx, rx) = unbounded();
+    self._disk_watch = Some(watch_disks(move || {
+      let _ = tx.send(());
+    }));
+    self._disk_watch_pump = Some(cx.spawn(async move |this, cx| {
+      loop {
+        let rx = rx.clone();
+        if cx
+          .background_executor()
+          .spawn(async move { rx.recv() })
+          .await
+          .is_err()
+        {
+          break;
+        }
+        if this
+          .update(cx, |this, cx| this.on_disks_changed(cx))
+          .is_err()
+        {
+          break;
+        }
+      }
+    }));
+  }
+
+  fn stop_disk_watch(&mut self) {
+    self._disk_watch = None;
+    self._disk_watch_pump = None;
+  }
+
+  fn on_disks_changed(&mut self, cx: &mut Context<Self>) {
+    if self.flashing {
+      return;
+    }
+    if let Ok(disks) = list_targets(&self.settings)
+      && self.apply_disks(disks)
+    {
+      cx.notify();
+    }
+  }
+
   pub(crate) fn load_image(&mut self, path: PathBuf, cx: &mut Context<Self>) {
     match inspect(&path) {
       Ok(image) => {
+        let offer = self.should_offer_rpi_mode(&image);
         self.image = Some(image);
         self.error = None;
         self.progress = None;
+        if offer {
+          self.queue_rpi_mode_offer(cx);
+        }
       }
       Err(err) => self.error = Some(err.localized()),
     }
     cx.notify();
+  }
+
+  fn should_offer_rpi_mode(&self, image: &ImageRef) -> bool {
+    if self.mode != AppMode::Flash || self.flashing || self.rpi.downloading() {
+      return false;
+    }
+    if self.rpi_offer_path.as_ref() == Some(&image.path) {
+      return false;
+    }
+    looks_like_raspberry_pi(&image.display_name)
+      || image
+        .path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .is_some_and(looks_like_raspberry_pi)
+      || image.path.starts_with(image_cache_dir())
+  }
+
+  fn queue_rpi_mode_offer(&mut self, cx: &mut Context<Self>) {
+    let Some(path) = self.image.as_ref().map(|image| image.path.clone()) else {
+      return;
+    };
+    self.rpi_offer_path = Some(path);
+    let view = cx.entity();
+    let handle = self.main_window;
+    cx.spawn(async move |_, cx| {
+      cx.update(|cx| {
+        let _ = handle.update(cx, |_, window, cx| {
+          views::rpi::offer_mode(view, window, cx);
+        });
+      });
+    })
+    .detach();
   }
 
   pub(crate) fn pick_image(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
@@ -353,6 +480,7 @@ impl ImprintApp {
       .ok();
 
     self.pump_progress(cx);
+    self.sync_disk_watch(cx);
     cx.notify();
   }
 
@@ -386,6 +514,7 @@ impl ImprintApp {
                         }
                       }
                     }
+                    this.sync_disk_watch(cx);
                     keep = false;
                   }
                 }
@@ -406,6 +535,7 @@ impl ImprintApp {
     self.progress = None;
     self.flashing = false;
     self.error = None;
+    self.sync_disk_watch(cx);
     cx.notify();
   }
 

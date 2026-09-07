@@ -90,6 +90,12 @@
     "next": "다음",
     "write": "쓰기",
     "downloading": "이미지 다운로드 중",
+    "offer": {
+      "title": "Raspberry Pi 이미지인가요?",
+      "body": "이 파일은 Raspberry Pi 이미지로 보입니다. Raspberry Pi 모드로 전환해 쓰기 전에 호스트 이름, Wi-Fi, SSH 등 최초 부팅 옵션을 설정할까요?",
+      "yes": "Raspberry Pi 모드 사용",
+      "no": "그대로 쓰기"
+    },
     "step": {
       "device": "기기",
       "os": "OS",

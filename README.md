@@ -17,6 +17,8 @@
 
 Flash OS images onto USB drives and SD cards. Same job as [balenaEtcher](https://github.com/balena-io/etcher): pick an image, pick a removable disk, write, verify.
 
+Raspberry Pi mode works like the official [Raspberry Pi Imager](https://www.raspberrypi.com/software/): choose a Pi model, download Raspberry Pi OS (or another catalog image), set hostname, user, Wi-Fi, and SSH, then write the SD card. First boot comes up already configured — including headless, with no monitor.
+
 <p align="center">
   <img src="public/screenshot-0.webp" alt="Imprint" width="800">
 </p>
@@ -30,7 +32,7 @@ Native desktop UI built with **[GPUI](https://gpui.rs)** (Zed’s GPU UI), plus 
 ## Features
 
 - Flash `.iso`, `.img`, `.dmg`, and compressed variants (`.gz`, `.bz2`, `.xz`, `.zst`, `.zip`)
-- Raspberry Pi mode: download official images and set hostname, user, Wi-Fi, and SSH
+- Raspberry Pi mode, matching the official Imager: catalog download plus first-boot hostname, user, Wi-Fi, SSH, timezone, and keyboard
 - Auto-detect removable USB / SD targets; **system disks stay hidden**
 - Write + optional byte-for-byte validation
 - Drag-and-drop an image onto the window
@@ -38,6 +40,17 @@ Native desktop UI built with **[GPUI](https://gpui.rs)** (Zed’s GPU UI), plus 
 - In-app updates on packaged builds
 - UI in English, 简体中文, 繁體中文, 日本語, 한국어, Deutsch, Español, Français, Português
 - `imprint-cli` for scripts and recovery shells
+
+## Raspberry Pi mode
+
+The same flow as [Raspberry Pi Imager](https://www.raspberrypi.com/software/): **Device → OS → Options → Storage**.
+
+1. **Device** — pick the Pi model so the catalog filters compatible images.
+2. **OS** — Raspberry Pi OS or another official image from the Raspberry Pi catalog, or a local file. Downloads are cached; writing the same image again does not re-download.
+3. **Options** — hostname, username and password, Wi-Fi (SSID, password, country), SSH (password or public key), timezone, and keyboard. Imprint writes these onto the FAT boot partition after flashing (cloud-init or legacy `firstrun.sh`, depending on the image), so first boot is already set up.
+4. **Storage** — pick the SD card or USB disk, then **Write**.
+
+Open it from the Raspberry Pi bar at the bottom of the window, or **File → Raspberry Pi…**.
 
 ## How to use
 
@@ -51,7 +64,7 @@ Full walkthrough: **[docs/HOW_TO_USE.md](docs/HOW_TO_USE.md)**.
 4. Click **Write**. Approve the administrator prompt (Touch ID / password, polkit, or UAC).
 5. Wait for unmount → flash → optional validation. When it finishes, the drive is ready to boot.
 
-**Raspberry Pi:** click the Raspberry Pi bar (or **File → Raspberry Pi…**). Pick the model, an official image or a local file, first-boot options (hostname, user, Wi-Fi, SSH), then the SD card.
+**Raspberry Pi:** see [Raspberry Pi mode](#raspberry-pi-mode). Click the Raspberry Pi bar (or **File → Raspberry Pi…**), then Device → OS → Options → Storage.
 
 Settings (gear, or `⌘,` / `Ctrl+,`): appearance, language, validate write, eject on success, hide system drives.
 

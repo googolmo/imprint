@@ -17,6 +17,8 @@
 
 將作業系統映像檔寫入 USB 與 SD 卡。用途與 [balenaEtcher](https://github.com/balena-io/etcher) 相同：選擇映像檔、選擇可移除磁碟、寫入、驗證。
 
+樹莓派模式與官方 [Raspberry Pi Imager](https://www.raspberrypi.com/software/) 相同：選擇機型、下載 Raspberry Pi OS（或其他官方目錄映像檔），設定主機名稱、使用者、Wi-Fi 與 SSH，再寫入 SD 卡。首次開機即已設定完成，無顯示器的無頭安裝也可以。
+
 <p align="center">
   <img src="public/screenshot-0.webp" alt="Imprint 截圖" width="800">
 </p>
@@ -30,7 +32,7 @@
 ## 功能
 
 - 寫入 `.iso`、`.img`、`.dmg` 及其壓縮格式（`.gz`、`.bz2`、`.xz`、`.zst`、`.zip`）
-- 樹莓派模式：下載官方映像檔，並設定主機名稱、使用者、Wi-Fi 與 SSH
+- 樹莓派模式，與官方 Imager 相同：從目錄下載映像檔，並設定首次開機的主機名稱、使用者、Wi-Fi、SSH、時區與鍵盤
 - 自動偵測可移除 USB / SD 目標；**系統磁碟保持隱藏**
 - 寫入，並可選擇逐位元組驗證
 - 將映像檔拖放到視窗即可開啟
@@ -38,6 +40,17 @@
 - 套件版支援應用程式內更新
 - 介面語言：English、简体中文、繁體中文、日本語、한국어、Deutsch、Español、Français、Português
 - `imprint-cli`，適合腳本與救援環境
+
+## 樹莓派模式
+
+流程與 [Raspberry Pi Imager](https://www.raspberrypi.com/software/) 相同：**裝置 → 系統 → 選項 → 儲存**。
+
+1. **裝置** — 選擇樹莓派機型，目錄會過濾相容映像檔。
+2. **系統** — Raspberry Pi OS 或其他官方目錄映像檔，或使用本機檔案。下載會快取，再次寫入同一映像檔不必重新下載。
+3. **選項** — 主機名稱、使用者名稱與密碼、Wi-Fi（SSID、密碼、國家/地區）、SSH（密碼或公鑰）、時區與鍵盤。寫入完成後，Imprint 把這些設定寫到 FAT 開機分割區（cloud-init 或舊版 `firstrun.sh`，視映像檔而定），首次開機即已設定好。
+4. **儲存** — 選擇 SD 卡或 USB 隨身碟，然後 **寫入**。
+
+從視窗底部的樹莓派列進入，或使用 **檔案 → Raspberry Pi…**。
 
 ## 使用方法
 
@@ -51,7 +64,7 @@
 4. 點選 **寫入**。在管理員提示中授權（Touch ID / 密碼、polkit 或 UAC）。
 5. 等待卸載 → 寫入 → 可選驗證。完成後即可用該磁碟開機。
 
-**樹莓派：** 點選底部的樹莓派列（或 **檔案 → Raspberry Pi…**）。選擇機型、官方映像檔或本機檔案、首次開機選項（主機名稱、使用者、Wi-Fi、SSH），再選擇 SD 卡。
+**樹莓派：** 見 [樹莓派模式](#樹莓派模式)。點選底部的樹莓派列（或 **檔案 → Raspberry Pi…**），依 裝置 → 系統 → 選項 → 儲存 進行。
 
 設定（齒輪按鈕，或 `⌘,` / `Ctrl+,`）：外觀、語言、驗證寫入、完成後退出、隱藏系統磁碟。
 

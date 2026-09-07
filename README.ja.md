@@ -17,6 +17,8 @@
 
 OS イメージを USB ドライブと SD カードに書き込みます。[balenaEtcher](https://github.com/balena-io/etcher) と同じ用途です。イメージを選び、取り外し可能なディスクを選び、書き込み、検証します。
 
+Raspberry Pi モードは公式の [Raspberry Pi Imager](https://www.raspberrypi.com/software/) と同じです。機種を選び、Raspberry Pi OS（またはカタログ上の別イメージ）をダウンロードし、ホスト名、ユーザー、Wi-Fi、SSH を設定してから SD カードへ書き込みます。初回起動時にはすでに設定済みです。ディスプレイなしのヘッドレス構成にも対応します。
+
 <p align="center">
   <img src="public/screenshot-0.webp" alt="Imprint スクリーンショット" width="800">
 </p>
@@ -30,7 +32,7 @@ OS イメージを USB ドライブと SD カードに書き込みます。[bale
 ## 機能
 
 - `.iso`、`.img`、`.dmg`、および圧縮形式（`.gz`、`.bz2`、`.xz`、`.zst`、`.zip`）の書き込み
-- Raspberry Pi モード：公式イメージをダウンロードし、ホスト名、ユーザー、Wi-Fi、SSH を設定
+- Raspberry Pi モード（公式 Imager 相当）：カタログからダウンロードし、初回起動のホスト名、ユーザー、Wi-Fi、SSH、タイムゾーン、キーボードを設定
 - 取り外し可能な USB / SD を自動検出。**システムディスクは表示しません**
 - 書き込みと、任意のバイト単位検証
 - イメージをウィンドウへドラッグ＆ドロップ
@@ -38,6 +40,17 @@ OS イメージを USB ドライブと SD カードに書き込みます。[bale
 - パッケージ版ではアプリ内アップデート
 - UI 言語：English、简体中文、繁體中文、日本語、한국어、Deutsch、Español、Français、Português
 - スクリプトや復旧シェル向けの `imprint-cli`
+
+## Raspberry Pi モード
+
+[Raspberry Pi Imager](https://www.raspberrypi.com/software/) と同じ流れです：**デバイス → OS → オプション → ストレージ**。
+
+1. **デバイス** — Raspberry Pi の機種を選び、カタログが対応イメージを絞り込みます。
+2. **OS** — Raspberry Pi OS または公式カタログの別イメージ、あるいはローカルファイル。ダウンロードはキャッシュされ、同じイメージの再書き込みでは再ダウンロードしません。
+3. **オプション** — ホスト名、ユーザー名とパスワード、Wi-Fi（SSID、パスワード、国コード）、SSH（パスワードまたは公開鍵）、タイムゾーン、キーボード。書き込み後、Imprint はこれらを FAT ブートパーティションへ書き込みます（イメージに応じて cloud-init または従来の `firstrun.sh`）。初回起動時にはすでに設定済みです。
+4. **ストレージ** — SD カードまたは USB ディスクを選び、**書き込む**。
+
+ウィンドウ下部の Raspberry Pi バー、または **ファイル → Raspberry Pi…** から開きます。
 
 ## 使い方
 
@@ -51,7 +64,7 @@ OS イメージを USB ドライブと SD カードに書き込みます。[bale
 4. **書き込む** をクリックします。管理者プロンプト（Touch ID / パスワード、polkit、または UAC）を承認します。
 5. アンマウント → 書き込み → 任意の検証が終わるまで待ちます。完了後、そのドライブから起動できます。
 
-**Raspberry Pi：** 下部の Raspberry Pi バー（または **ファイル → Raspberry Pi…**）をクリックします。機種、公式イメージまたはローカルファイル、初回起動オプション（ホスト名、ユーザー、Wi-Fi、SSH）を選び、SD カードを指定します。
+**Raspberry Pi：** [Raspberry Pi モード](#raspberry-pi-モード) を参照。下部の Raspberry Pi バー（または **ファイル → Raspberry Pi…**）から、デバイス → OS → オプション → ストレージ の順で進めます。
 
 設定（歯車、または `⌘,` / `Ctrl+,`）：外観、言語、書き込みの検証、成功後に取り出す、システムドライブを隠す。
 

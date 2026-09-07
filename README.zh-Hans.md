@@ -17,6 +17,8 @@
 
 将操作系统镜像写入 USB 和 SD 卡。用途与 [balenaEtcher](https://github.com/balena-io/etcher) 相同：选择镜像、选择可移动磁盘、写入、校验。
 
+树莓派模式与官方 [Raspberry Pi Imager](https://www.raspberrypi.com/software/) 一样：选择机型、下载 Raspberry Pi OS（或其他官方目录镜像），设置主机名、用户、Wi-Fi 和 SSH，再写入 SD 卡。首次启动即已配置完成，无显示器的无头安装也可以。
+
 <p align="center">
   <img src="public/screenshot-0.webp" alt="Imprint 截图" width="800">
 </p>
@@ -30,7 +32,7 @@
 ## 功能
 
 - 写入 `.iso`、`.img`、`.dmg` 及其压缩格式（`.gz`、`.bz2`、`.xz`、`.zst`、`.zip`）
-- 树莓派模式：下载官方镜像，并设置主机名、用户、Wi-Fi 和 SSH
+- 树莓派模式，与官方 Imager 相同：从目录下载镜像，并设置首次启动的主机名、用户、Wi-Fi、SSH、时区和键盘
 - 自动检测可移动 USB / SD 目标；**系统磁盘保持隐藏**
 - 写入，并可选择逐字节校验
 - 将镜像拖放到窗口即可打开
@@ -38,6 +40,17 @@
 - 打包版本支持应用内更新
 - 界面语言：English、简体中文、繁體中文、日本語、한국어、Deutsch、Español、Français、Português
 - `imprint-cli`，适合脚本和救援环境
+
+## 树莓派模式
+
+流程与 [Raspberry Pi Imager](https://www.raspberrypi.com/software/) 相同：**设备 → 系统 → 选项 → 存储**。
+
+1. **设备** — 选择树莓派机型，目录会过滤兼容镜像。
+2. **系统** — Raspberry Pi OS 或其他官方目录镜像，或使用本地文件。下载会缓存，再次写入同一镜像不必重新下载。
+3. **选项** — 主机名、用户名和密码、Wi-Fi（SSID、密码、国家/地区）、SSH（密码或公钥）、时区和键盘。写入完成后，Imprint 把这些配置写到 FAT 启动分区（cloud-init 或旧版 `firstrun.sh`，视镜像而定），首次开机即已设置好。
+4. **存储** — 选择 SD 卡或 U 盘，然后 **写入**。
+
+从窗口底部的树莓派栏进入，或使用 **文件 → Raspberry Pi…**。
 
 ## 使用方法
 
@@ -51,7 +64,7 @@
 4. 点击 **写入**。在管理员提示中授权（Touch ID / 密码、polkit 或 UAC）。
 5. 等待卸载 → 写入 → 可选校验。完成后即可用该盘启动。
 
-**树莓派：** 点击底部的树莓派栏（或 **文件 → Raspberry Pi…**）。选择机型、官方镜像或本地文件、首次启动选项（主机名、用户、Wi-Fi、SSH），再选择 SD 卡。
+**树莓派：** 见 [树莓派模式](#树莓派模式)。点击底部的树莓派栏（或 **文件 → Raspberry Pi…**），按 设备 → 系统 → 选项 → 存储 进行。
 
 设置（齿轮按钮，或 `⌘,` / `Ctrl+,`）：外观、语言、校验写入、完成后弹出、隐藏系统磁盘。
 

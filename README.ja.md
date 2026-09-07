@@ -6,7 +6,20 @@
 
 [English](README.md) · [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md) · [日本語](README.ja.md)
 
+<p align="center">
+  <a href="https://github.com/googolmo/imprint/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/googolmo/imprint?display_name=tag&sort=semver"></a>
+  <a href="https://github.com/googolmo/imprint/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/googolmo/imprint/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/googolmo/imprint/actions/workflows/release.yml"><img alt="Release build" src="https://img.shields.io/github/actions/workflow/status/googolmo/imprint/release.yml?label=release"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/googolmo/imprint"></a>
+  <img alt="Rust" src="https://img.shields.io/badge/rust-1.98.0-orange?logo=rust">
+  <img alt="Platforms" src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey">
+</p>
+
 OS イメージを USB ドライブと SD カードに書き込みます。[balenaEtcher](https://github.com/balena-io/etcher) と同じ用途です。イメージを選び、取り外し可能なディスクを選び、書き込み、検証します。
+
+<p align="center">
+  <img src="public/screenshot-0.webp" alt="Imprint スクリーンショット" width="800">
+</p>
 
 ネイティブなデスクトップ UI は **[GPUI](https://gpui.rs)**（Zed の GPU UI）で、CLI も同梱します。**macOS、Linux、Windows** で動作します。
 

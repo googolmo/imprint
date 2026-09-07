@@ -13,7 +13,7 @@ use gpui_component::{
   select::{SearchableVec, SelectEvent, SelectState},
 };
 use imprint_core::i18n::t;
-use imprint_core::{BootCustomization, FlashPhase, FlashProgress};
+use imprint_core::{BootCustomization, FlashPhase, FlashProgress, ImageRef};
 use imprint_image::inspect;
 use imprint_rpi::{
   Catalog, Device, InitFormat, OsItem, PiCustomization, cached_path, download_image, fetch_catalog,
@@ -240,6 +240,7 @@ impl ImprintApp {
     if !self.rpi.catalog_refreshed && !self.rpi.catalog_refreshing {
       self.fetch_rpi_catalog(cx);
     }
+    self.sync_disk_watch(cx);
     cx.notify();
   }
 
@@ -249,6 +250,7 @@ impl ImprintApp {
     }
     self.mode = AppMode::Flash;
     self.rpi.download = DownloadStatus::Idle;
+    self.sync_disk_watch(cx);
     cx.notify();
   }
 
@@ -278,34 +280,41 @@ impl ImprintApp {
 
   fn apply_catalog(&mut self, catalog: Catalog) {
     let previous = self.rpi.selected_device().cloned();
+    let local_os = self.rpi.selected_os.as_ref().is_some_and(OsItem::is_local);
     if !os_path_valid(&catalog.os_list, &self.rpi.os_stack) {
       self.rpi.os_stack.clear();
     }
-    self.rpi.selected_device = matching_device_index(&catalog.imager.devices, previous.as_ref());
+    self.rpi.selected_device = if previous.is_none() && local_os {
+      catalog
+        .imager
+        .devices
+        .iter()
+        .position(|d| d.tags.is_empty())
+        .or_else(|| matching_device_index(&catalog.imager.devices, None))
+    } else {
+      matching_device_index(&catalog.imager.devices, previous.as_ref())
+    };
     self.rpi.catalog = CatalogStatus::Ready(catalog);
-    let incompatible = self.rpi.selected_os.as_ref().is_some_and(|os| {
-      self
-        .rpi
-        .selected_device()
-        .is_some_and(|device| !os_matches_device(os, device))
-    });
-    if incompatible {
-      self.rpi.selected_os = None;
-    }
+    self.drop_incompatible_os();
   }
 
   pub(crate) fn select_rpi_device(&mut self, index: usize, cx: &mut Context<Self>) {
     self.rpi.selected_device = Some(index);
-    let incompatible = self.rpi.selected_os.as_ref().is_some_and(|os| {
-      self
-        .rpi
-        .selected_device()
-        .is_some_and(|device| !os_matches_device(os, device))
+    self.drop_incompatible_os();
+    cx.notify();
+  }
+
+  fn drop_incompatible_os(&mut self) {
+    let drop = self.rpi.selected_os.as_ref().is_some_and(|os| {
+      !os.is_local()
+        && self
+          .rpi
+          .selected_device()
+          .is_some_and(|device| !os_matches_device(os, device))
     });
-    if incompatible {
+    if drop {
       self.rpi.selected_os = None;
     }
-    cx.notify();
   }
 
   pub(crate) fn open_rpi_os_item(&mut self, index: usize, cx: &mut Context<Self>) {
@@ -356,16 +365,11 @@ impl ImprintApp {
   }
 
   fn set_custom_os(&mut self, path: PathBuf, cx: &mut Context<Self>) {
-    let mut item = OsItem::from_local_path(&path);
     match inspect(&path) {
       Ok(image) => {
-        let write = image.write_size();
-        if write > 0 {
-          item.extract_size = write;
-        }
-        item.image_download_size = image.file_size;
-        self.image = Some(image);
         self.error = None;
+        self.bind_local_os(&image);
+        self.image = Some(image);
       }
       Err(err) => {
         self.error = Some(err.localized());
@@ -373,8 +377,29 @@ impl ImprintApp {
         return;
       }
     }
-    self.rpi.selected_os = Some(item);
     cx.notify();
+  }
+
+  fn bind_local_os(&mut self, image: &ImageRef) {
+    let mut item = OsItem::from_local_path(&image.path);
+    let write = image.write_size();
+    if write > 0 {
+      item.extract_size = write;
+    }
+    item.image_download_size = image.file_size;
+    self.rpi.selected_os = Some(item);
+  }
+
+  pub(crate) fn enter_rpi_from_local_image(&mut self, cx: &mut Context<Self>) {
+    if self.flashing || self.rpi.downloading() {
+      return;
+    }
+    let Some(image) = self.image.clone() else {
+      return;
+    };
+    self.bind_local_os(&image);
+    self.rpi.step = RpiStep::Config;
+    self.open_raspberry_pi(cx);
   }
 
   pub(crate) fn set_rpi_init_format(&mut self, format: InitFormat, cx: &mut Context<Self>) {
@@ -394,6 +419,7 @@ impl ImprintApp {
   pub(crate) fn set_rpi_step(&mut self, step: RpiStep, cx: &mut Context<Self>) {
     if self.rpi_can_open_step(step) {
       self.rpi.step = step;
+      self.sync_disk_watch(cx);
       cx.notify();
     }
   }

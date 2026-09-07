@@ -90,6 +90,12 @@
     "next": "次へ",
     "write": "書き込む",
     "downloading": "イメージをダウンロード中",
+    "offer": {
+      "title": "Raspberry Pi イメージですか？",
+      "body": "このファイルは Raspberry Pi イメージのようです。Raspberry Pi モードに切り替えて、書き込み前にホスト名、Wi-Fi、SSH などの初回起動オプションを設定しますか？",
+      "yes": "Raspberry Pi モードを使う",
+      "no": "このまま書き込む"
+    },
     "step": {
       "device": "デバイス",
       "os": "OS",

@@ -90,6 +90,12 @@
     "next": "下一步",
     "write": "写入",
     "downloading": "正在下载镜像",
+    "offer": {
+      "title": "检测到 Raspberry Pi 镜像",
+      "body": "这个文件看起来是 Raspberry Pi 镜像。要切换到树莓派模式，在写入前设置主机名、Wi-Fi、SSH 等首次启动选项吗？",
+      "yes": "使用树莓派模式",
+      "no": "直接写入"
+    },
     "step": {
       "device": "设备",
       "os": "系统",

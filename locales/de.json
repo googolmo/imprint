@@ -90,6 +90,12 @@
     "next": "Weiter",
     "write": "Schreiben",
     "downloading": "Image wird heruntergeladen",
+    "offer": {
+      "title": "Raspberry-Pi-Image?",
+      "body": "Diese Datei sieht nach einem Raspberry-Pi-Image aus. In den Raspberry-Pi-Modus wechseln, um vor dem Schreiben Hostname, WLAN, SSH und weitere Ersteinstellungen festzulegen?",
+      "yes": "Raspberry-Pi-Modus verwenden",
+      "no": "Direkt schreiben"
+    },
     "step": {
       "device": "Gerät",
       "os": "OS",

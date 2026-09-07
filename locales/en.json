@@ -90,6 +90,12 @@
     "next": "Next",
     "write": "Write",
     "downloading": "Downloading image",
+    "offer": {
+      "title": "Raspberry Pi image?",
+      "body": "This looks like a Raspberry Pi image. Switch to Raspberry Pi mode to set hostname, Wi-Fi, SSH, and other first-boot options before writing?",
+      "yes": "Use Raspberry Pi mode",
+      "no": "Write as-is"
+    },
     "step": {
       "device": "Device",
       "os": "OS",

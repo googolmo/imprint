@@ -1,5 +1,9 @@
+use std::ffi::CString;
 use std::fs;
+use std::io::ErrorKind;
+use std::os::unix::io::RawFd;
 use std::path::{Path, PathBuf};
+use std::thread::{self, JoinHandle};
 
 use imprint_core::{BusKind, DiskId, Result, TargetDisk};
 
@@ -129,4 +133,116 @@ fn read_trim(path: &Path) -> Option<String> {
 
 fn read_u64(path: &Path) -> Option<u64> {
   read_trim(path)?.parse().ok()
+}
+
+pub struct Watch {
+  wakeup: Option<RawFd>,
+  thread: Option<JoinHandle<()>>,
+}
+
+pub fn watch(on_change: Box<dyn Fn() + Send>) -> Watch {
+  let Ok(path) = CString::new("/sys/block") else {
+    return Watch {
+      wakeup: None,
+      thread: None,
+    };
+  };
+  unsafe {
+    let inotify = libc::inotify_init1(libc::IN_CLOEXEC);
+    if inotify < 0 {
+      return Watch {
+        wakeup: None,
+        thread: None,
+      };
+    }
+    let mask = libc::IN_CREATE | libc::IN_DELETE | libc::IN_MOVED_FROM | libc::IN_MOVED_TO;
+    if libc::inotify_add_watch(inotify, path.as_ptr(), mask) < 0 {
+      libc::close(inotify);
+      return Watch {
+        wakeup: None,
+        thread: None,
+      };
+    }
+    let mut pipe = [0; 2];
+    if libc::pipe2(pipe.as_mut_ptr(), libc::O_CLOEXEC) != 0 {
+      libc::close(inotify);
+      return Watch {
+        wakeup: None,
+        thread: None,
+      };
+    }
+    let (rd, wr) = (pipe[0], pipe[1]);
+    let thread = thread::Builder::new()
+      .name("imprint-disk-watch".into())
+      .spawn(move || inotify_loop(inotify, rd, on_change))
+      .ok();
+    if thread.is_none() {
+      libc::close(inotify);
+      libc::close(rd);
+      libc::close(wr);
+      return Watch {
+        wakeup: None,
+        thread: None,
+      };
+    }
+    Watch {
+      wakeup: Some(wr),
+      thread,
+    }
+  }
+}
+
+fn inotify_loop(inotify: RawFd, wakeup: RawFd, on_change: Box<dyn Fn() + Send>) {
+  let mut buf = [0u8; 4096];
+  loop {
+    let mut fds = [
+      libc::pollfd {
+        fd: inotify,
+        events: libc::POLLIN,
+        revents: 0,
+      },
+      libc::pollfd {
+        fd: wakeup,
+        events: libc::POLLIN,
+        revents: 0,
+      },
+    ];
+    let n = unsafe { libc::poll(fds.as_mut_ptr(), fds.len() as libc::nfds_t, -1) };
+    if n < 0 {
+      if std::io::Error::last_os_error().kind() == ErrorKind::Interrupted {
+        continue;
+      }
+      break;
+    }
+    if fds[1].revents & libc::POLLIN != 0 {
+      break;
+    }
+    if fds[0].revents & libc::POLLIN != 0 {
+      let read = unsafe { libc::read(inotify, buf.as_mut_ptr().cast(), buf.len()) };
+      if read > 0 {
+        on_change();
+      } else if read < 0 {
+        break;
+      }
+    }
+  }
+  unsafe {
+    libc::close(inotify);
+    libc::close(wakeup);
+  }
+}
+
+impl Drop for Watch {
+  fn drop(&mut self) {
+    if let Some(fd) = self.wakeup.take() {
+      let byte = [1u8];
+      unsafe {
+        libc::write(fd, byte.as_ptr().cast(), 1);
+        libc::close(fd);
+      }
+    }
+    if let Some(thread) = self.thread.take() {
+      let _ = thread.join();
+    }
+  }
 }

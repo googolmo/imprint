@@ -244,6 +244,10 @@ pub fn default_device_index(devices: &[Device]) -> Option<usize> {
 }
 
 pub fn os_matches_device(os: &OsItem, device: &Device) -> bool {
+  // A user-picked local file is not catalog metadata; keep it on any model.
+  if os.is_local() {
+    return true;
+  }
   if device.tags.is_empty() {
     return true;
   }
@@ -445,6 +449,8 @@ mod tests {
       Some(Path::new("/tmp/my-image.img.xz"))
     );
     assert_eq!(item.init_format(), InitFormat::CloudInitRpi);
+    let catalog: Catalog = serde_json::from_str(SAMPLE).unwrap();
+    assert!(os_matches_device(&item, &catalog.imager.devices[0]));
 
     let remote = OsItem {
       name: "Remote".into(),

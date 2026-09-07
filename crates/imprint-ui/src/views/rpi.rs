@@ -1,10 +1,11 @@
 use gpui::{
-  App, Context, FontWeight, InteractiveElement, IntoElement, ParentElement,
+  App, Context, Entity, FontWeight, InteractiveElement, IntoElement, ParentElement,
   StatefulInteractiveElement, Styled, Window, div, prelude::*, px,
 };
 use gpui_component::{
-  ActiveTheme as _, Colorize as _, Disableable as _, Icon, IconName, Sizable as _,
+  ActiveTheme as _, Colorize as _, Disableable as _, Icon, IconName, Sizable as _, WindowExt as _,
   button::{Button, ButtonCustomVariant, ButtonRounded, ButtonVariants as _},
+  dialog::DialogButtonProps,
   h_flex,
   input::Input,
   menu::{DropdownMenu as _, PopupMenuItem},
@@ -13,6 +14,7 @@ use gpui_component::{
   separator::Separator,
   spinner::Spinner,
   switch::Switch,
+  tag::Tag,
   v_flex,
 };
 use imprint_core::format_bytes;
@@ -33,6 +35,27 @@ pub(crate) fn page(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoE
     .child(toolbar(app, cx))
     .child(step_panel(app, cx))
     .child(footer(app, view, cx))
+}
+
+pub(crate) fn offer_mode(view: Entity<ImprintApp>, window: &mut Window, cx: &mut App) {
+  window.defer(cx, move |window, cx| {
+    window.open_alert_dialog(cx, move |alert, _, _| {
+      let view = view.clone();
+      alert
+        .title(t("rpi.offer.title"))
+        .description(t("rpi.offer.body"))
+        .button_props(
+          DialogButtonProps::default()
+            .ok_text(t("rpi.offer.yes"))
+            .cancel_text(t("rpi.offer.no")),
+        )
+        .confirm()
+        .on_ok(move |_, _, cx| {
+          view.update(cx, |this, cx| this.enter_rpi_from_local_image(cx));
+          true
+        })
+    });
+  });
 }
 
 pub(crate) fn download_panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {
@@ -649,51 +672,32 @@ fn config_step(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoEleme
 
 fn storage_step(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {
   let view = cx.entity();
-  let title = if app.selected.len() == 1 {
-    app.selected_disks()[0].label()
-  } else if app.selected.len() > 1 {
-    tr("target.count", &[("n", &app.selected.len().to_string())])
-  } else {
-    t("target.none")
-  };
-  let subtitle = if let Some(disk) = app.selected_disks().first() {
-    format!("{} · {}", disk.bus.as_str(), format_bytes(disk.size))
-  } else {
-    t("target.hint")
-  };
-  v_flex().w_full().gap_1p5().child(
-    list_row(
-      cx,
-      "rpi-storage",
-      IconName::HardDrive,
-      title,
-      subtitle,
-      !app.selected.is_empty(),
-      {
-        let view = view.clone();
-        move |_, window, cx| {
-          view.update(cx, |this, cx| {
-            if !this.flashing {
-              this.open_drives(window, cx);
-            }
-          });
-        }
-      },
-    )
-    .child(
-      Button::new("rpi-pick-drive")
-        .small()
-        .rounded(ButtonRounded::Large)
-        .label(t("target.select"))
-        .on_click({
-          let view = view.clone();
-          move |_, window, cx| {
-            cx.stop_propagation();
-            view.update(cx, |this, cx| this.open_drives(window, cx));
-          }
-        }),
-    ),
-  )
+  let need = app.needed_write_size();
+  v_flex()
+    .w_full()
+    .gap_1p5()
+    .when(app.disks.is_empty(), |d| {
+      d.child(empty_row(cx, t("drives.empty")))
+    })
+    .children(app.disks.iter().enumerate().map(|(ix, disk)| {
+      let selected = app.selected.contains(&ix);
+      let too_small = need > 0 && disk.size < need;
+      let view = view.clone();
+      list_row(
+        cx,
+        ("rpi-storage", ix),
+        IconName::HardDrive,
+        disk.label(),
+        format!("{} · {}", disk.bus.as_str(), format_bytes(disk.size)),
+        selected,
+        move |_, _, cx| {
+          view.update(cx, |this, cx| this.toggle_disk(ix, cx));
+        },
+      )
+      .when(too_small, |d| {
+        d.child(Tag::warning().small().child(t("drives.too_small")))
+      })
+    }))
 }
 
 fn footer(

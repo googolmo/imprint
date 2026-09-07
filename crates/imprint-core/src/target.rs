@@ -44,7 +44,7 @@ impl BusKind {
 }
 
 /// A writable block device. `system` disks are hidden by default.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TargetDisk {
   pub id: DiskId,
   pub name: String,

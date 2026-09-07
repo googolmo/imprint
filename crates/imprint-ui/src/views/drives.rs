@@ -127,14 +127,7 @@ fn drive_row(
       })
     })
     .on_click(move |_, _, cx| {
-      view.update(cx, |this, cx| {
-        if this.selected.contains(&ix) {
-          this.selected.retain(|i| *i != ix);
-        } else {
-          this.selected.push(ix);
-        }
-        cx.notify();
-      });
+      view.update(cx, |this, cx| this.toggle_disk(ix, cx));
     })
     .child(icon_well(cx, IconName::HardDrive, selected))
     .child(

@@ -197,11 +197,17 @@ fn register_class() {
   });
 }
 
+#[allow(clippy::upper_case_acronyms)]
 type HWND = *mut c_void;
+#[allow(clippy::upper_case_acronyms)]
 type HINSTANCE = *mut c_void;
+#[allow(clippy::upper_case_acronyms)]
 type HMENU = *mut c_void;
+#[allow(clippy::upper_case_acronyms)]
 type HICON = *mut c_void;
+#[allow(clippy::upper_case_acronyms)]
 type HCURSOR = *mut c_void;
+#[allow(clippy::upper_case_acronyms)]
 type HBRUSH = *mut c_void;
 
 const HWND_MESSAGE: HWND = -3isize as HWND;
@@ -210,12 +216,14 @@ const WM_CLOSE: u32 = 0x0010;
 const WM_DESTROY: u32 = 0x0002;
 const WM_DEVICECHANGE: u32 = 0x0219;
 
+#[allow(clippy::upper_case_acronyms)]
 #[repr(C)]
 struct POINT {
   x: i32,
   y: i32,
 }
 
+#[allow(clippy::upper_case_acronyms, non_snake_case)]
 #[repr(C)]
 struct MSG {
   hwnd: HWND,
@@ -226,6 +234,7 @@ struct MSG {
   pt: POINT,
 }
 
+#[allow(clippy::upper_case_acronyms, non_snake_case)]
 #[repr(C)]
 struct WNDCLASSW {
   style: u32,

@@ -73,11 +73,7 @@ pub(crate) fn download_panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> 
     .unwrap_or(0.0);
   let pct = (fraction * 100.0) as u32;
   let view = cx.entity();
-  let ring = if cx.theme().is_dark() {
-    cx.theme().accent
-  } else {
-    cx.theme().primary
-  };
+  let ring = cx.theme().primary;
   v_flex().size_full().items_center().justify_center().child(
     glass_surface(
       v_flex()
@@ -448,7 +444,7 @@ fn os_row(
     d.child(
       div()
         .text_xs()
-        .text_color(cx.theme().accent)
+        .text_color(cx.theme().primary)
         .child(t("rpi.os.cached")),
     )
   })
@@ -760,11 +756,7 @@ fn footer(
           ButtonCustomVariant::new(cx)
             .color(g.fill)
             .hover(g.fill_hover)
-            .foreground(if cx.theme().is_dark() {
-              cx.theme().accent
-            } else {
-              cx.theme().primary
-            }),
+            .foreground(cx.theme().primary),
         )
         .rounded(ButtonRounded::Large)
         .label(t("rpi.next"))
@@ -819,7 +811,7 @@ fn init_format_block(
           .text_color(cx.theme().foreground)
           .dropdown_menu(move |menu, _, _| {
             InitFormat::ALL.into_iter().fold(
-              menu.min_w(px(280.)).max_h(px(280.)).scrollable(true),
+              menu.min_w(px(280.)).max_h(px(180.)).scrollable(true),
               |menu, format| {
                 menu.item(
                   PopupMenuItem::new(init_format_label(format))
@@ -907,11 +899,9 @@ fn field_radius() -> gpui::Pixels {
 }
 
 fn field_rim(cx: &App) -> gpui::Hsla {
-  if cx.theme().is_dark() {
-    cx.theme().accent.divide(0.62)
-  } else {
-    cx.theme().primary.divide(0.50)
-  }
+  cx.theme()
+    .primary
+    .divide(if cx.theme().is_dark() { 0.62 } else { 0.50 })
 }
 
 fn field_fill(cx: &App) -> gpui::Hsla {
@@ -953,7 +943,8 @@ fn labeled_choice(cx: &App, label: String, control: impl IntoElement) -> impl In
 fn choice_dropdown(state: &gpui::Entity<ChoiceSelect>, cx: &App) -> impl IntoElement {
   Select::new(state)
     .w_full()
-    .menu_max_h(px(280.))
+    // Stay below the title bar if the menu flips up (popup inset is only 8px).
+    .menu_max_h(px(180.))
     .rounded(field_radius())
     .bg(field_fill(cx))
     .border_color(field_rim(cx))
@@ -1030,7 +1021,7 @@ fn loading_row(cx: &App, text: String) -> impl IntoElement {
     .child(
       Spinner::new()
         .icon(Icon::new(IconName::LoaderCircle))
-        .color(cx.theme().accent),
+        .color(cx.theme().primary),
     )
     .child(muted(cx, text))
 }

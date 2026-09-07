@@ -164,7 +164,7 @@ fn glass_for(dark: bool) -> Glass {
       panel_top: p.surface0.opacity(0.55),
       border: p.overlay0.opacity(0.42),
       highlight: p.text.opacity(0.16),
-      glow: p.mauve.opacity(0.14),
+      glow: p.blue.opacity(0.14),
       shadow: p.crust.opacity(0.55),
     }
   } else {
@@ -176,7 +176,7 @@ fn glass_for(dark: bool) -> Glass {
       panel_top: hex(0xffffff).opacity(0.94),
       border: p.overlay0.opacity(0.48),
       highlight: hex(0xffffff).opacity(0.55),
-      glow: p.lavender.opacity(0.10),
+      glow: p.blue.opacity(0.10),
       shadow: p.overlay1.opacity(0.22),
     }
   }
@@ -273,13 +273,15 @@ fn paint_glass(theme: &mut Theme, p: Flavor) {
 
   theme.foreground = p.text;
   theme.muted_foreground = p.subtext1;
-  theme.accent = p.mauve;
-  theme.accent_foreground = on;
+  // Menu/list hover — blue wash matching `primary`, not Catppuccin mauve.
+  // gpui-component paints dropdown hover/selection with `accent`.
+  theme.accent = p.blue.opacity(if dark { 0.22 } else { 0.14 });
+  theme.accent_foreground = p.text;
   theme.link = p.blue;
   theme.link_hover = p.sapphire;
-  theme.link_active = p.lavender;
+  theme.link_active = p.blue;
   theme.caret = p.rosewater;
-  theme.ring = p.lavender;
+  theme.ring = p.blue;
   theme.background = p.base;
   theme.popover = if dark { p.mantle } else { p.base };
   theme.popover_foreground = p.text;
@@ -320,8 +322,8 @@ fn paint_glass(theme: &mut Theme, p: Flavor) {
     theme.muted = p.surface0.opacity(0.55);
     theme.colors.list = p.surface0.opacity(0.35);
     theme.list_hover = p.surface1.opacity(0.55);
-    theme.list_active = p.lavender.opacity(0.18);
-    theme.list_active_border = p.lavender.opacity(0.55);
+    theme.list_active = p.blue.opacity(0.18);
+    theme.list_active_border = p.blue.opacity(0.55);
     theme.list_even = p.mantle.opacity(0.55);
     theme.list_head = p.mantle;
     theme.overlay = p.crust.opacity(0.58);
@@ -366,8 +368,8 @@ fn paint_glass(theme: &mut Theme, p: Flavor) {
     theme.muted = p.crust;
     theme.colors.list = p.crust.opacity(0.55);
     theme.list_hover = p.surface0.opacity(0.70);
-    theme.list_active = p.lavender.opacity(0.14);
-    theme.list_active_border = p.lavender.opacity(0.45);
+    theme.list_active = p.blue.opacity(0.14);
+    theme.list_active_border = p.blue.opacity(0.45);
     theme.list_even = p.base.opacity(0.70);
     theme.list_head = p.crust;
     theme.overlay = p.text.opacity(0.22);

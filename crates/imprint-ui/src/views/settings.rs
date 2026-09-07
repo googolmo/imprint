@@ -220,11 +220,10 @@ fn setting_action(
 }
 
 fn locale_dropdown(current: Language, view: Entity<ImprintApp>, cx: &App) -> impl IntoElement {
-  let rim = if cx.theme().is_dark() {
-    cx.theme().accent.divide(0.50)
-  } else {
-    cx.theme().primary.divide(0.42)
-  };
+  let rim = cx
+    .theme()
+    .primary
+    .divide(if cx.theme().is_dark() { 0.50 } else { 0.42 });
   Button::new("locale")
     .w_full()
     .outline()
@@ -236,9 +235,9 @@ fn locale_dropdown(current: Language, view: Entity<ImprintApp>, cx: &App) -> imp
     .border_color(rim)
     .text_color(cx.theme().foreground)
     .dropdown_menu(move |menu, _, _| {
-      Language::ALL
-        .into_iter()
-        .fold(menu.min_w(px(280.)), |menu, lang| {
+      Language::ALL.into_iter().fold(
+        menu.min_w(px(280.)).max_h(px(180.)).scrollable(true),
+        |menu, lang| {
           menu.item(
             PopupMenuItem::new(lang.native_name())
               .checked(current == lang)
@@ -251,6 +250,7 @@ fn locale_dropdown(current: Language, view: Entity<ImprintApp>, cx: &App) -> imp
                 }
               }),
           )
-        })
+        },
+      )
     })
 }

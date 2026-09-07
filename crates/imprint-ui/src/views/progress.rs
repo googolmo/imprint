@@ -48,8 +48,6 @@ pub(crate) fn panel(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl Into
   let view = cx.entity();
   let ring_color = if failed {
     cx.theme().danger
-  } else if cx.theme().is_dark() {
-    cx.theme().accent
   } else {
     cx.theme().primary
   };

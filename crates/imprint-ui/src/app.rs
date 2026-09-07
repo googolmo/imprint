@@ -924,7 +924,7 @@ impl Render for ImprintApp {
       .drag_over::<ExternalPaths>(|style, _, _, cx| {
         style
           .bg(cx.theme().drop_target)
-          .border_color(cx.theme().accent.divide(0.45))
+          .border_color(cx.theme().primary.divide(0.45))
       })
       .relative()
       .size_full()

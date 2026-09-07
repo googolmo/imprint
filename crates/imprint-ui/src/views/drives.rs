@@ -150,7 +150,7 @@ fn drive_row(
         .into_any_element()
     } else if selected {
       Icon::new(IconName::CircleCheck)
-        .text_color(cx.theme().accent)
+        .text_color(cx.theme().primary)
         .into_any_element()
     } else {
       div().into_any_element()

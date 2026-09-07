@@ -17,7 +17,8 @@ use imprint_core::{BootCustomization, FlashPhase, FlashProgress};
 use imprint_image::inspect;
 use imprint_rpi::{
   Catalog, Device, InitFormat, OsItem, PiCustomization, cached_path, download_image, fetch_catalog,
-  fetch_subitems, generate_boot,
+  fetch_subitems, generate_boot, matching_device_index, offline_catalog, os_matches_device,
+  os_path_valid,
 };
 
 use crate::app::ImprintApp;
@@ -49,7 +50,6 @@ impl RpiStep {
 
 pub(crate) enum CatalogStatus {
   Idle,
-  Loading,
   Ready(Catalog),
   Failed(String),
 }
@@ -102,6 +102,8 @@ pub(crate) struct RpiFields {
 
 pub(crate) struct RpiState {
   pub catalog: CatalogStatus,
+  catalog_refreshing: bool,
+  catalog_refreshed: bool,
   pub step: RpiStep,
   pub os_stack: Vec<usize>,
   pub selected_device: Option<usize>,
@@ -177,6 +179,8 @@ impl RpiState {
     let fields = RpiFields::new(window, cx, &mut choice_subs);
     Self {
       catalog: CatalogStatus::Idle,
+      catalog_refreshing: false,
+      catalog_refreshed: false,
       step: RpiStep::Device,
       os_stack: Vec::new(),
       selected_device: None,
@@ -233,10 +237,7 @@ impl ImprintApp {
     }
     self.mode = AppMode::RaspberryPi;
     self.error = None;
-    if matches!(
-      self.rpi.catalog,
-      CatalogStatus::Idle | CatalogStatus::Failed(_)
-    ) {
+    if !self.rpi.catalog_refreshed && !self.rpi.catalog_refreshing {
       self.fetch_rpi_catalog(cx);
     }
     cx.notify();
@@ -252,7 +253,14 @@ impl ImprintApp {
   }
 
   pub(crate) fn fetch_rpi_catalog(&mut self, cx: &mut Context<Self>) {
-    self.rpi.catalog = CatalogStatus::Loading;
+    if !matches!(self.rpi.catalog, CatalogStatus::Ready(_)) {
+      self.apply_catalog(offline_catalog());
+    }
+    if self.rpi.catalog_refreshing {
+      cx.notify();
+      return;
+    }
+    self.rpi.catalog_refreshing = true;
     let (tx, rx) = unbounded();
     self.start_rpi_pump(rx, cx);
     std::thread::Builder::new()
@@ -268,13 +276,31 @@ impl ImprintApp {
     cx.notify();
   }
 
+  fn apply_catalog(&mut self, catalog: Catalog) {
+    let previous = self.rpi.selected_device().cloned();
+    if !os_path_valid(&catalog.os_list, &self.rpi.os_stack) {
+      self.rpi.os_stack.clear();
+    }
+    self.rpi.selected_device = matching_device_index(&catalog.imager.devices, previous.as_ref());
+    self.rpi.catalog = CatalogStatus::Ready(catalog);
+    let incompatible = self.rpi.selected_os.as_ref().is_some_and(|os| {
+      self
+        .rpi
+        .selected_device()
+        .is_some_and(|device| !os_matches_device(os, device))
+    });
+    if incompatible {
+      self.rpi.selected_os = None;
+    }
+  }
+
   pub(crate) fn select_rpi_device(&mut self, index: usize, cx: &mut Context<Self>) {
     self.rpi.selected_device = Some(index);
     let incompatible = self.rpi.selected_os.as_ref().is_some_and(|os| {
       self
         .rpi
         .selected_device()
-        .is_some_and(|device| !imprint_rpi::os_matches_device(os, device))
+        .is_some_and(|device| !os_matches_device(os, device))
     });
     if incompatible {
       self.rpi.selected_os = None;
@@ -575,15 +601,19 @@ impl ImprintApp {
     while let Ok(event) = rx.try_recv() {
       match event {
         RpiEvent::Catalog(Ok(catalog)) => {
-          if self.rpi.selected_device.is_none() {
-            self.rpi.selected_device = imprint_rpi::default_device_index(&catalog.imager.devices);
-          }
-          self.rpi.catalog = CatalogStatus::Ready(catalog);
+          self.apply_catalog(catalog);
+          self.rpi.catalog_refreshing = false;
+          self.rpi.catalog_refreshed = true;
           keep = false;
         }
         RpiEvent::Catalog(Err(err)) => {
-          self.rpi.catalog = CatalogStatus::Failed(err.clone());
-          self.error = Some(err);
+          self.rpi.catalog_refreshing = false;
+          if matches!(self.rpi.catalog, CatalogStatus::Ready(_)) {
+            tracing::warn!(error = %err, "keeping offline Raspberry Pi catalog");
+          } else {
+            self.rpi.catalog = CatalogStatus::Failed(err.clone());
+            self.error = Some(err);
+          }
           keep = false;
         }
         RpiEvent::Subitems { path, result } => {
@@ -631,7 +661,7 @@ impl ImprintApp {
     }
     cx.notify();
     keep
-      && (matches!(self.rpi.catalog, CatalogStatus::Loading)
+      && (self.rpi.catalog_refreshing
         || matches!(self.rpi.download, DownloadStatus::Running { .. }))
   }
 }

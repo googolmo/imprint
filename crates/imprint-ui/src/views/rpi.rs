@@ -297,9 +297,7 @@ fn step_body(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement
 fn device_step(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {
   let view = cx.entity();
   v_flex().w_full().gap_1p5().child(match &app.rpi.catalog {
-    CatalogStatus::Loading | CatalogStatus::Idle => {
-      loading_row(cx, t("rpi.os.loading")).into_any_element()
-    }
+    CatalogStatus::Idle => loading_row(cx, t("rpi.os.loading")).into_any_element(),
     CatalogStatus::Failed(err) => failed_row(err, cx).into_any_element(),
     CatalogStatus::Ready(catalog) => v_flex()
       .w_full()
@@ -354,9 +352,7 @@ fn os_step(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {
       )
     })
     .child(match &app.rpi.catalog {
-      CatalogStatus::Loading | CatalogStatus::Idle => {
-        loading_row(cx, t("rpi.os.loading")).into_any_element()
-      }
+      CatalogStatus::Idle => loading_row(cx, t("rpi.os.loading")).into_any_element(),
       CatalogStatus::Failed(err) => failed_row(err, cx).into_any_element(),
       CatalogStatus::Ready(_) if items.is_empty() => {
         empty_row(cx, t("rpi.os.empty")).into_any_element()

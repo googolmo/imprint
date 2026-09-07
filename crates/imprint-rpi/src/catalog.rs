@@ -1,3 +1,4 @@
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
@@ -9,6 +10,10 @@ pub const OFFICIAL_REPO_URL: &str =
   "https://downloads.raspberrypi.com/os_list_imagingutility_v4.json";
 
 const USER_AGENT: &str = concat!("Imprint/", env!("CARGO_PKG_VERSION"));
+
+/// Snapshot of [`OFFICIAL_REPO_URL`] compiled into the binary so the OS list
+/// can render before a network fetch.
+const BUNDLED_CATALOG_JSON: &str = include_str!("../data/os_list_imagingutility_v4.json");
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct Catalog {
@@ -182,7 +187,15 @@ impl InitFormat {
 }
 
 pub fn fetch_catalog() -> Result<Catalog> {
-  fetch_url(OFFICIAL_REPO_URL)
+  let text = fetch_url_text(OFFICIAL_REPO_URL)?;
+  let catalog = parse_catalog(&text)?;
+  if let Err(err) = save_local_catalog(&text) {
+    tracing::warn!(
+      error = %err,
+      "could not save Raspberry Pi catalog cache"
+    );
+  }
+  Ok(catalog)
 }
 
 pub fn fetch_subitems(item: &mut OsItem) -> Result<()> {
@@ -192,9 +205,35 @@ pub fn fetch_subitems(item: &mut OsItem) -> Result<()> {
   if !item.subitems.is_empty() {
     return Ok(());
   }
-  let nested = fetch_url(&url)?;
+  let nested = parse_catalog(&fetch_url_text(&url)?)?;
   item.subitems = nested.os_list;
   Ok(())
+}
+
+/// Catalog to show before a network refresh: last downloaded copy, else the
+/// snapshot baked into the binary.
+pub fn offline_catalog() -> Catalog {
+  load_local_catalog().unwrap_or_else(bundled_catalog)
+}
+
+pub fn bundled_catalog() -> Catalog {
+  parse_catalog(BUNDLED_CATALOG_JSON).expect("bundled Raspberry Pi catalog JSON must parse")
+}
+
+pub fn catalog_cache_path() -> PathBuf {
+  dirs::cache_dir()
+    .unwrap_or_else(std::env::temp_dir)
+    .join("imprint")
+    .join("rpi")
+    .join("os_list_imagingutility_v4.json")
+}
+
+pub fn load_local_catalog() -> Option<Catalog> {
+  read_catalog_file(&catalog_cache_path())
+}
+
+pub fn save_local_catalog(json: &str) -> Result<()> {
+  write_catalog_file(&catalog_cache_path(), json)
 }
 
 pub fn default_device_index(devices: &[Device]) -> Option<usize> {
@@ -224,6 +263,36 @@ pub fn filter_items<'a>(items: &'a [OsItem], device: Option<&Device>) -> Vec<(us
     .collect()
 }
 
+/// Keep the previously chosen device across a catalog refresh.
+pub fn matching_device_index(devices: &[Device], previous: Option<&Device>) -> Option<usize> {
+  if let Some(prev) = previous {
+    if !prev.tags.is_empty()
+      && let Some(ix) = devices.iter().position(|d| d.tags == prev.tags)
+    {
+      return Some(ix);
+    }
+    if let Some(ix) = devices.iter().position(|d| d.name == prev.name) {
+      return Some(ix);
+    }
+  }
+  default_device_index(devices)
+}
+
+/// Whether `path` still names nested categories in `list`.
+pub fn os_path_valid(list: &[OsItem], path: &[usize]) -> bool {
+  let mut current = list;
+  for &ix in path {
+    let Some(item) = current.get(ix) else {
+      return false;
+    };
+    if !item.is_category() {
+      return false;
+    }
+    current = item.subitems.as_slice();
+  }
+  true
+}
+
 fn item_visible(item: &OsItem, device: Option<&Device>) -> bool {
   if item.is_category() {
     if item.subitems.is_empty() && item.subitems_url.is_some() {
@@ -240,7 +309,29 @@ fn item_visible(item: &OsItem, device: Option<&Device>) -> bool {
   }
 }
 
-fn fetch_url(url: &str) -> Result<Catalog> {
+fn parse_catalog(text: &str) -> Result<Catalog> {
+  serde_json::from_str(text).map_err(|err| Error::Catalog(err.to_string()))
+}
+
+fn read_catalog_file(path: &Path) -> Option<Catalog> {
+  let text = fs::read_to_string(path).ok()?;
+  parse_catalog(&text).ok()
+}
+
+fn write_catalog_file(path: &Path, json: &str) -> Result<()> {
+  if let Some(dir) = path.parent() {
+    fs::create_dir_all(dir)?;
+  }
+  let tmp = path.with_extension("json.part");
+  fs::write(&tmp, json)?;
+  if path.exists() {
+    fs::remove_file(path)?;
+  }
+  fs::rename(&tmp, path)?;
+  Ok(())
+}
+
+fn fetch_url_text(url: &str) -> Result<String> {
   let agent = ureq::AgentBuilder::new()
     .timeout_connect(std::time::Duration::from_secs(20))
     .timeout_read(std::time::Duration::from_secs(60))
@@ -250,10 +341,9 @@ fn fetch_url(url: &str) -> Result<Catalog> {
     .get(url)
     .call()
     .map_err(|err| Error::Catalog(err.to_string()))?;
-  let text = response
+  response
     .into_string()
-    .map_err(|err| Error::Catalog(err.to_string()))?;
-  serde_json::from_str(&text).map_err(|err| Error::Catalog(err.to_string()))
+    .map_err(|err| Error::Catalog(err.to_string()))
 }
 
 #[cfg(test)]
@@ -374,5 +464,85 @@ mod tests {
     };
     assert!(!remote.is_local());
     assert!(remote.local_path().is_none());
+  }
+
+  #[test]
+  fn bundled_catalog_parses() {
+    let catalog = bundled_catalog();
+    assert!(!catalog.imager.devices.is_empty());
+    assert!(!catalog.os_list.is_empty());
+    assert!(
+      catalog
+        .os_list
+        .iter()
+        .any(|item| item.name.contains("Raspberry Pi OS"))
+    );
+    assert!(default_device_index(&catalog.imager.devices).is_some());
+  }
+
+  #[test]
+  fn catalog_file_roundtrip() {
+    let dir = std::env::temp_dir().join(format!(
+      "imprint-rpi-catalog-{}",
+      std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos()
+    ));
+    fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("os_list_imagingutility_v4.json");
+    write_catalog_file(&path, SAMPLE).unwrap();
+    let loaded = read_catalog_file(&path).unwrap();
+    assert_eq!(loaded.os_list[0].name, "Raspberry Pi OS (64-bit)");
+    assert_eq!(loaded.imager.devices.len(), 2);
+    let _ = fs::remove_file(&path);
+    let _ = fs::remove_dir(&dir);
+  }
+
+  #[test]
+  fn corrupt_catalog_file_is_ignored() {
+    let dir = std::env::temp_dir().join(format!(
+      "imprint-rpi-catalog-bad-{}",
+      std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos()
+    ));
+    fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("os_list_imagingutility_v4.json");
+    fs::write(&path, "not-json").unwrap();
+    assert!(read_catalog_file(&path).is_none());
+    let _ = fs::remove_file(&path);
+    let _ = fs::remove_dir(&dir);
+  }
+
+  #[test]
+  fn matching_device_index_prefers_tags() {
+    let catalog: Catalog = serde_json::from_str(SAMPLE).unwrap();
+    let pi5 = catalog.imager.devices[0].clone();
+    assert_eq!(
+      matching_device_index(&catalog.imager.devices, Some(&pi5)),
+      Some(0)
+    );
+    let renamed = Device {
+      name: "Renamed Pi 5".into(),
+      tags: pi5.tags.clone(),
+      description: String::new(),
+      default: false,
+      matching_type: MatchingType::Exclusive,
+    };
+    assert_eq!(
+      matching_device_index(&catalog.imager.devices, Some(&renamed)),
+      Some(0)
+    );
+  }
+
+  #[test]
+  fn os_path_validates_nested_categories() {
+    let catalog: Catalog = serde_json::from_str(SAMPLE).unwrap();
+    assert!(os_path_valid(&catalog.os_list, &[]));
+    assert!(os_path_valid(&catalog.os_list, &[1]));
+    assert!(!os_path_valid(&catalog.os_list, &[0]));
+    assert!(!os_path_valid(&catalog.os_list, &[9]));
   }
 }

@@ -202,7 +202,7 @@ fn stage_card(
   .cursor_pointer()
   .hover(move |s| s.bg(hover))
   .when(ready, |d| {
-    d.border_color(cx.theme().accent.divide(0.55))
+    d.border_color(cx.theme().primary.divide(0.55))
       .shadow(glass_ready_shadows(cx))
   })
   .on_click({
@@ -236,11 +236,7 @@ fn stage_card(
         ButtonCustomVariant::new(cx)
           .color(g.fill)
           .hover(g.fill_hover)
-          .foreground(if cx.theme().is_dark() {
-            cx.theme().accent
-          } else {
-            cx.theme().primary
-          }),
+          .foreground(cx.theme().primary),
       )
       .label(action)
       .on_click(move |ev, window, cx| {
@@ -272,7 +268,7 @@ fn write_stage(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoEleme
   .when(can_write, |d| {
     d.cursor_pointer()
       .bg(primary_fill)
-      .border_color(cx.theme().accent.divide(0.55))
+      .border_color(cx.theme().primary.divide(0.55))
       .shadow(glass_primary_shadows(cx))
       .hover(move |s| s.bg(primary_hover))
       .on_click(cx.listener(ImprintApp::click_flash))
@@ -280,8 +276,6 @@ fn write_stage(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoEleme
   .child({
     let step_color = if can_write {
       cx.theme().primary_foreground
-    } else if cx.theme().is_dark() {
-      cx.theme().accent
     } else {
       cx.theme().primary
     };

@@ -1,6 +1,6 @@
 use gpui::{
   App, Context, Entity, FontWeight, InteractiveElement, IntoElement, ParentElement,
-  StatefulInteractiveElement, Styled, div, prelude::*, px,
+  StatefulInteractiveElement, Styled, deferred, div, prelude::*, px,
 };
 use gpui_component::{
   ActiveTheme as _, Colorize as _, Icon, IconName, Sizable as _, TitleBar,
@@ -15,42 +15,49 @@ use imprint_core::i18n::{t, tr};
 
 use crate::app::{ImprintApp, UpdateStatus};
 
+/// gpui-component popups use `POPUP_PRIORITY` (100). Paint the title bar
+/// above them so a flipped dropdown cannot cover the traffic lights.
+const TITLE_BAR_PAINT_PRIORITY: usize = 101;
+
 pub(crate) fn header(app: &ImprintApp, cx: &mut Context<ImprintApp>) -> impl IntoElement {
   let view = cx.entity();
-  TitleBar::new()
-    .bg(cx.theme().title_bar)
-    .border_color(cx.theme().title_bar_border)
-    .child(
-      h_flex()
-        .w_full()
-        .pr_2()
-        .items_center()
-        .justify_between()
-        .child(
-          div()
-            .text_sm()
-            .font_weight(FontWeight::SEMIBOLD)
-            .text_color(cx.theme().foreground)
-            .child(t("app.name")),
-        )
-        .child(
-          h_flex()
-            .items_center()
-            .gap_2()
-            .child(update_status_chip(app, view.clone(), cx))
-            .child(
-              Button::new("settings")
-                .ghost()
-                .small()
-                .rounded(ButtonRounded::Large)
-                .icon(IconName::Settings)
-                .tooltip(t("header.settings_tooltip"))
-                .on_click(move |_, window, cx| {
-                  view.update(cx, |this, cx| this.open_settings(window, cx));
-                }),
-            ),
-        ),
-    )
+  deferred(
+    TitleBar::new()
+      .bg(cx.theme().title_bar)
+      .border_color(cx.theme().title_bar_border)
+      .child(
+        h_flex()
+          .w_full()
+          .pr_2()
+          .items_center()
+          .justify_between()
+          .child(
+            div()
+              .text_sm()
+              .font_weight(FontWeight::SEMIBOLD)
+              .text_color(cx.theme().foreground)
+              .child(t("app.name")),
+          )
+          .child(
+            h_flex()
+              .items_center()
+              .gap_2()
+              .child(update_status_chip(app, view.clone(), cx))
+              .child(
+                Button::new("settings")
+                  .ghost()
+                  .small()
+                  .rounded(ButtonRounded::Large)
+                  .icon(IconName::Settings)
+                  .tooltip(t("header.settings_tooltip"))
+                  .on_click(move |_, window, cx| {
+                    view.update(cx, |this, cx| this.open_settings(window, cx));
+                  }),
+              ),
+          ),
+      ),
+  )
+  .with_priority(TITLE_BAR_PAINT_PRIORITY)
 }
 
 fn update_status_chip(
@@ -248,6 +255,6 @@ pub(crate) fn status_bar(app: &ImprintApp, cx: &App) -> impl IntoElement {
     })
     .when(app.error.is_some(), |d| d.text_color(cx.theme().danger))
     .when(app.error.is_none() && ready, |d| {
-      d.text_color(cx.theme().accent)
+      d.text_color(cx.theme().primary)
     })
 }

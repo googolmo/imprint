@@ -36,7 +36,7 @@ pub fn glass_ready_shadows(cx: &App) -> Vec<BoxShadow> {
     px(8.),
     px(12.),
     px(-4.),
-    cx.theme().accent.divide(0.22),
+    cx.theme().primary.divide(0.22),
   ));
   shadows
 }
@@ -62,11 +62,7 @@ pub fn section_label(cx: &App, text: impl Into<String>) -> impl gpui::IntoElemen
         .w(px(2.))
         .h(px(11.))
         .rounded_full()
-        .bg(if cx.theme().is_dark() {
-          cx.theme().accent
-        } else {
-          cx.theme().primary
-        }),
+        .bg(cx.theme().primary),
     )
     .child(
       div()
@@ -89,11 +85,7 @@ pub fn stage_kicker(
       div()
         .text_xs()
         .font_weight(FontWeight::SEMIBOLD)
-        .text_color(if cx.theme().is_dark() {
-          cx.theme().accent
-        } else {
-          cx.theme().primary
-        })
+        .text_color(cx.theme().primary)
         .child(step.into()),
     )
     .child(
@@ -138,7 +130,7 @@ pub fn icon_badge(cx: &App, icon: IconName, ready: bool, size: Pixels) -> impl g
     linear_gradient(
       135.,
       linear_color_stop(cx.theme().primary.divide(0.28), 0.),
-      linear_color_stop(cx.theme().accent.divide(0.22), 1.),
+      linear_color_stop(cx.theme().primary.divide(0.22), 1.),
     )
   } else {
     linear_gradient(
@@ -154,7 +146,7 @@ pub fn icon_badge(cx: &App, icon: IconName, ready: bool, size: Pixels) -> impl g
       px(4.),
       px(8.),
       px(-2.),
-      cx.theme().accent.divide(0.28),
+      cx.theme().primary.divide(0.28),
     ));
   }
   div()
@@ -166,7 +158,7 @@ pub fn icon_badge(cx: &App, icon: IconName, ready: bool, size: Pixels) -> impl g
     .bg(wash)
     .border_1()
     .border_color(if ready {
-      cx.theme().accent.divide(0.45)
+      cx.theme().primary.divide(0.45)
     } else {
       g.border
     })
@@ -175,7 +167,7 @@ pub fn icon_badge(cx: &App, icon: IconName, ready: bool, size: Pixels) -> impl g
       Icon::new(icon)
         .when(large, |i| i.large())
         .text_color(if ready {
-          cx.theme().accent
+          cx.theme().primary
         } else {
           cx.theme().muted_foreground
         }),

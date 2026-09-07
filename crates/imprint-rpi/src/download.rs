@@ -83,20 +83,21 @@ pub fn download_image(
     dest.extension().and_then(|s| s.to_str()).unwrap_or("bin")
   ));
 
-  let agent = ureq::AgentBuilder::new()
-    .timeout_connect(std::time::Duration::from_secs(20))
-    .timeout_read(std::time::Duration::from_secs(60))
+  let agent = ureq::Agent::config_builder()
+    .timeout_connect(Some(std::time::Duration::from_secs(20)))
+    .timeout_recv_response(Some(std::time::Duration::from_secs(60)))
     .user_agent(USER_AGENT)
-    .build();
+    .build()
+    .new_agent();
   let response = agent
     .get(url)
     .call()
     .map_err(|err| Error::Download(err.to_string()))?;
   let total = response
-    .header("Content-Length")
-    .and_then(|s| s.parse().ok())
+    .body()
+    .content_length()
     .or_else(|| (os.image_download_size > 0).then_some(os.image_download_size));
-  let mut reader = response.into_reader();
+  let mut reader = response.into_body().into_reader();
   let mut file = File::create(&part)?;
   let mut hasher = Sha256::new();
   let mut buf = vec![0u8; CHUNK];

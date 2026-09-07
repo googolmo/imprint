@@ -336,17 +336,20 @@ fn write_catalog_file(path: &Path, json: &str) -> Result<()> {
 }
 
 fn fetch_url_text(url: &str) -> Result<String> {
-  let agent = ureq::AgentBuilder::new()
-    .timeout_connect(std::time::Duration::from_secs(20))
-    .timeout_read(std::time::Duration::from_secs(60))
+  let agent = ureq::Agent::config_builder()
+    .timeout_connect(Some(std::time::Duration::from_secs(20)))
+    .timeout_recv_response(Some(std::time::Duration::from_secs(60)))
+    .timeout_recv_body(Some(std::time::Duration::from_secs(60)))
     .user_agent(USER_AGENT)
-    .build();
-  let response = agent
+    .build()
+    .new_agent();
+  let mut response = agent
     .get(url)
     .call()
     .map_err(|err| Error::Catalog(err.to_string()))?;
   response
-    .into_string()
+    .body_mut()
+    .read_to_string()
     .map_err(|err| Error::Catalog(err.to_string()))
 }
 

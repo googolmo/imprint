@@ -20,7 +20,7 @@ crates/imprint-ui/         GPUI views (theme, cards, overlays)
 crates/imprint-app/        binary: gpui_platform::application()
 crates/imprint-cli/        binary: clap
 .grok/skills/gpui/              short pointer; full GPUI skill is ~/.grok/skills/gpui
-.grok/skills/imprint-release/   GitHub Release / packaging pitfalls
+.grok/skills/imprint-release/   product overlay; generic pipeline is ~/.grok/skills/rust-app-release
 ```
 
 Dependency graph:

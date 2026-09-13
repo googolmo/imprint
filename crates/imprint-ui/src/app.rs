@@ -12,6 +12,7 @@ use gpui::{
 use gpui_component::{
   ActiveTheme as _, Colorize as _, Root, WindowExt as _, notification::Notification, v_flex,
 };
+use gpui_kit::{component as gpui_component, gpui};
 use imprint_core::i18n::{self, t, tr};
 use imprint_core::{
   FlashPhase, FlashProgress, FlashRequest, ImageRef, LocalePref, Settings, TargetDisk,

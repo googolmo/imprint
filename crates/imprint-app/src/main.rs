@@ -1,5 +1,9 @@
 mod icon;
 
+use gpui_kit::{
+  assets as gpui_component_assets, component as gpui_component, gpui, platform as gpui_platform,
+};
+
 use gpui::{App, AppContext as _, Bounds, QuitMode, WindowBounds, px, size};
 use gpui_component::input::{Copy, Cut, Paste, Redo, SelectAll, Undo};
 use gpui_component::{Root, TitleBar};

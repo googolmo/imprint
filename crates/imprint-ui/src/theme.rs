@@ -1,5 +1,6 @@
 use gpui::{App, Background, Hsla, Window, linear_color_stop, linear_gradient, px, rgb};
 use gpui_component::{ActiveTheme as _, Colorize as _, Theme, ThemeMode, ThemeToken, ThemeTokens};
+use gpui_kit::{component as gpui_component, gpui};
 
 /// Raspberry Pi brand red.
 pub const RASPBERRY: u32 = 0xC51A4A;

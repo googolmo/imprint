@@ -23,7 +23,7 @@
   <img src="public/screenshot-0.webp" alt="Imprint 截图" width="800">
 </p>
 
-原生桌面界面基于 **[GPUI](https://gpui.rs)**（Zed 的 GPU UI），另附命令行工具。支持 **macOS、Linux 和 Windows**。
+原生桌面界面基于 **[GPUI](https://gpui.rs)**，通过 **[gpui-kit](https://crates.io/crates/gpui-kit)** 引入，另附命令行工具。支持 **macOS、Linux 和 Windows**。
 
 **写入会清除目标磁盘上的全部数据。** Imprint 默认隐藏内置 / 系统磁盘。命令行在没有 `--yes` 时不会写入。
 
@@ -181,13 +181,13 @@ sudo apt-get install -y --no-install-recommends \
 | `imprint-app` | 桌面程序（`imprint`） |
 | `imprint-cli` | 命令行程序（`imprint-cli`） |
 
-依赖 **版本** 写在根目录 `Cargo.toml` 的 `[workspace.dependencies]`。**特性**（GPUI 平台后端、clap derive 等）写在各成员 crate 中。
+依赖 **版本** 写在根目录 `Cargo.toml` 的 `[workspace.dependencies]`。**特性**（clap derive 等）写在各成员 crate 中。GPUI 只通过 **`gpui-kit`** 引入（`features = ["component"]`）。
 
-GPUI 来自 **Zed 官方仓库**（`github.com/zed-industries/zed`），在根目录 `Cargo.toml` 中以 git 依赖引入。不要使用 `gpui-unofficial`。改界面请看 `AGENTS.md`。
+不要直接依赖 `gpui`、`gpui_platform`、`gpui-component` 或 `gpui-unofficial`。改界面请看 `AGENTS.md`。
 
 ## 许可证
 
 Imprint 源码为 **Apache-2.0**。详见 [LICENSE](LICENSE) 与 [NOTICE](NOTICE)。
 
 - **命令行**（`imprint-cli`）：Apache-2.0。不链接 GPUI。
-- **桌面程序**（`imprint`）：来自 Zed 官方 git 树的 GPUI 目前会拉入 `ztracing` / `zlog` / `ztracing_macro`（**GPL-3.0-or-later**）。在 [zed#55470](https://github.com/zed-industries/zed/issues/55470) 修复之前，分发该二进制属于组合作品，还需遵守 GPL-3.0。
+- **桌面程序**（`imprint`）：`gpui-kit` 目前会拉入 `gpui-pre-ztracing` / `gpui-pre-zlog` / `gpui-pre-ztracing-macro`（**GPL-3.0-or-later**）。在这些 crate 离开默认依赖图之前（见 [zed#55470](https://github.com/zed-industries/zed/issues/55470)），分发该二进制属于组合作品，还需遵守 GPL-3.0。

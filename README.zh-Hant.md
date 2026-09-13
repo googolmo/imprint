@@ -23,7 +23,7 @@
   <img src="public/screenshot-0.webp" alt="Imprint 截圖" width="800">
 </p>
 
-原生桌面介面以 **[GPUI](https://gpui.rs)**（Zed 的 GPU UI）打造，並附命令列工具。支援 **macOS、Linux 與 Windows**。
+原生桌面介面以 **[GPUI](https://gpui.rs)** 打造，透過 **[gpui-kit](https://crates.io/crates/gpui-kit)** 引入，並附命令列工具。支援 **macOS、Linux 與 Windows**。
 
 **寫入會清除目標磁碟上的所有資料。** Imprint 預設隱藏內建 / 系統磁碟。命令列在沒有 `--yes` 時不會寫入。
 

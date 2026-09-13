@@ -23,7 +23,7 @@ Raspberry Pi mode works like the official [Raspberry Pi Imager](https://www.rasp
   <img src="public/screenshot-0.webp" alt="Imprint" width="800">
 </p>
 
-Native desktop UI built with **[GPUI](https://gpui.rs)** (Zed’s GPU UI), plus a CLI. Runs on **macOS, Linux, and Windows**.
+Native desktop UI built with **[GPUI](https://gpui.rs)** via **[gpui-kit](https://crates.io/crates/gpui-kit)**, plus a CLI. Runs on **macOS, Linux, and Windows**.
 
 **Writing a disk erases it.** Imprint hides internal / system drives. The CLI will not write without `--yes`.
 
@@ -181,13 +181,13 @@ You can still launch with `sudo` / “Run as administrator” if you prefer. The
 | `imprint-app` | Desktop binary (`imprint`) |
 | `imprint-cli` | CLI binary (`imprint-cli`) |
 
-Dependency **versions** live in the root `Cargo.toml` `[workspace.dependencies]`. **Features** (GPUI platform backends, clap derive, …) live on the member crates.
+Dependency **versions** live in the root `Cargo.toml` `[workspace.dependencies]`. **Features** (clap derive, …) live on the member crates. GPUI is pulled in only as **`gpui-kit`** (`features = ["component"]`).
 
-GPUI comes from the **official Zed tree** (`github.com/zed-industries/zed`) as a git dependency in the root `Cargo.toml`. Do not use `gpui-unofficial`. See `AGENTS.md` to change the UI.
+Do not add `gpui`, `gpui_platform`, `gpui-component`, or `gpui-unofficial` as direct dependencies. See `AGENTS.md` to change the UI.
 
 ## License
 
 Imprint source is **Apache-2.0**. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
 - **CLI** (`imprint-cli`): Apache-2.0. It does not link GPUI.
-- **Desktop app** (`imprint`): GPUI from the official Zed git tree currently pulls `ztracing` / `zlog` / `ztracing_macro` (**GPL-3.0-or-later**). Distributing that binary is a combined work that must also comply with GPL-3.0 until [zed#55470](https://github.com/zed-industries/zed/issues/55470) is fixed.
+- **Desktop app** (`imprint`): `gpui-kit` currently pulls `gpui-pre-ztracing` / `gpui-pre-zlog` / `gpui-pre-ztracing-macro` (**GPL-3.0-or-later**). Distributing that binary is a combined work that must also comply with GPL-3.0 until those crates leave the default graph (see [zed#55470](https://github.com/zed-industries/zed/issues/55470)).

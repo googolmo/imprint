@@ -1,3 +1,5 @@
+use gpui_kit::{component as gpui_component, gpui};
+
 use gpui::{
   App, Context, Entity, FontWeight, InteractiveElement, IntoElement, ParentElement,
   StatefulInteractiveElement, Styled, deferred, div, prelude::*, px,

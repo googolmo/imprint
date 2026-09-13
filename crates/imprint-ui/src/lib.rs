@@ -9,8 +9,9 @@ mod views;
 mod widgets;
 
 use gpui::{App, KeyBinding, Menu, MenuItem, OsAction, TextRenderingMode, actions};
-use gpui_component::Theme;
-use gpui_component::input::{Copy, Cut, Paste, Redo, SelectAll, Undo};
+use gpui_kit::component::Theme;
+use gpui_kit::component::input::{Copy, Cut, Paste, Redo, SelectAll, Undo};
+use gpui_kit::gpui;
 use imprint_core::i18n::{self, t};
 
 use theme::Appearance;
@@ -44,7 +45,7 @@ pub const APP_PRODUCT_NAME: &str = env!("IMPRINT_APP_PRODUCT_NAME");
 /// Initialize gpui-component and follow the system appearance by default.
 pub fn init(cx: &mut App) {
   i18n::init();
-  gpui_component::init(cx);
+  gpui_kit::component::init(cx);
   cx.set_text_rendering_mode(TextRenderingMode::Grayscale);
   Theme::sync_system_appearance(None, cx);
   theme::paint_primary(cx);
@@ -68,7 +69,7 @@ pub(crate) fn install_menus_with(appearance: Appearance, cx: &mut App) {
       #[cfg(target_os = "macos")]
       MenuItem::separator(),
       #[cfg(target_os = "macos")]
-      MenuItem::os_submenu(t("menu.services"), gpui::SystemMenuType::Services),
+      MenuItem::os_submenu(t("menu.services"), gpui_kit::SystemMenuType::Services),
       MenuItem::separator(),
       MenuItem::action(t("menu.quit"), Quit),
     ]),

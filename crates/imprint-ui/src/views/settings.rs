@@ -12,6 +12,7 @@ use gpui_component::{
   tab::{Tab, TabBar},
   v_flex,
 };
+use gpui_kit::{component as gpui_component, gpui};
 use imprint_core::i18n::{self, t, tr};
 use imprint_core::{Language, LocalePref, Settings};
 

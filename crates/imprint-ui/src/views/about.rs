@@ -8,6 +8,7 @@ use gpui_component::{
   button::{Button, ButtonVariants as _},
   h_flex, v_flex,
 };
+use gpui_kit::{component as gpui_component, gpui};
 use imprint_core::i18n::{t, tr};
 
 use crate::CloseAbout;

@@ -1,3 +1,4 @@
+use gpui_kit::{component as gpui_component, gpui};
 use std::sync::{Arc, OnceLock};
 
 use gpui::{

@@ -1,3 +1,5 @@
+use gpui_kit::{component as gpui_component, gpui};
+
 use gpui::{Context, FontWeight, IntoElement, ParentElement, Styled, div, px};
 use gpui_component::{
   ActiveTheme as _, Colorize as _, Icon, IconName, Sizable as _,

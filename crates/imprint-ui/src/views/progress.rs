@@ -1,5 +1,3 @@
-use std::sync::atomic::Ordering;
-
 use gpui::{App, Context, FontWeight, IntoElement, ParentElement, Styled, div, prelude::*, px};
 use gpui_component::{
   ActiveTheme as _, Icon, IconName,
@@ -8,9 +6,11 @@ use gpui_component::{
   spinner::Spinner,
   v_flex,
 };
+use gpui_kit::{component as gpui_component, gpui};
 use imprint_core::FlashPhase;
 use imprint_core::format_bytes;
 use imprint_core::i18n::{t, tr};
+use std::sync::atomic::Ordering;
 
 use crate::app::ImprintApp;
 use crate::widgets::{bytes_progress, glass_surface, muted, section_label};

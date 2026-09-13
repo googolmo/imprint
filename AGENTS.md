@@ -17,7 +17,7 @@ crates/imprint-device/     list / unmount / eject (OS-specific under src/platfor
 crates/imprint-rpi/        Raspberry Pi catalog, download, first-boot config
 crates/imprint-flash/      write + verify pipeline (+ FAT boot overlay)
 crates/imprint-ui/         GPUI views (theme, cards, overlays)
-crates/imprint-app/        binary: gpui_platform::application()
+crates/imprint-app/        binary: gpui_kit::platform::application()
 crates/imprint-cli/        binary: clap
 .grok/skills/gpui/              short pointer; full GPUI skill is ~/.grok/skills/gpui
 .grok/skills/imprint-release/   GitHub Release / packaging pitfalls
@@ -40,12 +40,9 @@ Do not depend on `imprint-ui` from flash/device/image. Do not put block-device I
 
 ## Cargo rules
 
-- Versions and git revs: root `[workspace.dependencies]`
-- Features: member `Cargo.toml` only
-- GPUI: official Zed sources only (`git = "https://github.com/zed-industries/zed"`), **never** `gpui-unofficial`
-- Keep `gpui` / `gpui_platform` on that same git URL as `gpui-component` so Cargo unifies on one GPUI. The lockfile pins the commit.
-
-`imprint-app` enables `gpui_platform` features `font-kit`, `wayland`, `x11` (Zed README cross-platform set).
+- Versions: root `[workspace.dependencies]`
+- Features: member `Cargo.toml` only, except `gpui-kit` which is declared once at the workspace (`features = ["component"]`)
+- GPUI: **[gpui-kit](https://crates.io/crates/gpui-kit)** only. Do not add `gpui`, `gpui_platform`, `gpui-component`, or `gpui-unofficial` as direct dependencies. Import through `gpui_kit` (`gpui_kit::gpui`, `gpui_kit::platform`, `gpui_kit::component`, `gpui_kit::assets`).
 
 App identity: `Packager.toml` `identifier` / `product-name`, baked in at compile time as `IMPRINT_APP_IDENTIFIER` and `IMPRINT_APP_PRODUCT_NAME` (`env!` in `imprint-app` and `imprint-ui`).
 
@@ -62,21 +59,26 @@ cargo fmt
 
 macOS GUI needs **Xcode.app** (`xcrun metal`). Command Line Tools alone cannot compile `gpui_apple` shaders. The CLI does not need Metal.
 
-## GPUI (official only)
+## GPUI (via gpui-kit)
 
-Read `~/.grok/skills/gpui/SKILL.md` and Zed `crates/gpui/examples/`.
+Read `~/.grok/skills/gpui/SKILL.md` and [gpui-kit](https://github.com/longbridge/gpui-kit) docs.
 
 Bootstrap is in `crates/imprint-app/src/main.rs`:
 
 ```rust
+use gpui_kit::{
+  assets as gpui_component_assets, component as gpui_component, gpui, platform as gpui_platform,
+};
+
 gpui_platform::application()
     .with_quit_mode(QuitMode::LastWindowClosed)
+    .with_assets(gpui_component_assets::Assets)
     .run(|cx: &mut App| { … cx.open_window(…, |window, cx| cx.new(|cx| ImprintApp::new(window, cx))) });
 ```
 
-View state: `crates/imprint-ui/src/app.rs` (`Render` for `ImprintApp`). Styling: Tailwind-like `div()` in `widgets.rs` + `theme.rs`.
+View state: `crates/imprint-ui/src/app.rs` (`Render` for `ImprintApp`). Styling: Tailwind-like `div()` in `widgets.rs` + `theme.rs`. Widgets come from `gpui_kit::component`.
 
-Patterns already in the app (copied from Zed examples / `div.rs`):
+Patterns already in the app:
 
 - `.id("…").on_click(cx.listener(…))` — clicks need an id
 - `cx.prompt_for_paths(PathPromptOptions { … })` + `cx.spawn` + `WeakEntity::update`
@@ -84,7 +86,7 @@ Patterns already in the app (copied from Zed examples / `div.rs`):
 - `actions!` in `imprint-ui`, menus/keybindings in `imprint-app`
 - Flash work runs on a **std thread**; UI pumps `crossbeam-channel` via `cx.spawn` + `background_executor().timer`
 
-Do not call `Application::new()` — that is the pre-split API.
+Do not call `Application::new()` — that is the pre-split API. Do not depend on Zed’s git tree directly.
 
 ## Flash pipeline
 
@@ -103,7 +105,7 @@ New disk enumeration goes in `crates/imprint-device/src/platform/<os>.rs` and a 
 
 - Pure tests in `imprint-image` (magic bytes, names)
 - Do **not** write integration tests that open real disks
-- GPUI tests use `#[gpui::test]` if you add them; they need `gpui` `test-support`
+- GPUI tests use `#[gpui::test]` / `gpui_kit::test` if you add them; they need gpui-kit `test-support`
 
 ## Style
 

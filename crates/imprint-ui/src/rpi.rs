@@ -12,6 +12,7 @@ use gpui_component::{
   searchable_list::SearchableListItem,
   select::{SearchableVec, SelectEvent, SelectState},
 };
+use gpui_kit::{component as gpui_component, gpui};
 use imprint_core::i18n::t;
 use imprint_core::{BootCustomization, FlashPhase, FlashProgress, ImageRef};
 use imprint_image::inspect;

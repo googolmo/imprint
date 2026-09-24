@@ -12,12 +12,12 @@ pub struct Settings {
   #[serde(default)]
   pub locale: LocalePref,
   /// Grow the last partition after writing so the image fills a larger disk.
-  #[serde(default = "default_true")]
+  #[serde(default = "default_false")]
   pub expand_to_fill: bool,
 }
 
-fn default_true() -> bool {
-  true
+fn default_false() -> bool {
+  false
 }
 
 impl Default for Settings {
@@ -28,7 +28,7 @@ impl Default for Settings {
       hide_system_drives: true,
       allow_system_drives: false,
       locale: LocalePref::System,
-      expand_to_fill: true,
+      expand_to_fill: false,
     }
   }
 }

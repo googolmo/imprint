@@ -6,6 +6,7 @@ members = [
   "crates/imprint-image",
   "crates/imprint-device",
   "crates/imprint-rpi",
+  "crates/imprint-openwrt",
   "crates/imprint-flash",
   "crates/imprint-ui",
   "crates/imprint-app",
@@ -28,6 +29,7 @@ imprint-core = { path = "crates/imprint-core" }
 imprint-image = { path = "crates/imprint-image" }
 imprint-device = { path = "crates/imprint-device" }
 imprint-rpi = { path = "crates/imprint-rpi" }
+imprint-openwrt = { path = "crates/imprint-openwrt" }
 imprint-flash = { path = "crates/imprint-flash" }
 imprint-ui = { path = "crates/imprint-ui" }
 
@@ -57,6 +59,7 @@ ureq = "3.4.1"
 sha-crypt = "0.5.0"
 dirs = "7.0.0"
 fatfs = "0.3.6"
+tar = "0.4.44"
 
 [profile.release]
 lto = true

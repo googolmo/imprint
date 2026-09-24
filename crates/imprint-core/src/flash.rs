@@ -20,7 +20,7 @@ fn default_expand() -> bool {
   true
 }
 
-/// Text files dropped onto the imaged FAT boot partition, plus an optional
+/// Files dropped onto the imaged FAT boot partition, plus an optional
 /// `cmdline.txt` append used by Raspberry Pi `systemd` first-boot scripts.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct BootCustomization {
@@ -32,7 +32,7 @@ pub struct BootCustomization {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BootFile {
   pub name: String,
-  pub contents: String,
+  pub contents: Vec<u8>,
 }
 
 impl BootCustomization {

@@ -4,7 +4,7 @@ use std::io::{self, Read, Seek, SeekFrom, Write};
 
 use fatfs::{FileSystem, FsOptions};
 use imprint_core::{BootCustomization, Error, Result};
-use tracing::info;
+use tracing::{error, info};
 
 use crate::aligned::AlignedIo;
 
@@ -23,7 +23,10 @@ pub fn apply_on<T: Read + Write + Seek>(
   }
   // fatfs issues 1–32 byte reads/writes. Raw devices require sector I/O.
   let mut aligned = AlignedIo::new(dev, sector);
-  let (start, len) = find_fat_partition(&mut aligned)?;
+  let (start, len) = find_fat_partition(&mut aligned).map_err(|err| {
+    error!(error = %err, "unable to locate a FAT boot partition for first-boot configuration");
+    err
+  })?;
   info!(
     "writing {} boot file(s) at LBA offset {start} ({len} bytes)",
     boot.files.len()
@@ -35,8 +38,10 @@ pub fn apply_on<T: Read + Write + Seek>(
       len,
       pos: 0,
     };
-    let fs =
-      FileSystem::new(io, FsOptions::new()).map_err(|err| Error::BootConfig(err.to_string()))?;
+    let fs = FileSystem::new(io, FsOptions::new()).map_err(|err| {
+      error!(error = %err, start, len, "selected boot partition is not a readable FAT filesystem");
+      Error::BootConfig(err.to_string())
+    })?;
     {
       let root = fs.root_dir();
       for file in &boot.files {
@@ -58,7 +63,7 @@ pub fn apply_on<T: Read + Write + Seek>(
 fn write_root_file<T: Read + Write + Seek>(
   root: &fatfs::Dir<T>,
   name: &str,
-  contents: &str,
+  contents: &[u8],
 ) -> Result<()> {
   let mut file = root
     .create_file(name)
@@ -70,7 +75,7 @@ fn write_root_file<T: Read + Write + Seek>(
     .truncate()
     .map_err(|err| Error::BootConfig(err.to_string()))?;
   file
-    .write_all(contents.as_bytes())
+    .write_all(contents)
     .map_err(|err| Error::BootConfig(err.to_string()))?;
   file
     .flush()
@@ -92,7 +97,7 @@ fn patch_cmdline<T: Read + Write + Seek>(root: &fatfs::Dir<T>, append: &str) -> 
   } else {
     format!("{trimmed} {}\n", append.trim())
   };
-  write_root_file(root, "cmdline.txt", &new)
+  write_root_file(root, "cmdline.txt", new.as_bytes())
 }
 
 fn find_fat_partition<T: Read + Seek>(dev: &mut T) -> Result<(u64, u64)> {
@@ -104,11 +109,11 @@ fn find_fat_partition<T: Read + Seek>(dev: &mut T) -> Result<(u64, u64)> {
     .read_exact(&mut mbr)
     .map_err(|err| Error::BootConfig(err.to_string()))?;
   if mbr[510..] == MBR_SIGNATURE
-    && let Some(part) = mbr_fat(&mbr)
+    && let Some(part) = mbr_fat(&mbr).filter(|part| fat_boot_at(dev, part.0))
   {
     return Ok(part);
   }
-  if let Some(part) = gpt_first(dev) {
+  if let Some(part) = gpt_fat(dev) {
     return Ok(part);
   }
   Err(Error::BootConfig(
@@ -117,7 +122,6 @@ fn find_fat_partition<T: Read + Seek>(dev: &mut T) -> Result<(u64, u64)> {
 }
 
 fn mbr_fat(mbr: &[u8]) -> Option<(u64, u64)> {
-  let mut fallback = None;
   for i in 0..4 {
     let entry = &mbr[446 + i * 16..446 + (i + 1) * 16];
     let kind = entry[4];
@@ -130,14 +134,11 @@ fn mbr_fat(mbr: &[u8]) -> Option<(u64, u64)> {
     if FAT_TYPES.contains(&kind) {
       return Some(range);
     }
-    if fallback.is_none() {
-      fallback = Some(range);
-    }
   }
-  fallback
+  None
 }
 
-fn gpt_first<T: Read + Seek>(dev: &mut T) -> Option<(u64, u64)> {
+fn gpt_fat<T: Read + Seek>(dev: &mut T) -> Option<(u64, u64)> {
   let mut header = [0u8; 512];
   dev.seek(SeekFrom::Start(SECTOR)).ok()?;
   dev.read_exact(&mut header).ok()?;
@@ -166,9 +167,22 @@ fn gpt_first<T: Read + Seek>(dev: &mut T) -> Option<(u64, u64)> {
     if last < first {
       continue;
     }
-    return Some((first * SECTOR, (last - first + 1) * SECTOR));
+    let part = (first * SECTOR, (last - first + 1) * SECTOR);
+    if fat_boot_at(dev, part.0) {
+      return Some(part);
+    }
   }
   None
+}
+
+/// FAT volumes have the DOS signature and a FAT12/16 or FAT32 type label in
+/// their BPB. Partition table types alone are not reliable on vendor images.
+fn fat_boot_at<T: Read + Seek>(dev: &mut T, start: u64) -> bool {
+  let mut sector = [0u8; 512];
+  dev.seek(SeekFrom::Start(start)).is_ok()
+    && dev.read_exact(&mut sector).is_ok()
+    && sector[510..] == MBR_SIGNATURE
+    && (&sector[54..57] == b"FAT" || &sector[82..85] == b"FAT")
 }
 
 struct SliceIo<'a, T> {
@@ -346,7 +360,7 @@ mod tests {
     BootCustomization {
       files: vec![BootFile {
         name: "user-data".into(),
-        contents: "#cloud-config\nhostname: lab-pi\n".into(),
+        contents: b"#cloud-config\nhostname: lab-pi\n".to_vec(),
       }],
       cmdline_append: Some(
         "systemd.run=/boot/firstrun.sh systemd.run_success_action=reboot".into(),

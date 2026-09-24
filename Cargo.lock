@@ -3681,6 +3681,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "imprint-openwrt"
+version = "0.1.6"
+dependencies = [
+ "flate2",
+ "imprint-core",
+ "sha-crypt",
+ "tar",
+]
+
+[[package]]
 name = "imprint-rpi"
 version = "0.1.6"
 dependencies = [
@@ -3706,6 +3716,7 @@ dependencies = [
  "imprint-device",
  "imprint-flash",
  "imprint-image",
+ "imprint-openwrt",
  "imprint-rpi",
  "tracing",
 ]

@@ -14,6 +14,7 @@ imprint-core = { workspace = true }
 imprint-image = { workspace = true }
 imprint-device = { workspace = true }
 imprint-rpi = { workspace = true }
+imprint-openwrt = { workspace = true }
 imprint-flash = { workspace = true }
 gpui-kit = { workspace = true }
 crossbeam-channel = { workspace = true }

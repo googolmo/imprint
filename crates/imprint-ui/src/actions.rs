@@ -2,5 +2,5 @@
 
 pub use crate::{
   About, AppearanceDark, AppearanceLight, AppearanceSystem, CheckForUpdates, OpenImage,
-  OpenRaspberryPi, Quit, RefreshDrives, SelectTarget, StartFlash, ToggleSettings,
+  OpenOpenWrt, OpenRaspberryPi, Quit, RefreshDrives, SelectTarget, StartFlash, ToggleSettings,
 };

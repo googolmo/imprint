@@ -24,7 +24,7 @@ use imprint_rpi::image_cache_dir;
 
 use crate::actions::{
   About, AppearanceDark, AppearanceLight, AppearanceSystem, CheckForUpdates, OpenImage,
-  OpenRaspberryPi, Quit, RefreshDrives, SelectTarget, StartFlash, ToggleSettings,
+  OpenOpenWrt, OpenRaspberryPi, Quit, RefreshDrives, SelectTarget, StartFlash, ToggleSettings,
 };
 use crate::rpi::{AppMode, RpiEvent, RpiState, RpiStep};
 use crate::theme::Appearance;
@@ -68,6 +68,7 @@ pub struct ImprintApp {
   pub(crate) appearance: Appearance,
   pub(crate) mode: AppMode,
   pub(crate) rpi: RpiState,
+  pub(crate) openwrt: crate::openwrt::OpenWrtState,
   pub(crate) image: Option<ImageRef>,
   rpi_offer_path: Option<PathBuf>,
   pub(crate) disks: Vec<TargetDisk>,
@@ -111,12 +112,14 @@ impl ImprintApp {
     });
 
     let rpi = RpiState::new(window, cx);
+    let openwrt = crate::openwrt::OpenWrtState::new(window, cx);
     let mut this = Self {
       focus,
       settings: Settings::default(),
       appearance: Appearance::System,
       mode: AppMode::Flash,
       rpi,
+      openwrt,
       image: None,
       rpi_offer_path: None,
       disks,
@@ -212,7 +215,9 @@ impl ImprintApp {
   }
 
   fn watching_disks(&self) -> bool {
-    !self.flashing && self.mode == AppMode::RaspberryPi && self.rpi.step == RpiStep::Storage
+    !self.flashing
+      && matches!(self.mode, AppMode::RaspberryPi | AppMode::OpenWrt)
+      && (self.mode == AppMode::OpenWrt || self.rpi.step == RpiStep::Storage)
   }
 
   pub(crate) fn sync_disk_watch(&mut self, cx: &mut Context<Self>) {
@@ -374,6 +379,9 @@ impl ImprintApp {
   fn on_open_raspberry_pi(&mut self, _: &OpenRaspberryPi, _: &mut Window, cx: &mut Context<Self>) {
     self.open_raspberry_pi(cx);
   }
+  fn on_open_openwrt(&mut self, _: &OpenOpenWrt, _: &mut Window, cx: &mut Context<Self>) {
+    self.open_openwrt(cx);
+  }
 
   fn on_refresh_drives(&mut self, _: &RefreshDrives, _: &mut Window, cx: &mut Context<Self>) {
     self.refresh_disks(cx);
@@ -444,6 +452,8 @@ impl ImprintApp {
     }
     let boot = if self.mode == AppMode::RaspberryPi {
       self.rpi.pending_boot.clone()
+    } else if self.mode == AppMode::OpenWrt {
+      self.openwrt.pending_boot.clone()
     } else {
       None
     };
@@ -476,6 +486,9 @@ impl ImprintApp {
         let result = flash(request, &cancel, |progress| {
           let _ = tx.send(ProgressEvent::Update(progress));
         });
+        if let Err(err) = &result {
+          tracing::error!(error = %err, "flash operation failed");
+        }
         let _ = tx.send(ProgressEvent::Finished(result.map_err(|e| e.localized())));
       })
       .ok();
@@ -916,6 +929,7 @@ impl Render for ImprintApp {
       .on_action(cx.listener(Self::on_about))
       .on_action(cx.listener(Self::on_check_for_updates))
       .on_action(cx.listener(Self::on_open_raspberry_pi))
+      .on_action(cx.listener(Self::on_open_openwrt))
       .on_action(cx.listener(Self::on_refresh_drives))
       .on_action(cx.listener(Self::on_appearance_system))
       .on_action(cx.listener(Self::on_appearance_light))
@@ -962,6 +976,8 @@ impl Render for ImprintApp {
             views::progress::panel(self, cx).into_any_element()
           } else if self.mode == AppMode::RaspberryPi {
             views::rpi::page(self, cx).into_any_element()
+          } else if self.mode == AppMode::OpenWrt {
+            views::openwrt::page(self, cx).into_any_element()
           } else {
             views::write::form(self, cx).into_any_element()
           }),

@@ -8,7 +8,8 @@ use gpui::{App, AppContext as _, Bounds, QuitMode, WindowBounds, px, size};
 use gpui_component::input::{Copy, Cut, Paste, Redo, SelectAll, Undo};
 use gpui_component::{Root, TitleBar};
 use imprint_ui::{
-  ImprintApp, ImprintShell, OpenImage, OpenRaspberryPi, Quit, RefreshDrives, ToggleSettings,
+  ImprintApp, ImprintShell, OpenImage, OpenOpenWrt, OpenRaspberryPi, Quit, RefreshDrives,
+  ToggleSettings,
 };
 use tracing_subscriber::EnvFilter;
 
@@ -37,6 +38,8 @@ fn main() {
         gpui::KeyBinding::new("ctrl-o", OpenImage, None),
         gpui::KeyBinding::new("cmd-shift-r", OpenRaspberryPi, None),
         gpui::KeyBinding::new("ctrl-shift-r", OpenRaspberryPi, None),
+        gpui::KeyBinding::new("cmd-shift-w", OpenOpenWrt, None),
+        gpui::KeyBinding::new("ctrl-shift-w", OpenOpenWrt, None),
         gpui::KeyBinding::new("cmd-r", RefreshDrives, None),
         gpui::KeyBinding::new("ctrl-r", RefreshDrives, None),
         gpui::KeyBinding::new("cmd-z", Undo, None),

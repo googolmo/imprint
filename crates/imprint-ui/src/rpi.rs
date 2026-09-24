@@ -28,6 +28,7 @@ use crate::app::ImprintApp;
 pub(crate) enum AppMode {
   Flash,
   RaspberryPi,
+  OpenWrt,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

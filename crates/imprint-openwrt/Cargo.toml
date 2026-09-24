@@ -1,0 +1,12 @@
+[package]
+name = "imprint-openwrt"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+imprint-core = { workspace = true }
+sha-crypt = { workspace = true }
+flate2 = { workspace = true }
+tar = { workspace = true }

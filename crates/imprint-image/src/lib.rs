@@ -55,6 +55,13 @@ pub fn looks_like_raspberry_pi(name: &str) -> bool {
   stem.ends_with("-raspi") || stem.ends_with("_raspi") || stem.ends_with(".raspi")
 }
 
+/// True for local OpenWrt disk-image names supported by the post-flash overlay path.
+pub fn looks_like_openwrt(name: &str) -> bool {
+  let lower = name.to_ascii_lowercase();
+  let stem = strip_compression_suffix(&lower);
+  lower.contains("openwrt") && (stem.ends_with(".img") || stem.ends_with(".raw"))
+}
+
 pub fn compression_from_name(name: &str) -> Option<Compression> {
   let lower = name.to_ascii_lowercase();
   if lower.ends_with(".gz") || lower.ends_with(".gzip") {

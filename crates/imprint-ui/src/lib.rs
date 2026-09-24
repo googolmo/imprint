@@ -2,6 +2,7 @@
 
 mod actions;
 mod app;
+mod openwrt;
 mod rpi;
 mod theme;
 mod updater;
@@ -27,6 +28,7 @@ actions!(
     About,
     CheckForUpdates,
     OpenRaspberryPi,
+    OpenOpenWrt,
     RefreshDrives,
     AppearanceSystem,
     AppearanceLight,
@@ -76,6 +78,7 @@ pub(crate) fn install_menus_with(appearance: Appearance, cx: &mut App) {
     Menu::new(t("menu.file")).items([
       MenuItem::action(t("menu.open_image"), OpenImage),
       MenuItem::action(t("menu.raspberry_pi"), OpenRaspberryPi),
+      MenuItem::action("OpenWrt", OpenOpenWrt),
       MenuItem::separator(),
       MenuItem::action(t("menu.select_drive"), SelectTarget),
     ]),

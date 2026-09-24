@@ -47,17 +47,17 @@ fn cloud_init(init: InitFormat, cfg: &PiCustomization) -> Result<BootCustomizati
   let mut files = vec![
     BootFile {
       name: "user-data".into(),
-      contents: user_data(init, cfg)?,
+      contents: user_data(init, cfg)?.into_bytes(),
     },
     BootFile {
       name: "meta-data".into(),
-      contents: meta_data(cfg),
+      contents: meta_data(cfg).into_bytes(),
     },
   ];
   if cfg.wifi_ssid.is_some() {
     files.push(BootFile {
       name: "network-config".into(),
-      contents: network_config(cfg),
+      contents: network_config(cfg).into_bytes(),
     });
   }
   Ok(BootCustomization {
@@ -154,7 +154,7 @@ fn systemd(cfg: &PiCustomization) -> Result<BootCustomization> {
   Ok(BootCustomization {
     files: vec![BootFile {
       name: "firstrun.sh".into(),
-      contents: firstrun(cfg)?,
+      contents: firstrun(cfg)?.into_bytes(),
     }],
     cmdline_append: Some(
       "systemd.run=/boot/firstrun.sh systemd.run_success_action=reboot systemd.run_failure_action=reboot"
@@ -349,14 +349,14 @@ mod tests {
     .unwrap();
     let names: Vec<_> = boot.files.iter().map(|f| f.name.as_str()).collect();
     assert_eq!(names, ["user-data", "meta-data", "network-config"]);
-    let user = &boot.files[0].contents;
+    let user = std::str::from_utf8(&boot.files[0].contents).unwrap();
     assert!(user.starts_with("#cloud-config\n"));
     assert!(user.contains("hostname: lab-pi"));
     assert!(user.contains("name: momo"));
     assert!(user.contains("passwd: $6$"));
     assert!(user.contains("enable_ssh: true"));
     assert!(user.contains("rpi:"));
-    let net = &boot.files[2].contents;
+    let net = std::str::from_utf8(&boot.files[2].contents).unwrap();
     assert!(net.contains("regulatory-domain: DE"));
     assert!(net.contains("'Cafe WiFi'"));
     assert!(boot.cmdline_append.is_none());
@@ -375,8 +375,16 @@ mod tests {
     .unwrap()
     .unwrap();
     assert_eq!(boot.files[0].name, "firstrun.sh");
-    assert!(boot.files[0].contents.contains("set_hostname 'old-pi'"));
-    assert!(boot.files[0].contents.contains("systemctl enable ssh"));
+    assert!(
+      std::str::from_utf8(&boot.files[0].contents)
+        .unwrap()
+        .contains("set_hostname 'old-pi'")
+    );
+    assert!(
+      std::str::from_utf8(&boot.files[0].contents)
+        .unwrap()
+        .contains("systemctl enable ssh")
+    );
     assert!(
       boot
         .cmdline_append
